@@ -4,7 +4,7 @@ OpenCandle is a free, source-available desktop charting app for Windows. It char
 
 - **Bring your own data.** OpenCandle ships with practice data and connects to free public sources. Real-time US stocks use your own free Alpaca key. You can also import your own files.
 - **No account.** There is nothing to sign up for and no login.
-- **No telemetry.** OpenCandle does not collect usage data or send anything home. Network requests happen only for data sources you turn on or open.
+- **No telemetry.** OpenCandle does not collect usage data or send anything home. Network requests happen only for data sources that are on. A new install turns on Coinbase public data (no account or key) for its first chart; you can turn it off in Data sources.
 - **Local first.** Your workspace, drawings, scripts, alerts and settings are saved in your Windows profile folder.
 
 Website: https://getopencandle.com

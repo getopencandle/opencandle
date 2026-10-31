@@ -145,7 +145,7 @@ const BEFORE={
 // 0.8.1 round 2/3: the pale cyan default drawing colour becomes the drawing blue (contrast on light charts), the regression
 //   trend gains deviation inputs, Bars pattern starts above the series. portCatalog, registered and all move. Previous:
 //   portCatalog bf45eb26, registered b3f5ed6e, all 4acfb579.
-// 0.8.1 drawing spec fixes (lane F-draw): new Gann fan drawings store the classic time x price angle labels (the ratio 2
+// 0.8.1 drawing spec fixes: new Gann fan drawings store the classic time x price angle labels (the ratio 2
 //   line reads 1/2). Only registered (the gannfan sample levels) and all move. Proof: dropping the Gann fan defaultLevels
 //   override reproduces the previous registered pin exactly. Previous: all e2678e5a, registered 54b17759.
 const PINNED={

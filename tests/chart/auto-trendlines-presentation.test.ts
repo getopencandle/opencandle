@@ -10,7 +10,7 @@ function manual(edit:Partial<AutoTrendScene['lines'][number]>={}):AutoTrendResul
  return{status:'ready',scene:{schemaVersion:1,policy:AUTO_TREND_POLICY,sourceKey:'SYNTHETIC:manual',fromIndex:0,asOfIndex:139,asOfTime:100000,lines:[line],pivots:[]},usage:{operations:1000,numericSlots:100,peakNumericSlots:100}};
 }
 it('native payload uses absolute logical indices across an irregular timestamp gap and original instance-scoped ids',()=>{
- const result=manual(),drawn=presentAutoTrendlines(result,options);expect(drawn.status).toBe('ready');if(drawn.status!=='ready')throw Error(drawn.diagnostic);const to=(result as unknown as {scene:{lines:{to:{index:number;price:number}}[]}}).scene.lines[0].to;// An unbroken extension is a ray through both pivots, so its projection never feeds the autoscale (lane VI).
+ const result=manual(),drawn=presentAutoTrendlines(result,options);expect(drawn.status).toBe('ready');if(drawn.status!=='ready')throw Error(drawn.diagnostic);const to=(result as unknown as {scene:{lines:{to:{index:number;price:number}}[]}}).scene.lines[0].to;// An unbroken extension is a ray through both pivots, so its projection never feeds the autoscale.
  expect(drawn.lines[0]).toMatchObject({xloc:'bar_index',x1:20,x2:to.index,y1:90,y2:to.price,extend:'right',paneId:'price',color:options.supportColor});expect(to.price).toBeCloseTo(90+5/60*(to.index-20),9);const second=presentAutoTrendlines(result,{...options,instanceId:'SYNTHETIC:another'});expect(second.lines[0].id).not.toBe(drawn.lines[0].id);expect(drawn.sourceKey).toBe('SYNTHETIC:manual');expect(drawn.asOfIndex).toBe(139);expect(Object.isFrozen(drawn.lines[0])).toBe(true);
 });
 it('a confirmed breakout is finite and an ineligible extension draws only its exact base',()=>{

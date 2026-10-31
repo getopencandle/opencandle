@@ -107,7 +107,7 @@ describe('AUTOTREND catalog registration',()=>{
   const bars=market(5000,'spy'),result=calculateIndicator('autotrendlines',bars,{lineSize:'Both',barsToBreakout:3,showPivots:true});
   expect(result.series.map(row=>row.id)).toEqual(['bullish','bearish']);for(const row of result.series)expect(row.values.every(value=>value===null)).toBe(true);
   expect(result.marks!.lines.length).toBeGreaterThan(0);expect(result.marks!.markers.length).toBeGreaterThan(0);
-  const scene=ready(bars,{lineSize:'Both'}).scene;// An unbroken line is a ray through its two pivots (lane VI: its projection stays off the price scale); a broken one ends at the breakout.
+  const scene=ready(bars,{lineSize:'Both'}).scene;// An unbroken line is a ray through its two pivots (its projection stays off the price scale); a broken one ends at the breakout.
   expect(result.marks!.lines.map(row=>[row.from.index,row.to.index,row.extendRight===true])).toEqual(scene.lines.map(row=>row.breakoutIndex===null?[row.from.index,row.to.index,true]:[row.from.index,row.endIndex,false]));
   const drawn=patternMarksNative('i1',result,bars,()=>({visible:true,color:'#089981',opacity:100,width:1,lineStyle:'solid'}) as never);expect(drawn.lines).toHaveLength(result.marks!.lines.length);
   const broken=calculateIndicator('autotrendlines',bars.map((bar,i)=>i===10?{...bar,close:NaN}:bar),{});expect(broken.marks?.lines??[]).toEqual([]);

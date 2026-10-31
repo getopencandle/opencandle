@@ -1,4 +1,4 @@
-// Drawing tool specs (OpenCandle 0.8.1, lane S): what EVERY drawing tool in the catalog must show for a fixed set of anchors.
+// Drawing tool specs (OpenCandle 0.8.1): what EVERY drawing tool in the catalog must show for a fixed set of anchors.
 // Expectations come from each tool's standard definition (sources noted per spec), never from what the code happens to
 // draw today. Content, geometry and labels only: no colours, widths or styling.
 //

@@ -342,7 +342,7 @@
    ],
    "timing": "2a-2f",
    "disagreements": [
-    "TradingView HV uses the population deviation and sqrt(365); OpenCandle documents Hull (sample, 252)."
+    "Some charting platforms use the population deviation and sqrt(365); OpenCandle documents Hull (sample, 252)."
    ],
    "source": "John C. Hull: sample deviation of log returns x sqrt(252)"
   },
@@ -363,7 +363,7 @@
    ],
    "timing": "2a-2f",
    "disagreements": [
-    "SMA-seeded EMAs (TA-Lib). TradingView TRIX uses log prices x 10000 (comparison point only)."
+    "SMA-seeded EMAs (TA-Lib). Some charting platforms compute TRIX from log prices x 10000 (comparison point only)."
    ],
    "source": "Jack Hutson (1983): 1-bar percent ROC of a triple EMA; TA-Lib 0.6 (ta-lib.org), cross-checked TRIX (tail)"
   },
@@ -599,7 +599,7 @@
    ],
    "timing": "2a-2f",
    "disagreements": [
-    "TradingView computes KVO from signed volume only (sv = +/-volume by hlc3 change); OpenCandle documents the MetaStock volume-force form."
+    "Some charting platforms compute KVO from signed volume only (sv = +/-volume by hlc3 change); OpenCandle documents the MetaStock volume-force form."
    ],
    "source": "Stephen Klinger, volume force in the MetaStock form (as documented), EMA 34/55, signal EMA 13"
   },

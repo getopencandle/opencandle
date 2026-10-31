@@ -1,4 +1,4 @@
-// Drawing tool specs (OpenCandle 0.8.1, lane S). For every spec in tests/fixtures/drawing-spec/specs.ts the drawing is placed
+// Drawing tool specs (OpenCandle 0.8.1). For every spec in tests/fixtures/drawing-spec/specs.ts the drawing is placed
 // the way the app restores a saved drawing (its serialized record loaded through DrawingStore.load, which is what
 // chart.drawings.fromJSON does), projected by the renderer's own CoordinateSystem/createProjector over a bar fixture with
 // weekend gaps, painted by the installed (patched) DrawingPainter on a recording canvas, and checked against the spec.

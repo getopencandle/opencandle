@@ -39,7 +39,7 @@ it('is visual-only: no values, marks published, alerts refused, deterministic', 
  expect(countElliottWaves(elliottSwings(bars,'Small'),true)).toEqual(countElliottWaves(elliottSwings(bars,'Small'),true));
 });
 
-// lane VI: wave labels sit outside price action, peaks above and troughs below.
+// Wave labels sit outside price action, peaks above and troughs below.
 it('puts each wave label above a peak and below a trough',()=>{
  const bars=legs(UP);let published:any;
  AUTO_ELLIOTT_DEFINITION.calculate({bars,str:(k:string)=>k==='swingSize'?'Small':'',bool:()=>true,num:()=>0,marks:(m:unknown)=>{published=m;}} as any);

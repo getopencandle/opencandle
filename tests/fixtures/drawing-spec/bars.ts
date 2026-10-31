@@ -1,4 +1,4 @@
-// Drawing spec fixture (OpenCandle 0.8.1, lane S): a deterministic bar timeline with weekend gaps and fixed price scales.
+// Drawing spec fixture (OpenCandle 0.8.1): a deterministic bar timeline with weekend gaps and fixed price scales.
 // SYNTHETIC. Bar index i of the daily series is Monday 2024-01-01 + i trading days (Saturdays and Sundays skipped), so a
 // calendar-day count and a bar count differ whenever a level crosses a weekend.
 export const DAY=86400000,HOUR=3600000;

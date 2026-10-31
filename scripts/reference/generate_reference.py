@@ -6,10 +6,10 @@ Run (isolated mode; user site-packages are appended explicitly so TA-Lib resolve
 Writes:
     tests/fixtures/reference/bars.json      deterministic OHLCV series (seeded; no market data)
     tests/fixtures/reference/expected.json  expected indicator outputs per case
-    tests/fixtures/reference/sources.json   per-case source, citation and noted disagreements
+    tests/fixtures/reference/coverage.json  per-case source, citation and noted disagreements (maintained by hand, checked by tests/reference/coverage.test.ts)
 
-Reference order (owner policy, 0.8.1): (1) the original author's published definition, (2) TA-Lib /
-StockCharts ChartSchool / the author's book, (3) TradingView only as a comparison point. Where sources
+Reference order (0.8.1): (1) the original author's published definition, (2) TA-Lib /
+StockCharts ChartSchool / the author's book, (3) other charting platforms only as a comparison point. Where sources
 disagree, the expected values follow the convention OpenCandle documents in its catalog provenance and
 policies; the disagreement is recorded in `notes` (it is NOT a failure).
 
@@ -291,11 +291,11 @@ def build_cases(B):
     case('vwma-20', 'vwma', {}, {'vwma': wsum(c * v, 20) / wsum(v, 20)}, 'author', 'Buff Dormeier (2011)')
     lr = np.log(c / shift(c, 1))
     case('hv-10', 'hv', {}, {'hv': 100 * stdev(lr, 10, 1) * math.sqrt(252)}, 'author', 'John C. Hull: sample deviation of log returns x sqrt(252)',
-         'TradingView HV uses the population deviation and sqrt(365); OpenCandle documents Hull (sample, 252).')
+         'Some charting platforms use the population deviation and sqrt(365); OpenCandle documents Hull (sample, 252).')
     case('uo', 'uo', {}, {'uo': talib.ULTOSC(h, l, c, 7, 14, 28)}, 'talib', 'Larry Williams (1985); ' + TAL + ' ULTOSC')
     e3 = ema(ema(ema(c, 18, 'sma'), 18, 'sma'), 18, 'sma')
     case('trix-18', 'trix', {}, {'trix': 100 * (e3 - shift(e3, 1)) / shift(e3, 1)}, 'author', 'Jack Hutson (1983): 1-bar percent ROC of a triple EMA; ' + TAL + ' TRIX (tail)',
-         'SMA-seeded EMAs (TA-Lib). TradingView TRIX uses log prices x 10000 (comparison point only).')
+         'SMA-seeded EMAs (TA-Lib). Some charting platforms compute TRIX from log prices x 10000 (comparison point only).')
     ch = change(c); su, sd = wsum(np.where(ch > 0, ch, 0), 9), wsum(np.where(ch < 0, -ch, 0), 9)
     su[:9] = NAN
     case('cmo-9', 'cmo', {}, {'cmo': 100 * (su - sd) / (su + sd)}, 'author', 'Tushar Chande, The New Technical Trader (1994): sums of up/down changes',
@@ -395,7 +395,7 @@ def build_cases(B):
     case('woodiescci', 'woodiescci', {}, {'histogram': w14, 'cci': w14, 'turbo': w6}, 'hand', 'Ken Wood: CCI 14 and turbo CCI 6 of the typical price (Lambert CCI)')
     kvo = klinger(h, l, c, v)
     case('klinger', 'klinger', {}, kvo, 'hand', 'Stephen Klinger, volume force in the MetaStock form (as documented), EMA 34/55, signal EMA 13',
-         'TradingView computes KVO from signed volume only (sv = +/-volume by hlc3 change); OpenCandle documents the MetaStock volume-force form.')
+         'Some charting platforms compute KVO from signed volume only (sv = +/-volume by hlc3 change); OpenCandle documents the MetaStock volume-force form.')
     case('asi', 'asi', {}, {'asi': asi(o, h, l, c, 10)}, 'hand', 'J. Welles Wilder (1978) swing index, limit move 10, running total')
     ez = ema(c, 34, 'sma'); slope = 100 * (ez - shift(ez, 1)) / (highest(h, 30) - lowest(l, 30))
     case('chopzone', 'chopzone', {}, {'slope': slope, 'zone': np.where(np.isfinite(slope), 1.0, NAN)}, 'hand', 'Chop zone slope = 100 x EMA change / (highest high - lowest low over 30)')

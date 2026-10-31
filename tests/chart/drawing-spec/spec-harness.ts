@@ -1,4 +1,4 @@
-// Drawing spec harness (OpenCandle 0.8.1, lane S). Places a drawing the way the app restores a saved one (a serialized record
+// Drawing spec harness (OpenCandle 0.8.1). Places a drawing the way the app restores a saved one (a serialized record
 // loaded through the native DrawingStore, which is what chart.drawings.fromJSON does), projects it with the renderer's own
 // CoordinateSystem + createProjector on a deterministic bar fixture, paints it through the installed (patched) DrawingPainter on
 // a recording canvas, and converts what was painted back to bar-index / price space.

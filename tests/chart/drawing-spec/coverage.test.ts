@@ -1,4 +1,4 @@
-// Drawing spec coverage (OpenCandle 0.8.1, lane S): every drawing tool in the catalog has a spec in
+// Drawing spec coverage (OpenCandle 0.8.1): every drawing tool in the catalog has a spec in
 // tests/fixtures/drawing-spec/specs.ts, or an explicit, reasoned invariants-only exemption. A new tool without a spec fails here.
 import {describe,expect,it} from 'vitest';
 import {createDrawing} from '@luxalgo/vela';

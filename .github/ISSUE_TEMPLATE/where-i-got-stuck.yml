@@ -1,0 +1,51 @@
+name: Where I got stuck
+description: Tell us where OpenCandle got in your way. Short answers are fine.
+title: "Stuck: "
+labels: ["tester feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing OpenCandle. A few plain sentences are all we need. Please do not paste API keys or account details.
+  - type: textarea
+    id: trying
+    attributes:
+      label: What were you trying to do?
+      placeholder: "Example: set up my usual layout with two charts and RSI."
+    validations:
+      required: true
+  - type: textarea
+    id: stuck
+    attributes:
+      label: Where did you get stuck?
+      description: What happened, or what you could not find.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: OpenCandle version
+      description: Help menu (the ? button) > Version and license.
+      placeholder: "0.8.1"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: false
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot (optional)
+      description: Drag an image here if it helps. Hide anything private first.
+    validations:
+      required: false

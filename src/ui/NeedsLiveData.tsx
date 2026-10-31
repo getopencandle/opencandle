@@ -8,7 +8,7 @@ import './needs-live-data.css';
 
 /** User-facing text of the chart's needs-live-data card and the example banner (plain words, no em dashes). */
 export const NEEDS_LIVE_TITLE='This chart needs live data to display properly.';
-export const NEEDS_LIVE_STOCKS='For US stocks and ETFs we recommend Alpaca. A free account and its API key are all you need.';
+export const NEEDS_LIVE_STOCKS='For real-time US stocks and ETFs, add a free Alpaca key in Data sources. A free Alpaca account is all you need.';
 export const NEEDS_LIVE_CRYPTO='For crypto we recommend Coinbase. It is free and needs no account or key. Turn it on in Data sources.';
 export const NEEDS_LIVE_EXAMPLE_ONLY='Example data covers only '+EXAMPLE_SYMBOLS.slice(0,-1).join(', ')+' and '+EXAMPLE_SYMBOLS.at(-1)+'.';
 export const EXAMPLE_BANNER_TEXT='Example data. These prices are invented, not real market prices.';
@@ -58,9 +58,10 @@ export function NeedsLiveData(props:NeedsLiveDataProps&{size?:NeedsLiveSize;styl
   </section>
  </div>;
 }
-/** Top of the chart while example mode is on. */
-export function ExampleDataBanner(props:{onLeave:()=>void}){
- return <div className="lv-example-banner" role="status" data-lv-example-banner=""><strong>EXAMPLE</strong><span>{EXAMPLE_BANNER_TEXT}</span><button type="button" onClick={props.onLeave}>{LEAVE_EXAMPLE}</button></div>;
+/** Top of the chart while example mode is on. The first-run fallback (first-run.ts) passes its own text and a
+ * "Try live again" button in place of "Leave example mode". */
+export function ExampleDataBanner(props:{onLeave:()=>void;text?:string;leaveLabel?:string}){
+ return <div className="lv-example-banner" role="status" data-lv-example-banner=""><strong>EXAMPLE</strong><span>{props.text??EXAMPLE_BANNER_TEXT}</span><button type="button" onClick={props.onLeave}>{props.leaveLabel??LEAVE_EXAMPLE}</button></div>;
 }
 
 /** One card per chart cell that has no live data, placed over that cell (sized to it) instead of over the whole

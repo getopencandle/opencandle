@@ -70,6 +70,8 @@ contextBridge.exposeInMainWorld('lv', Object.freeze({
   onCoinbaseEvent: handler => liveListener('lv:coinbase:event', handler),
   startupOpenSymbol: () => invoke('lv:startup:open-symbol'),
   startupOpenSymbols: () => invoke('lv:startup:open-symbols'),
+  // Opens the fixed "where I got stuck" issue form in the browser (the address lives in main).
+  reportStuck: () => invoke('lv:help:report-stuck'),
   alpacaKeyStatus:() => invoke('lv:alpaca:key-status'),
   saveAlpacaKey: value => invoke('lv:alpaca:key-save', value),
   clearAlpacaKey: () => invoke('lv:alpaca:key-clear'),

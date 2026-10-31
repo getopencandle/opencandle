@@ -226,6 +226,7 @@ async function restoreLayoutWindows(){
   if(typeof text!=='string'||!text.includes('"layoutId"'))return;
   try{await windows().restore();}catch{/* a window that cannot be restored is skipped */}
 }
+const REPORT_STUCK_URL='https://github.com/getopencandle/opencandle/issues/new?template=where-i-got-stuck.yml';
 const startupOpenArg=argv=>{const a=(Array.isArray(argv)?argv:[]).find(x=>typeof x==='string'&&x.startsWith('--lv-open-symbol='));const v=a?a.slice(17):'';return /^[A-Za-z0-9.\-]{1,13}$/.test(v)?v:null;};
 // Symbols are at most 13 characters (ALPACA_SYMBOL: GME.WS, XYZ.WS.A). --lv-open-symbols=GME,SPY,GME.WS takes
 // at most 16 (one full layout), spaces around commas allowed. Main forwards the raw capped text; the renderer validates.
@@ -294,6 +295,9 @@ function installIPC(store) {
     // provider choices (exactly {settings}) through the usual save dialog; Import reads one small JSON file the user picks and
     // answers the validated choices. No key ever crosses these channels in either direction.
     'lv:datasources:info': async value => {noInput(value);return dataSourcesInfo();},
+    // Help > Report where you got stuck: opens the fixed GitHub issue form in the default browser. No input, and the
+    // renderer never names the address.
+    'lv:help:report-stuck': async value => {noInput(value);await require('electron').shell.openExternal(REPORT_STUCK_URL);return {opened:true};},
     'lv:datasources:open-folder': async value => {noInput(value);const directory=app.getPath('userData');await fs.mkdir(directory,{recursive:true});const failure=await require('electron').shell.openPath(directory);if(failure)throw new validation.BoundaryError('OPEN_FAILED','The folder could not be opened.');return {opened:true};},
     'lv:datasources:export': async (value,event) => {const sources=dataSourcesModule(),settings=sources.exportInput(value);return exportFile(Buffer.from(sources.serializeSettings(settings),'utf8'),sources.SETTINGS_FILE_NAME,'json',event,'Save data source settings');},
     'lv:datasources:import': async value => {noInput(value);const sources=dataSourcesModule();const selected=await modalOpenDialog(mainWindow,{title:'Import data source settings',properties:['openFile'],filters:[{name:'OpenCandle data source settings',extensions:['json']}]});if(selected.canceled||!selected.filePaths?.[0])throw new validation.BoundaryError('CANCELLED','Import cancelled.');const file=await readLocalText(selected.filePaths[0],['.json'],sources.SETTINGS_MAX_BYTES);return {fileName:file.fileName,settings:sources.parseSettingsFile(file.text)};},

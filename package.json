@@ -34,7 +34,8 @@
     "start": "electron .",
     "package": "npm run build && node scripts/package.mjs",
     "package:verify": "node scripts/security-package.mjs",
-    "visual:gallery": "node scripts/visual-gallery.mjs"
+    "visual:gallery": "node scripts/visual-gallery.mjs",
+    "smoke:first-run": "node scripts/smoke-first-run.mjs"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "6.2.5",

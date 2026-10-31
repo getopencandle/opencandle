@@ -1,5 +1,6 @@
 import type {BarDataset} from '../domain/types';
 import {EXAMPLE_SYMBOLS} from '../domain/demo-mode';
+import {FIRST_RUN_EXAMPLE_SYMBOL,withFirstRunLiveData} from './first-run';
 import type {MultiChartState} from './MultiChartGrid';
 import {ensureWorkspaceGrid} from './workspace-grid';
 import {createIndicatorLibrary,type IndicatorLibrary} from './indicator-library';
@@ -59,13 +60,16 @@ export interface Workspace extends Record<string,unknown>{
 }
 /** One factory is shared by launch, reset and own-export recovery tests. */
 export function createInitialWorkspace():Workspace{const state=createBaseWorkspace();return{...state,layoutLibrary:createLayoutLibrary(state.grid!)};}
-function createBaseWorkspace():Workspace{
- const base=createBaseWorkspaceRaw();
+/** A brand-new profile's first workspace (first-run.ts): the factory workspace opened on BTC, with Coinbase public data
+ * turned on (no account, no key) so the chart can go live at once. Reset and recovery keep using createInitialWorkspace. */
+export function createFirstRunWorkspace():Workspace{const state=createBaseWorkspace(FIRST_RUN_EXAMPLE_SYMBOL);return withFirstRunLiveData({...state,layoutLibrary:createLayoutLibrary(state.grid!)});}
+function createBaseWorkspace(symbol?:string):Workspace{
+ const base=createBaseWorkspaceRaw(symbol);
  // Layout.sync.drawings is the mirror of drawingUtility.syncOn (factory: on), so a restored factory workspace is byte-stable.
  return{...base,grid:{...base.grid!,layout:mirrorLayoutDrawingSync(base.grid!.layout,base.drawingUtility.syncOn)}};
 }
 /** A fresh watchlist holds the five example tickers (BTC, ETH, SPY, GME, AAPL). They show a dash until a live
  * source is set up, then follow it (live-watch.ts adoptLiveWatchSources); generated prices show only on the example screen. */
-function createBaseWorkspaceRaw():Workspace{
- return ensureWorkspaceGrid(structuredClone({version:1 as const,watchAdvanced:createWatchAdvancedState(),indicatorTemplates:createIndicatorTemplates(),indicatorLibrary:createIndicatorLibrary(),drawingPreferences:{...initialDrawingPreferences},drawingFavorites:[],drawingUtility:freshDrawingUtility(),globalDrawings:{},watchBook:createWatchBook([...EXAMPLE_SYMBOLS]),intervals:createIntervalMenuState(),scriptLibrary:createScriptLibrary(initialScript),scriptBindings:[],chartTypeSettings:{},chartSettings:defaultChartSettingsDocument(),heatmap:createHeatmapState(),portfolio:createPortfolioState(),marketViews:defaultMarketViews(),calendar:createCalendarState(),fundamentals:[],fundamentalsPreferences:createFundamentalsPreferences(),news:createNewsState(),filings:[],symbol:'GME',chartStyle:'candles',themeId:defaultTheme.id,appearance:defaultTheme.appearance,watchlist:[...EXAMPLE_SYMBOLS],drawings:{version:1,drawings:[]},indicators:[],imports:[],sourceId:null,screener:defaultScreener,script:initialScript,strategy:DEFAULT_STRATEGY_CONFIG,chartOptions:{source:'close' as const,scale:'linear' as const,invert:false,auto:true,timezone:'UTC'},comparisons:[]}));
+function createBaseWorkspaceRaw(symbol='GME'):Workspace{
+ return ensureWorkspaceGrid(structuredClone({version:1 as const,watchAdvanced:createWatchAdvancedState(),indicatorTemplates:createIndicatorTemplates(),indicatorLibrary:createIndicatorLibrary(),drawingPreferences:{...initialDrawingPreferences},drawingFavorites:[],drawingUtility:freshDrawingUtility(),globalDrawings:{},watchBook:createWatchBook([...EXAMPLE_SYMBOLS]),intervals:createIntervalMenuState(),scriptLibrary:createScriptLibrary(initialScript),scriptBindings:[],chartTypeSettings:{},chartSettings:defaultChartSettingsDocument(),heatmap:createHeatmapState(),portfolio:createPortfolioState(),marketViews:defaultMarketViews(),calendar:createCalendarState(),fundamentals:[],fundamentalsPreferences:createFundamentalsPreferences(),news:createNewsState(),filings:[],symbol,chartStyle:'candles',themeId:defaultTheme.id,appearance:defaultTheme.appearance,watchlist:[...EXAMPLE_SYMBOLS],drawings:{version:1,drawings:[]},indicators:[],imports:[],sourceId:null,screener:defaultScreener,script:initialScript,strategy:DEFAULT_STRATEGY_CONFIG,chartOptions:{source:'close' as const,scale:'linear' as const,invert:false,auto:true,timezone:'UTC'},comparisons:[]}));
 }

@@ -49,14 +49,14 @@ _Screenshots use the built-in example data, not real market prices._
 
 ## Data sources: what you need
 
-OpenCandle starts with no account and no key. Open **Data sources** from the main menu to see this table with the status of each source.
+OpenCandle needs no account and no key to start. A new install opens on a live BTC-USD chart from Coinbase, which is free and keyless. If Coinbase cannot be reached, the chart shows the built-in example data instead, with a **Try live again** button. Add a free Alpaca key when you want US stocks. Open **Data sources** from the main menu to see this table with the status of each source.
 
 | What you want | Minimum you need | How to get it |
 | --- | --- | --- |
-| Practice charts | Nothing. Built in. | Open GME, SPY or another built-in symbol. These prices are invented, not real. |
+| Practice charts | Nothing. Built in. | Choose **Load example data** on an empty chart. Example data covers BTC, ETH, SPY, GME and AAPL. These prices are invented, not real. |
 | Real-time US stocks and ETFs | A free Alpaca account and its API key | Sign up at alpaca.markets (a free paper trading account is enough), create an API key in the dashboard, and paste the Key ID and Secret in Data sources. Free plan: live prices from the IEX exchange, up to 30 symbols at once. Live prices from all exchanges need a paid Alpaca market data plan. |
 | US stock history (daily and intraday) | The same free Alpaca key | All-exchange history with splits and dividends; on the free plan the newest 15 minutes come from IEX. |
-| Crypto (BTC-USD, ETH-USD, SOL-USD) | Nothing. No account or key. | Turn on live crypto data in Data sources (Coinbase public market data). |
+| Crypto (BTC-USD, ETH-USD, SOL-USD) | Nothing. No account or key. | Coinbase public market data. On for a new install; turn it on or off in Data sources. |
 | Economic data and rates | Nothing. No account or key. | Type `FRED:` and a series id (for example `FRED:DGS10`) or open Markets. Each series downloads from the St. Louis Fed only when you open it. |
 | Company fundamentals and SEC filings | Nothing. No account or key. | Open Fundamentals or SEC filings; data comes from the SEC's public EDGAR service when you ask. |
 | Your own data (any market) | A CSV or JSON file of bars | Import a file with columns time (or date), open, high, low, close, volume; up to 20 MB and 100,000 rows. |
@@ -67,6 +67,12 @@ You use your own accounts and keys, and each provider's terms apply to the data 
 ## Install
 
 Download the latest Windows build from the [releases page](https://github.com/getopencandle/opencandle/releases/latest) or https://getopencandle.com. Extract the whole ZIP and run `OpenCandle.exe`. Builds are not code-signed yet, so Windows SmartScreen may ask you to confirm.
+
+## Help test OpenCandle
+
+One task: **rebuild the chart layout you use every day, then tell us where you got stuck.**
+
+Use the [Where I got stuck](https://github.com/getopencandle/opencandle/issues/new?template=where-i-got-stuck.yml) form (also in the app: Help, the **?** button, then **Report where you got stuck**). A few plain sentences are enough. Small snags count too.
 
 ## Build and run from source
 

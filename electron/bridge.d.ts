@@ -72,6 +72,8 @@ export interface LVBridge {
   startupOpenSymbol?():Promise<BridgeResult<string|null>>;
   /** Raw --lv-open-symbols= text (comma-separated, length-capped in main); the renderer parses it. */
   startupOpenSymbols?():Promise<BridgeResult<string|null>>;
+  /** Help > Report where you got stuck: main opens its fixed GitHub issue form in the default browser. */
+  reportStuck?():Promise<BridgeResult<{opened:boolean}>>;
   alpacaKeyStatus?:AlpacaBridge['alpacaKeyStatus'];
   saveAlpacaKey?:AlpacaBridge['saveAlpacaKey'];
   clearAlpacaKey?:AlpacaBridge['clearAlpacaKey'];

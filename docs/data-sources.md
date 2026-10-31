@@ -1,15 +1,17 @@
 # Data sources
 
-OpenCandle does not sell or bundle market data. It starts with built-in practice data, connects to free public sources, and uses your own Alpaca key for real-time US stocks. You can also import your own files. Open **Data sources** from the main menu to see the status of each source and its settings.
+OpenCandle does not sell or bundle market data. It connects to free public sources, has built-in practice data, and uses your own Alpaca key for real-time US stocks. You can also import your own files. Open **Data sources** from the main menu to see the status of each source and its settings.
+
+**First start.** A new install opens on a live BTC-USD daily chart from Coinbase (no account or key). If Coinbase cannot be reached within a few seconds, the chart shows the built-in example data for BTC instead, says so in one line and offers **Try live again**. Alpaca is not set up or mentioned until you open a US stock; that chart then explains how to add a free key. A workspace you already saved, including one copied from LarryVision, opens exactly as you left it.
 
 ## What you need
 
 | What you want | Minimum you need | How to get it |
 | --- | --- | --- |
-| Practice charts | Nothing. Built in. | Open GME, SPY or another built-in symbol. These prices are invented, not real. |
+| Practice charts | Nothing. Built in. | Choose **Load example data** on an empty chart. Example data covers BTC, ETH, SPY, GME and AAPL. These prices are invented, not real. |
 | Real-time US stocks and ETFs | A free Alpaca account and its API key | Sign up at alpaca.markets (a free paper trading account is enough), create an API key in the dashboard (the secret is shown once), and paste the Key ID and Secret in Data sources. Free plan: live prices from the IEX exchange, up to 30 symbols at once. Live prices from all exchanges need a paid Alpaca market data plan. |
 | US stock history (daily and intraday) | The same free Alpaca key | All-exchange history with splits and dividends; on the free plan the newest 15 minutes come from IEX. |
-| Crypto (BTC-USD, ETH-USD, SOL-USD) | Nothing. No account or key. | Turn on live crypto data in Data sources (Coinbase public market data). |
+| Crypto (BTC-USD, ETH-USD, SOL-USD) | Nothing. No account or key. | Coinbase public market data. On for a new install; turn it on or off in Data sources. |
 | Economic data and rates | Nothing. No account or key. | Type `FRED:` and a series id (for example `FRED:DGS10`) or open Markets. Each series downloads from the St. Louis Fed only when you open it. |
 | Company fundamentals and SEC filings | Nothing. No account or key. | Open Fundamentals or SEC filings; data comes from the SEC's public EDGAR service when you ask. |
 | Your own data (any market) | A CSV or JSON file of bars | Import a file (see below). |
@@ -31,7 +33,7 @@ When OpenCandle runs in a browser with `npm run dev`, every source except practi
 
 Notes:
 - **Alpaca.** OpenCandle only needs market data access, so a paper trading account works. **Test connection** checks the IEX feed. **Remove key** deletes the saved key.
-- **Coinbase.** Off until you turn it on. Only the three listed products are supported.
+- **Coinbase.** On for a new install (the first chart is live BTC-USD). A workspace you already saved keeps its own setting. Only the three listed products are supported.
 - **FRED.** **Allow FRED downloads** is on by default and can be turned off; the cache can be cleared from Data sources.
 - **SEC.** Requests send the company you look up and ordinary network metadata (such as your IP address) to data.sec.gov. The SEC applies fair-access rate limits.
 

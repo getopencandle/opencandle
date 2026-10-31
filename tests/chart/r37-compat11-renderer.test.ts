@@ -72,14 +72,14 @@ function rig(chunk:Chunk,options:{group?:boolean;left?:boolean}={}){
 describe('LV-VELA-COMPAT-11 plan',()=>{
  it('appends the twelve leftover steps last in every runtime row, with the notice on leftovers-scene; declarations unchanged',()=>{
   expect(plan.id).toBe('LV-VELA-COMPAT-11');expect((plan as any).schemaVersion).toBe(11);expect(plan.components.at(-1)).toBe('LV-VELA-RENDER-LEFTOVERS-1');expect(plan.components).toHaveLength(13);
-  expect([...compat11StepIds]).toEqual(['leftovers-scene','leftovers-handoff-set-pane','leftovers-handoff-set-pane-adopt','leftovers-handoff-remove','leftovers-handoff-remove-adopt','leftovers-real-bars-series','leftovers-real-bars-transform','leftovers-layer-args','leftovers-native-bar-colors','leftovers-value-patch-bar-colors','leftovers-apply-patch-bar-colors','leftovers-hover-api']);
+  expect([...compat11StepIds]).toEqual(['leftovers-scene','leftovers-handoff-set-pane','leftovers-handoff-set-pane-adopt','leftovers-handoff-remove','leftovers-handoff-remove-adopt','leftovers-real-bars-series','leftovers-real-bars-transform','leftovers-layer-args','leftovers-native-bar-colors','leftovers-value-patch-bar-colors','leftovers-apply-patch-bar-colors','leftovers-hover-api','harmonic-ratios-helper','harmonic-ratios-paint']);
   for(const row of plan.files as any[]){
    if(!row.path.endsWith('.js')&&!row.path.endsWith('.cjs')){expect(row.afterSha256).toBe(row.compat10Sha256);continue;}
-   expect(row.transformations.slice(-12).map((s:any)=>s.id)).toEqual([...compat11StepIds]);
+   expect(row.transformations.slice(-14).map((s:any)=>s.id)).toEqual([...compat11StepIds]);
    expect(row.transformations.find((s:any)=>s.id==='leftovers-scene').after).toContain('/*! LarryVision LV-VELA-RENDER-LEFTOVERS-1');
    // Only one COMPAT-11 anchor lies inside an earlier step's after text (the COMPAT-5 setIndicatorPane opening), so a rebuild of an
    // earlier state reverses the COMPAT-11 steps first, as the COMPAT-10 rebuilds did.
-   const inside=row.transformations.slice(-12).flatMap((step:any)=>row.transformations.slice(0,-12).filter((earlier:any)=>earlier.after.includes(step.before)).map((earlier:any)=>step.id+' in '+earlier.id));
+   const inside=row.transformations.slice(-14).flatMap((step:any)=>row.transformations.slice(0,-14).filter((earlier:any)=>earlier.after.includes(step.before)).map((earlier:any)=>step.id+' in '+earlier.id));
    expect(inside).toEqual(['leftovers-handoff-set-pane in scale-placement-set-pane']);
   }
  });

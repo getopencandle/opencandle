@@ -11,7 +11,7 @@ import {LosslessDrawingDocument} from '../../src/chart/contracts';
 import {assertNativeDrawingMatchesCanonical} from '../../src/chart/drawing-canonical';
 import {drawingCatalog} from '../../src/chart/drawing-port';
 import plan from '../../src/chart/vela-compat-patch-plan.json';
-import {compat5StepIds,compat6StepIds as compat6CursorStepIds,compat7StepIds,compat8StepIds,compat9StepIds,compat10StepIds,compat11StepIds} from '../../src/chart/apply-vela-compat-patch.mjs';
+import {compat5StepIds,compat6StepIds as compat6CursorStepIds,compat7StepIds,compat8StepIds,compat9StepIds,compat10StepIds,compat11StepIds,harmonicStepIds} from '../../src/chart/apply-vela-compat-patch.mjs';
 // LV-VELA-COMPAT-7 appends the nav-clamp step after the COMPAT-6 steps; for this file's reversals the trailing
 // group after COMPAT-5 is the COMPAT-6 cursor-kind steps plus that step.
 // LV-VELA-COMPAT-8 appends the nineteen scale-left steps after those; they join the same trailing group.
@@ -73,9 +73,11 @@ async function compat3Painter(){
  expect(current.split(step.after)).toHaveLength(2);
  const source=current.replace(step.after,step.before);
  expect(createHash('sha256').update(source).digest('hex')).toBe(row.compat3Sha256);
+ // LV-VELA-HARMONIC-RATIOS-1 deliberately repaints pattern ratios; the prior painter keeps it so this comparison isolates the paint hook.
+ let prior=source;for(const id of harmonicStepIds){const later=(row.transformations as Array<{id:string;before:string;after:string}>).find(item=>item.id===id)!;expect(prior.split(later.before)).toHaveLength(2);prior=prior.replace(later.before,()=>later.after);}
  const temporary=resolve('.tmp',`lv-dwgap0-compat3-${randomUUID()}.mjs`);mkdirSync(dirname(temporary),{recursive:true});
  try{
-  writeFileSync(temporary,source.replace(/(from\s+['"])(\.\/[^'"]+)(['"])/g,(_all,before,relative,after)=>before+pathToFileURL(resolve(dirname(file),relative)).href+after)+'\nexport { DrawingPainter as LVPriorDrawingPainter };\n');
+  writeFileSync(temporary,prior.replace(/(from\s+['"])(\.\/[^'"]+)(['"])/g,(_all,before,relative,after)=>before+pathToFileURL(resolve(dirname(file),relative)).href+after)+'\nexport { DrawingPainter as LVPriorDrawingPainter };\n');
   const module=await import(/* @vite-ignore */pathToFileURL(temporary).href);
   return new module.LVPriorDrawingPainter();
  }finally{try{unlinkSync(temporary);}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}

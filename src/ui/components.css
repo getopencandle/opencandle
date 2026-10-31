@@ -1,0 +1,140 @@
+/* Shared dialog, form and chart-overlay components. Colours come from the --lv-* tokens in styles.css. */
+.lv-modal>form{display:flex;flex-direction:column;min-height:0}
+.modal-scroll{padding:20px;overflow:auto;min-height:0;max-height:65vh}
+/* r17: a dialog form whose fieldset holds a preview and a tab row above its scrolling body (drawing settings) shrinks that body to the
+   modal's 90vh, so the footer (Cancel, Apply) is never clipped below the modal on a short window. */
+.lv-modal>form>fieldset:has(>.modal-scroll){display:flex;flex-direction:column;min-height:0;flex:1 1 auto}
+.lv-modal>form>fieldset:has(>.modal-scroll)>.modal-scroll{flex:1 1 auto}
+.lv-modal>form>footer{flex-shrink:0}
+.form-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:12px 0}
+.form-row input:not([type=checkbox]),.form-row select{width:180px}
+.form-row input[type=checkbox]{width:17px;height:17px;accent-color:var(--lv-accent)}
+.form-row span{flex:1}
+.button-row,.tab-row{display:flex;gap:8px;align-items:center}
+.tab-row{padding:10px 18px;border-bottom:1px solid var(--lv-border)}
+.help{font-size:12px;line-height:1.6;color:var(--lv-text-secondary)}
+.error,[role=alert]:not(:empty){color:var(--lv-error-text);font-size:12px}
+fieldset{border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);margin:14px 0;padding:10px 15px}
+legend{color:var(--lv-text-primary);padding:0 6px}
+.indicator-layout{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:0;overflow:auto;height:min(650px,70vh)}
+.instance-row{display:flex;align-items:center;border-bottom:1px solid var(--lv-border)}
+.instance-row.selected{background:var(--lv-selected)}
+.instance-row>button:first-child{flex:1;text-align:left}
+.instance-row>button{font-size:11px}
+.indicator-settings{margin-top:16px}
+.indicator-legend{position:absolute;left:12px;top:63px;z-index:5;display:flex;flex-direction:column;gap:2px;max-height:180px;overflow:auto}
+.indicator-legend>div{background:var(--lv-legend-bg);border-radius:4px;display:flex;align-items:center}
+/* Inside a chart cell the plate is the cell template's pane colour (MultiChartGrid sets --lv-chart-background and
+   data-chart-surface), and a light template gets dark legend text. Text values. */
+[data-chart-surface]{--lv-legend-bg:color-mix(in srgb,var(--lv-chart-background) 60%,transparent)}
+[data-chart-surface=light] :is(.indicator-legend,.lv-cell-series-heading),:is(.indicator-legend,.chart-heading)[data-chart-surface=light]{--lv-text-primary:#1f2430;--lv-text-secondary:#555c6b;--lv-text-tertiary:#4a5160;--lv-text-disabled:#9aa0ad;--lv-text-hint:#7a8090;--lv-hover:rgba(31,36,48,.08)}
+.indicator-legend button{font-size:13px;padding:2px 4px;color:var(--lv-text-primary)}
+.drawing-edit-bar{position:absolute;top:88px;right:85px;z-index:8;display:flex;padding:4px;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow)}
+.drawing-edit-bar button{padding:5px 8px;font-size:13px}
+.drawing-edit-bar{align-items:center}
+.lv-bars-pattern-chip{display:inline-flex;align-items:center;gap:4px;margin-right:4px}
+.lv-bars-pattern-chip select{font-size:13px;padding:4px}
+.lv-bars-pattern-chip [role=alert]{max-width:320px;font-size:12px;white-space:normal}
+.tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tool-grid button{text-align:left;background:var(--lv-hover)}
+.tool-grid button:hover{background:var(--lv-hover-strong)}
+.drawing-toolbar{overflow-y:auto;flex-shrink:0}
+.drawing-toolbar button{flex-shrink:0}
+.replay-controls{height:42px;display:flex;gap:9px;align-items:center;padding:5px 12px;background:var(--lv-bg-surface);border-top:1px solid var(--lv-border-panel);font-size:13px}
+.replay-controls>input{flex:1;min-width:60px;accent-color:var(--lv-accent)}
+.replay-controls button{padding:5px 8px}
+.replay-controls select{padding:4px}
+.import-options{display:flex;flex-wrap:wrap;gap:12px;margin:18px 0}
+.import-options label{display:flex;flex-direction:column;gap:5px;font-size:12px}
+.import-options input{width:150px}
+.import-text{display:flex;flex-direction:column;gap:7px}
+.import-text textarea{width:100%;height:190px;background:var(--lv-bg-input);color:var(--lv-text-primary);border:1px solid var(--lv-input-border);padding:10px;border-radius:4px;font:12px Consolas,monospace;resize:vertical}
+.watchlist-item{position:relative}
+.watchlist-remove{display:none;position:absolute;right:2px;top:8px;background:var(--lv-bg-raised);padding:3px}
+.watchlist-item:hover .watchlist-remove,.watchlist-remove:focus{display:block}
+.watchlist-item:hover .watchlist-row{padding-right:22px}
+.objects>div{padding:6px 2px;align-items:center;gap:3px}
+.objects button{font-size:12px;padding:4px 6px}
+.objects button:first-child{flex:1;text-align:left}
+.objects>div.selected{background:var(--lv-selected)}
+.imported-list{padding:12px;border-bottom:1px solid var(--lv-border)}
+.imported-list h3{font-size:12px}
+.imported-list button{display:block;font-size:12px;padding:7px;width:100%;text-align:left}
+@media(max-width:1000px){.indicator-layout{grid-template-columns:230px 1fr}.tool-grid{grid-template-columns:repeat(2,1fr)}.topbar .toolbar-divider{margin:0 2px}.topbar button{font-size:12px;padding:0 5px}}
+
+/* Legend overlay rules live in styles.css (.chart-heading). */
+.chart-heading>.ohlc{margin-top:0}
+.lv-multichart{flex:1;overflow:hidden}
+.lv-multichart .chart-panel{min-height:0}
+.topbar,.workspace-footer,.chart-bottom{overflow-x:auto;flex-shrink:0}
+.topbar,.chart-bottom{overflow-y:hidden}
+.drawing-toolbar{overflow-y:auto;scrollbar-width:none}
+.analysis-tabs,.replay-controls{flex-shrink:0}
+.recovery{max-width:850px;margin:8vh auto;padding:25px;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate)}
+.recovery pre{white-space:pre-wrap;overflow-wrap:anywhere}
+.recovery button{margin-right:12px;padding:10px;background:var(--lv-accent);color:var(--lv-on-accent)}
+
+.data-window{max-height:70%;overflow:auto;z-index:7}
+.data-window-group{margin-top:12px;border-top:1px solid var(--lv-border);padding-top:8px}
+.data-window-group>span{display:flex;justify-content:space-between;gap:12px}
+.data-window>small{display:block;line-height:1.5;color:var(--lv-text-secondary)}
+
+.facts-json{display:block;width:100%;height:90px;resize:vertical;background:var(--lv-bg-input);color:var(--lv-text-primary);border:1px solid var(--lv-input-border);padding:8px;margin:10px 0}
+.screener-toolbar select[aria-label="Reported fundamental field"]{max-width:520px}
+.screener-toolbar{flex-wrap:wrap}
+
+.drawing-toolbar select{width:40px;max-width:40px;padding:0 2px;font-size:11px}
+.drawing-toolbar button,.drawing-toolbar select,.drawing-toolbar .tool-divider{flex-shrink:0}
+.template-controls{border:0;padding:0 12px;min-width:0}
+.template-controls>label,.template-controls form>label{display:block;margin:10px 0}
+/* A labelled input row keeps its gap; the detail area keeps its height so selecting a row does not move the dialog. */
+.template-controls>label.form-row,.template-controls form>label.form-row{display:flex}
+/* A compact dialog; the search field sits next to its label and fills the row. */
+.template-detail{min-height:120px}
+.template-controls>label.template-search{display:flex;align-items:center;gap:12px;margin:10px 0}
+.template-controls>label.template-search input{flex:1;width:auto;min-width:0}
+.template-detail:empty{min-height:0}
+.template-confirm{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:10px 0;padding:8px 10px;border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);background:var(--lv-bg-raised)}
+.template-list{max-height:220px;overflow:auto}
+.template-list button{width:100%;text-align:left;overflow-wrap:anywhere}
+.template-source{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+.template-controls textarea{display:block;width:100%;box-sizing:border-box;font-family:monospace}
+.multi-selection-bar{gap:2px}
+.multi-selection-slot{position:relative;display:inline-flex}
+.multi-selection-menu{position:absolute;top:100%;left:0;z-index:9;display:flex;flex-wrap:wrap;gap:2px;width:max-content;max-width:220px;margin-top:4px;padding:4px;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow)}
+.multi-selection-swatch{display:inline-block;width:16px;height:16px;border:1px solid var(--lv-border);border-radius:3px;vertical-align:middle}
+/* Floating drawing toolbar: icon buttons with tooltips. */
+.drawing-edit-bar .drawing-edit-icon{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 6px;background:transparent;border:0;border-radius:var(--lv-radius-plate);color:var(--lv-text)}
+.drawing-edit-bar .drawing-edit-icon:hover,.drawing-edit-bar .drawing-edit-icon[aria-expanded="true"],.drawing-edit-bar .drawing-edit-icon[aria-pressed="true"]{background:var(--lv-hover-strong)}
+.drawing-edit-bar .drawing-edit-icon svg{width:18px;height:18px}
+.drawing-edit-slot{position:relative;display:inline-flex}
+.drawing-edit-more{flex-direction:column;flex-wrap:nowrap;left:auto;right:0}
+.drawing-edit-more button,.drawing-edit-bar .multi-selection-menu [role=menuitem][aria-checked="true"]{text-align:left}
+.drawing-edit-submenu{position:relative;display:flex;flex-direction:column}
+.drawing-edit-submenu>[aria-haspopup=menu]{display:flex;justify-content:space-between;gap:16px}
+.drawing-edit-more .drawing-edit-submenu-list{top:-5px;left:100%;right:auto;margin:0 0 0 2px}
+.drawing-edit-bar .multi-selection-menu [role=menuitem][aria-checked="true"]{font-weight:600}
+.drawing-edit-bar .drawing-edit-handle{min-width:16px;padding:0 2px;cursor:grab;color:var(--lv-text-dim,var(--lv-text));touch-action:none}
+.drawing-edit-bar .drawing-edit-handle:active{cursor:grabbing}
+.multi-selection-bar .drawing-edit-icon{min-width:30px}
+.drawing-preview{display:block;margin:0 0 8px;color:var(--lv-text);background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate)}
+.levels-grid{width:100%;border-collapse:collapse}
+.levels-grid th,.levels-grid td{padding:3px 6px;text-align:left;font-weight:400}
+.levels-grid thead th{font-size:11px;color:var(--lv-text-dim,var(--lv-text))}
+.drawing-template-save{display:inline-flex;gap:4px;align-items:center}
+
+/* Transient chart notices share one cell-owned overlay. Their height never changes chart flex layout. */
+.lv-chart-notices{position:absolute;left:8px;right:88px;bottom:32px;z-index:7;display:flex;flex-direction:column;align-items:flex-start;gap:4px;pointer-events:none}
+.lv-chart-notices>.script-binding-status,.lv-chart-notices>.script-binding-errors,.lv-chart-notices>.lv-history-edge{max-width:100%;min-width:0;padding:4px 8px;border-radius:4px;background:var(--lv-bg-tooltip);color:var(--lv-tooltip-text);font-size:12px;line-height:16px;overflow-wrap:anywhere;pointer-events:none}
+.lv-chart-notices>.script-binding-errors{background:var(--lv-error-bg);border:1px solid var(--lv-error-border);color:var(--lv-error-text)}
+.lv-chart-notices>.script-binding-errors p{margin:0 0 4px}
+.lv-chart-notices>.script-binding-errors>button{pointer-events:auto;padding:3px 8px;border:1px solid var(--lv-error-border);border-radius:4px;color:var(--lv-text-primary)}
+.lv-notice-fade{animation:lv-notice-fade-in 120ms ease-out both}
+@keyframes lv-notice-fade-in{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.lv-notice-fade{animation:none}}
+/* Drawing popover row labels (renderer panel, fixed 96px with an ellipsis) wrap instead of cutting long
+   titles such as "Text vertical position". */
+.vela-dsp-row>.vela-dsp-lab{flex:0 0 112px;white-space:normal;overflow:visible;text-overflow:clip;line-height:1.2;overflow-wrap:anywhere}
+/* Paper fill notices stay inside the chart column: offset past the right panel when it is open (column widths from styles.css .workspace). */
+.workspace:not(.lv-panel-collapsed){--lv-paper-toast-right:calc(var(--lv-rail-w) + var(--lv-panel-w) + 12px)}
+

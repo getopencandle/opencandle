@@ -1,0 +1,13 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+import {ComparisonDialog} from '../../src/ui/ComparisonDialog';
+import {Modal} from '../../src/ui/Modal';
+import {fixtureDataset} from '../../src/domain/fixtures';
+const hooks=vi.hoisted(()=>({cells:[] as any[],cursor:0,effects:[] as Array<()=>unknown>}));
+vi.mock('react',async()=>{const actual=await vi.importActual<any>('react');return{...actual,useState:(initial:any)=>{const i=hooks.cursor++;if(!(i in hooks.cells))hooks.cells[i]=typeof initial==='function'?initial():initial;return[hooks.cells[i],(v:any)=>{hooks.cells[i]=typeof v==='function'?v(hooks.cells[i]):v;}];},useRef:(initial:any)=>{const i=hooks.cursor++;if(!(i in hooks.cells))hooks.cells[i]={current:initial};return hooks.cells[i];},useEffect:(fn:()=>unknown)=>{hooks.cursor++;hooks.effects.push(fn);}};});
+function find(node:any,predicate:(node:any)=>boolean):any{if(Array.isArray(node)){for(const child of node){const found=find(child,predicate);if(found)return found;}}else if(node?.props){if(predicate(node))return node;return find(node.props.children,predicate);}return null;}
+function text(node:any):string{return typeof node==='string'?node:Array.isArray(node)?node.map(text).join(''):node?.props?text(node.props.children):'';}
+beforeEach(()=>{hooks.cells=[];hooks.cursor=0;hooks.effects=[];});
+function setup(){const source=fixtureDataset('GME',3),chart={comparisons:{list:()=>[],subscribe:()=>()=>{},add:vi.fn(),update:vi.fn(),remove:vi.fn()}},oldClose=vi.fn(),newClose=vi.fn(),changed=vi.fn();let original=true;const oldAssert=()=>{if(!original)throw Error('Synthetic original dialog retired');};let props:any={chart,datasets:[source],ownerToken:{},onClose:oldClose,onChange:changed,assertOwner:oldAssert};const render=()=>{hooks.cursor=0;return ComparisonDialog(props);};return{chart,oldClose,newClose,changed,render,replace(){original=false;props={...props,ownerToken:{},onClose:newClose,assertOwner:()=>{}};render();}};}
+// Actual callbacks under controlled hooks; no DOM, native mutator or UI pass.
+it('same-chart same-datasets reopening cannot lend new parent authority to an old native Add callback',()=>{const h=setup(),add=find(h.render(),node=>node.type==='button'&&text(node).includes('GME'));h.replace();add.props.onClick();expect(h.chart.comparisons.add).not.toHaveBeenCalled();expect(h.changed).not.toHaveBeenCalled();});
+it('a retained old Close cannot close a newly owned comparison dialog with unchanged chart and datasets',()=>{const h=setup(),close=find(h.render(),node=>node.type===Modal).props.onClose;h.replace();close();expect(h.newClose).not.toHaveBeenCalled();expect(h.oldClose).not.toHaveBeenCalled();});

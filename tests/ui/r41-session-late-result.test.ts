@@ -1,0 +1,21 @@
+import {it,expect} from 'vitest';
+import {ScriptBindingRuntime} from '../../src/ui/script-binding-runtime';
+import {cellSessionDataset} from '../../src/chart/cell-session';
+import {sourceContextForDataset} from '../../src/chart/source-context';
+import {scriptRequestBase} from '../../src/ui/script-requests';
+import {sessionFixture} from '../fixtures/r41-session-fixture';
+import type {ChartController} from '../../src/chart/adapter';
+import type {ScriptBinding} from '../../src/ui/script-library';
+import type {executeScriptOnBars} from '../../src/ui/script-jobs';
+const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+it('a restored session request invalidates pending work even when the visible bars and execution identity match',async()=>{
+ const raw=sessionFixture(),states:any[]=[],pending:{input:any;resolve:(value:any)=>void}[]=[],rendered:any[]=[],published:any[]=[];
+ const port={add:(result:any)=>rendered.push(result),remove:()=>{},update:(_id:string,result:any)=>rendered.push(result),replaceStyles:()=>{},show:()=>{},place:()=>{},rename:()=>{}} as unknown as ChartController['scripts'];
+ const execute:typeof executeScriptOnBars=input=>new Promise(resolve=>pending.push({input,resolve})),runtime=new ScriptBindingRuntime(port,state=>states.push(state),value=>published.push(value),execute);
+ const binding:ScriptBinding={id:'synthetic-bound',documentId:'synthetic-doc',version:1,name:'Synthetic request',source:'({requests:[],onBar(){}})',pane:'price',visible:true,plots:{}};
+ const regular=scriptRequestBase(sourceContextForDataset(cellSessionDataset(raw,{session:'regular'})),'candles'),extended=scriptRequestBase(sourceContextForDataset(cellSessionDataset(raw,{session:'extended'})),'candles');
+ const context={bars:raw.bars.slice(1,3),identity:'synthetic-identical-visible-input',fixture:true,bindings:[binding],ready:true,requestBase:regular,requestRevision:1};runtime.update(context);runtime.update({...context,requestBase:extended});
+ expect(pending).toHaveLength(2);expect(pending[0].input.signal.aborted).toBe(true);expect(pending[1].input.request.base.sessionOverride).toBe('extended');
+ const result=(value:number)=>({barIds:['synthetic'],result:{plots:[{id:'synthetic',title:'Synthetic',color:'#123456',values:[{time:raw.bars[1].time,value}]}],orders:[],alerts:[],diagnostics:[],elapsedMs:1,provisional:false,state:null,provenance:{kind:'synthetic',label:'Synthetic fixture'}}});
+ pending[0].resolve(result(999));await tick();expect(rendered).toHaveLength(0);pending[1].resolve(result(2));await tick();expect(published).toHaveLength(1);expect(rendered[0].plots[0].values[0].value).toBe(2);runtime.dispose();
+});

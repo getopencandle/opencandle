@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build output and packaged releases
+dist/
+out/
+release-builds/
+*.zip
+
+# Caches and scratch
+.cache/
+.tmp/
+.vite/
+coverage/
+reports/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+npm-debug.log*
+*.tmp
+
+# Local data and profiles (never commit workspaces, keys or caches)
+local-data/
+userData/
+profiles/
+*-profile/
+user-data/
+*.key
+
+# Environment files
+.env
+.env.*
+*.env
+!.env.example
+
+# Editors and OS files
+.vscode/
+.claude/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

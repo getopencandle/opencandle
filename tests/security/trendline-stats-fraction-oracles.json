@@ -1,0 +1,754 @@
+{
+  "oracle": "Python Fraction.from_float, exact100*(second-first)/first, Python binary64 rounding; zero cancellation canonicalized+0",
+  "cases": [
+    {
+      "label": "power-1074:same",
+      "firstBits": "0000000000000001",
+      "secondBits": "0000000000000001",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1074:nextUp",
+      "firstBits": "0000000000000001",
+      "secondBits": "0000000000000002",
+      "expectedPercentBits": "4059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1074:nextDown",
+      "firstBits": "0000000000000001",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1074:negative",
+      "firstBits": "0000000000000001",
+      "secondBits": "8000000000000001",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1074:zero",
+      "firstBits": "0000000000000001",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1074:negativeZero",
+      "firstBits": "0000000000000001",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1022:same",
+      "firstBits": "0010000000000000",
+      "secondBits": "0010000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1022:nextUp",
+      "firstBits": "0010000000000000",
+      "secondBits": "0010000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1022:nextDown",
+      "firstBits": "0010000000000000",
+      "secondBits": "000fffffffffffff",
+      "expectedPercentBits": "bd19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1022:negative",
+      "firstBits": "0010000000000000",
+      "secondBits": "8010000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1022:zero",
+      "firstBits": "0010000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1022:negativeZero",
+      "firstBits": "0010000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1000:same",
+      "firstBits": "0170000000000000",
+      "secondBits": "0170000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1000:nextUp",
+      "firstBits": "0170000000000000",
+      "secondBits": "0170000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1000:nextDown",
+      "firstBits": "0170000000000000",
+      "secondBits": "016fffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1000:negative",
+      "firstBits": "0170000000000000",
+      "secondBits": "8170000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1000:zero",
+      "firstBits": "0170000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1000:negativeZero",
+      "firstBits": "0170000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-53:same",
+      "firstBits": "3ca0000000000000",
+      "secondBits": "3ca0000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-53:nextUp",
+      "firstBits": "3ca0000000000000",
+      "secondBits": "3ca0000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-53:nextDown",
+      "firstBits": "3ca0000000000000",
+      "secondBits": "3c9fffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-53:negative",
+      "firstBits": "3ca0000000000000",
+      "secondBits": "bca0000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-53:zero",
+      "firstBits": "3ca0000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-53:negativeZero",
+      "firstBits": "3ca0000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1:same",
+      "firstBits": "3fe0000000000000",
+      "secondBits": "3fe0000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1:nextUp",
+      "firstBits": "3fe0000000000000",
+      "secondBits": "3fe0000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1:nextDown",
+      "firstBits": "3fe0000000000000",
+      "secondBits": "3fdfffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1:negative",
+      "firstBits": "3fe0000000000000",
+      "secondBits": "bfe0000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1:zero",
+      "firstBits": "3fe0000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power-1:negativeZero",
+      "firstBits": "3fe0000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power0:same",
+      "firstBits": "3ff0000000000000",
+      "secondBits": "3ff0000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power0:nextUp",
+      "firstBits": "3ff0000000000000",
+      "secondBits": "3ff0000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power0:nextDown",
+      "firstBits": "3ff0000000000000",
+      "secondBits": "3fefffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power0:negative",
+      "firstBits": "3ff0000000000000",
+      "secondBits": "bff0000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power0:zero",
+      "firstBits": "3ff0000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power0:negativeZero",
+      "firstBits": "3ff0000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1:same",
+      "firstBits": "4000000000000000",
+      "secondBits": "4000000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1:nextUp",
+      "firstBits": "4000000000000000",
+      "secondBits": "4000000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1:nextDown",
+      "firstBits": "4000000000000000",
+      "secondBits": "3fffffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1:negative",
+      "firstBits": "4000000000000000",
+      "secondBits": "c000000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1:zero",
+      "firstBits": "4000000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1:negativeZero",
+      "firstBits": "4000000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power52:same",
+      "firstBits": "4330000000000000",
+      "secondBits": "4330000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power52:nextUp",
+      "firstBits": "4330000000000000",
+      "secondBits": "4330000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power52:nextDown",
+      "firstBits": "4330000000000000",
+      "secondBits": "432fffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power52:negative",
+      "firstBits": "4330000000000000",
+      "secondBits": "c330000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power52:zero",
+      "firstBits": "4330000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power52:negativeZero",
+      "firstBits": "4330000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power500:same",
+      "firstBits": "5f30000000000000",
+      "secondBits": "5f30000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power500:nextUp",
+      "firstBits": "5f30000000000000",
+      "secondBits": "5f30000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power500:nextDown",
+      "firstBits": "5f30000000000000",
+      "secondBits": "5f2fffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power500:negative",
+      "firstBits": "5f30000000000000",
+      "secondBits": "df30000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power500:zero",
+      "firstBits": "5f30000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power500:negativeZero",
+      "firstBits": "5f30000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1023:same",
+      "firstBits": "7fe0000000000000",
+      "secondBits": "7fe0000000000000",
+      "expectedPercentBits": "0000000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1023:nextUp",
+      "firstBits": "7fe0000000000000",
+      "secondBits": "7fe0000000000001",
+      "expectedPercentBits": "3d19000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1023:nextDown",
+      "firstBits": "7fe0000000000000",
+      "secondBits": "7fdfffffffffffff",
+      "expectedPercentBits": "bd09000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1023:negative",
+      "firstBits": "7fe0000000000000",
+      "secondBits": "ffe0000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1023:zero",
+      "firstBits": "7fe0000000000000",
+      "secondBits": "0000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "power1023:negativeZero",
+      "firstBits": "7fe0000000000000",
+      "secondBits": "8000000000000000",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "overflowDeltaFinitePercent",
+      "firstBits": "7fe0000000000000",
+      "secondBits": "ffe0000000000000",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "maxToMin",
+      "firstBits": "7fefffffffffffff",
+      "secondBits": "0000000000000001",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "maxToNegativeMin",
+      "firstBits": "7fefffffffffffff",
+      "secondBits": "8000000000000001",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "minToMaxFinalOverflow",
+      "firstBits": "0000000000000001",
+      "secondBits": "7fefffffffffffff",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "maxToNegativeMax",
+      "firstBits": "7fefffffffffffff",
+      "secondBits": "ffefffffffffffff",
+      "expectedPercentBits": "c069000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "maxAdjacentDown",
+      "firstBits": "7fefffffffffffff",
+      "secondBits": "7feffffffffffffe",
+      "expectedPercentBits": "bd09000000000001",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "oneToMaxFiniteRatio",
+      "firstBits": "3ff0000000000000",
+      "secondBits": "7fefffffffffffff",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "hundredToMaxFiniteRatio",
+      "firstBits": "4059000000000000",
+      "secondBits": "7fefffffffffffff",
+      "expectedPercentBits": "7fefffffffffffff",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "nontrivialRatio:4008000000000000:4024000000000000",
+      "firstBits": "4008000000000000",
+      "secondBits": "4024000000000000",
+      "expectedPercentBits": "406d2aaaaaaaaaab",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "nontrivialRatio:401c000000000000:3ff0000000000000",
+      "firstBits": "401c000000000000",
+      "secondBits": "3ff0000000000000",
+      "expectedPercentBits": "c0556db6db6db6db",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "nontrivialRatio:4026000000000000:402a000000000000",
+      "firstBits": "4026000000000000",
+      "secondBits": "402a000000000000",
+      "expectedPercentBits": "40322e8ba2e8ba2f",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "nontrivialRatio:3ff0000000000001:3fffffffffffffff",
+      "firstBits": "3ff0000000000001",
+      "secondBits": "3fffffffffffffff",
+      "expectedPercentBits": "4058fffffffffffb",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "nontrivialRatio:3fefffffffffffff:4000000000000000",
+      "firstBits": "3fefffffffffffff",
+      "secondBits": "4000000000000000",
+      "expectedPercentBits": "4059000000000002",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "nontrivialRatio:7fcfffffffffffff:7fdfffffffffffff",
+      "firstBits": "7fcfffffffffffff",
+      "secondBits": "7fdfffffffffffff",
+      "expectedPercentBits": "4059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "nontrivialRatio:5f323456789abcde:5f2fffffffffffff",
+      "firstBits": "5f323456789abcde",
+      "secondBits": "5f2fffffffffffff",
+      "expectedPercentBits": "c02837fffffffffc",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic0",
+      "firstBits": "7b3c82d4a2aa6b43",
+      "secondBits": "dee90297f2b78f55",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic1",
+      "firstBits": "6937898fab4d950b",
+      "secondBits": "f809dba18c1d2ce1",
+      "expectedPercentBits": "cf2b76fc8250c761",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic2",
+      "firstBits": "6117ca5270220ef8",
+      "secondBits": "66d004637454f4e5",
+      "expectedPercentBits": "4610d4e21a9674e2",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic3",
+      "firstBits": "42e8a007b185c44c",
+      "secondBits": "da7348a7de965cc4",
+      "expectedPercentBits": "d7e393cf3152d41c",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic4",
+      "firstBits": "4a26825a7ddec17d",
+      "secondBits": "b7addb0f61c483bf",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic5",
+      "firstBits": "526693f994a00578",
+      "secondBits": "a5470c6179c31b72",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic6",
+      "firstBits": "2e7de42fab1001c4",
+      "secondBits": "5103819291f0d0c7",
+      "expectedPercentBits": "62e0506f8f3b54ae",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic7",
+      "firstBits": "416415f413b3e0a6",
+      "secondBits": "8707f45db6b66ee7",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic8",
+      "firstBits": "4d638136da685bfa",
+      "secondBits": "1da19da54d2f35cd",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic9",
+      "firstBits": "12984bebdb0db8e6",
+      "secondBits": "ee040b79cce75a17",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "deterministic10",
+      "firstBits": "26b43f550f2cf163",
+      "secondBits": "6607c3c8d0a09041",
+      "expectedPercentBits": "7fad57d003abaef7",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic11",
+      "firstBits": "579cd234b96fe121",
+      "secondBits": "ae671e11da8756a3",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic12",
+      "firstBits": "13290b6c93af90ce",
+      "secondBits": "9376b6c12bab3c6f",
+      "expectedPercentBits": "c0a77464c3d9a7da",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic13",
+      "firstBits": "580387ee071091d7",
+      "secondBits": "deaba18247682534",
+      "expectedPercentBits": "c701af1bf89b9267",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic14",
+      "firstBits": "16b5e42fedb5387e",
+      "secondBits": "583089f563338d8e",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "deterministic15",
+      "firstBits": "3a2c5096a68d4915",
+      "secondBits": "43c1fa2eec3eb6c7",
+      "expectedPercentBits": "49efbed0f1419d23",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic16",
+      "firstBits": "23b1fec15c479a6a",
+      "secondBits": "11977e4aa3e8cfde",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic17",
+      "firstBits": "53653cad86e529c1",
+      "secondBits": "aecaee5ca63eb3d2",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic18",
+      "firstBits": "023bf526b2ce7a35",
+      "secondBits": "46151bde1471cb81",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "deterministic19",
+      "firstBits": "6d611e555df7e856",
+      "secondBits": "0a360df9d3b0d206",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic20",
+      "firstBits": "01df89273227f222",
+      "secondBits": "43608e4be1777546",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "deterministic21",
+      "firstBits": "110f2a01d1980a2c",
+      "secondBits": "e982e4ead70c3138",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "deterministic22",
+      "firstBits": "369b0e65893d675a",
+      "secondBits": "f6805307b7b58b14",
+      "expectedPercentBits": null,
+      "expectedStatus": "unavailable"
+    },
+    {
+      "label": "deterministic23",
+      "firstBits": "346cad0faedea502",
+      "secondBits": "24456771e31a18c8",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic24",
+      "firstBits": "12f30722b8b11ef9",
+      "secondBits": "0eda9a253750e284",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic25",
+      "firstBits": "5c486a1a71d46241",
+      "secondBits": "35784aa649ed7ac5",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic26",
+      "firstBits": "096d786db398b170",
+      "secondBits": "39293e7920d9dc12",
+      "expectedPercentBits": "70156a2b2137e676",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic27",
+      "firstBits": "3276688c89392b2a",
+      "secondBits": "1328c0515cfcd3fc",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic28",
+      "firstBits": "57061805f1b8555b",
+      "secondBits": "c3d396b4b8871331",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic29",
+      "firstBits": "27292f0ef0faf157",
+      "secondBits": "422a7be8ef67b175",
+      "expectedPercentBits": "5b5a4a6c0773cc02",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic30",
+      "firstBits": "1cddea3f17d58357",
+      "secondBits": "5871653417d21d91",
+      "expectedPercentBits": "7bed13169b3a757d",
+      "expectedStatus": "available"
+    },
+    {
+      "label": "deterministic31",
+      "firstBits": "643dd990331cfdea",
+      "secondBits": "df2957bdb6dafe91",
+      "expectedPercentBits": "c059000000000000",
+      "expectedStatus": "available"
+    }
+  ]
+}

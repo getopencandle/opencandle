@@ -1,0 +1,14 @@
+/* Compare symbols: the search field and option row no longer shrink inside the scrolling column,
+   placement help and the matching-timestamps note live in info popovers, and the right pane has an empty state. */
+[data-lv-compare]>.indicator-catalog>input{flex-shrink:0;box-sizing:border-box;min-height:36px}
+[data-lv-compare] .lv-compare-options{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;align-items:center;flex-shrink:0}
+[data-lv-compare] .lv-compare-options label{grid-column:1;display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:8px;min-width:0;font-size:12px;color:var(--lv-text-secondary)}
+[data-lv-compare] .lv-compare-options select{width:100%;min-width:0;height:32px;font-size:13px}
+[data-lv-compare] .lv-compare-options .lv-info{grid-column:2;grid-row:1 / span 2;align-self:center}
+[data-lv-compare] .lv-info-end .lv-info-tip{left:auto;right:0}
+[data-lv-compare] .indicator-instances>h3{display:flex;align-items:center;gap:6px}
+[data-lv-compare] .lv-compare-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:32px 12px;border:1px dashed var(--lv-border-hover);border-radius:var(--lv-radius-plate,6px);color:var(--lv-text-secondary);font-size:13px;text-align:center}
+[data-lv-compare] .lv-compare-empty strong{color:var(--lv-text-primary);font-size:14px;font-weight:600}
+/* The row Enter adds (keyboard highlight), and the no-match line. */
+[data-lv-compare] .indicator-catalog button[data-active=true]:not(:disabled){background:var(--lv-hover);box-shadow:inset 2px 0 0 var(--lv-accent,currentColor)}
+[data-lv-compare] .lv-compare-none{margin:8px 4px;color:var(--lv-text-secondary);font-size:13px}

@@ -1,0 +1,27 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+import {LayoutLibraryDialog} from '../../src/ui/LayoutLibraryDialog';
+import {createInitialWorkspace} from '../../src/ui/workspace-state';
+import {duplicateSavedLayout} from '../../src/ui/layout-library';
+const hooks=vi.hoisted(()=>({cells:[] as any[],cursor:0,effects:[] as Array<()=>unknown>,writes:0}));
+vi.mock('react',async()=>{const actual=await vi.importActual<any>('react');return{...actual,useState:(initial:any)=>{const index=hooks.cursor++;if(!(index in hooks.cells))hooks.cells[index]=typeof initial==='function'?initial():initial;return[hooks.cells[index],(value:any)=>{hooks.writes++;hooks.cells[index]=typeof value==='function'?value(hooks.cells[index]):value;}];},useRef:(initial:any)=>{const index=hooks.cursor++;if(!(index in hooks.cells))hooks.cells[index]={current:initial};return hooks.cells[index];},useEffect:(effect:()=>unknown)=>{const index=hooks.cursor++;if(!(index in hooks.cells)){hooks.cells[index]=true;hooks.effects.push(effect);}}};});
+const text=(node:any):string=>typeof node==='string'?node:Array.isArray(node)?node.map(text).join(''):node?.props?text(node.props.children):'';
+function find(node:any,predicate:(node:any)=>boolean):any{if(Array.isArray(node)){for(const child of node){const result=find(child,predicate);if(result)return result;}}else if(node?.props){if(predicate(node))return node;return find(node.props.children,predicate);}return null;}
+function fixture(){const state=createInitialWorkspace();let index=0;const duplicate=duplicateSavedLayout(state.layoutLibrary!,state.grid!,state.grid!,'Target',100,()=> 'dialog-'+(++index));duplicate.library.autosave=false;duplicate.library.entries[0].savedAt=100;const action=vi.fn(async()=>{}),close=vi.fn(),token={};const props={library:duplicate.library,grid:state.grid!,ownerToken:token,onAction:action,onClose:close};const render=()=>{hooks.cursor=0;return LayoutLibraryDialog(props);};const button=(name:string)=>find(render(),node=>node.type==='button'&&(node.props['aria-label']===name||text(node)===name));return{props,render,button,action,close};}
+beforeEach(()=>{hooks.cells=[];hooks.cursor=0;hooks.effects=[];hooks.writes=0;});
+
+it('uses actual naming controls for create and rename, keeps invalid drafts and excludes IME Enter',async()=>{
+ const ui=fixture();ui.button('Create new layout').props.onClick();let form=find(ui.render(),node=>node.type==='form'),input=find(form,node=>node.type==='input');
+ input.props.onChange({target:{value:'  '}});form=find(ui.render(),node=>node.type==='form');form.props.onSubmit({preventDefault(){},nativeEvent:{}});expect(ui.action).not.toHaveBeenCalled();expect(text(ui.render())).toContain('1 to 200');
+ find(ui.render(),node=>node.type==='input'&&node.props.maxLength===200).props.onChange({target:{value:'  Green study  '}});form=find(ui.render(),node=>node.type==='form');form.props.onSubmit({preventDefault(){},nativeEvent:{isComposing:true}});expect(ui.action).not.toHaveBeenCalled();form.props.onSubmit({preventDefault(){},nativeEvent:{}});await Promise.resolve();expect(ui.action).toHaveBeenLastCalledWith({kind:'create',name:'Green study'});
+ ui.button('Rename layout').props.onClick();find(ui.render(),node=>node.type==='input'&&node.props.maxLength===200).props.onChange({target:{value:'Renamed study'}});find(ui.render(),node=>node.type==='form').props.onSubmit({preventDefault(){},nativeEvent:{}});await Promise.resolve();expect(ui.action).toHaveBeenLastCalledWith({kind:'rename',id:ui.props.library.activeId,name:'Renamed study'});
+});
+it('filters saved rows, reports an empty result and dispatches the exact favorite/autosave controls',async()=>{
+ const ui=fixture(),search=()=>find(ui.render(),node=>node.type==='input'&&node.props.type!=='checkbox');search().props.onChange({target:{value:'TARGET'}});expect(text(ui.render())).toContain('Target');expect(find(ui.render(),node=>node.type==='button'&&node.props['aria-label']==='Open Local layout')).toBeNull();search().props.onChange({target:{value:'missing'}});expect(text(ui.render())).toContain('No saved layouts match');search().props.onChange({target:{value:''}});
+ ui.button('Favorite Target').props.onClick();await Promise.resolve();expect(ui.action).toHaveBeenLastCalledWith({kind:'favorite',id:ui.props.library.entries[1].id});find(ui.render(),node=>node.type==='input'&&node.props.type==='checkbox').props.onChange({target:{checked:true}});await Promise.resolve();expect(ui.action).toHaveBeenLastCalledWith({kind:'autosave',enabled:true});
+});
+it('requires an explicit replacement when deleting the active layout',async()=>{
+ const ui=fixture();ui.button('Delete Local layout').props.onClick();expect(ui.button('Delete layout').props.disabled).toBe(true);find(ui.render(),node=>node.type==='select').props.onChange({target:{value:ui.props.library.entries[1].id}});expect(ui.button('Delete layout').props.disabled).toBe(false);ui.button('Delete layout').props.onClick();await Promise.resolve();expect(ui.action).toHaveBeenCalledWith({kind:'delete',id:ui.props.library.activeId,replacementId:ui.props.library.entries[1].id});
+});
+it('routes export/import and prevents a repeated successful retained command',async()=>{
+ const ui=fixture(),old=ui.button('Export current layout').props.onClick;old();await Promise.resolve();old();await Promise.resolve();expect(ui.action).toHaveBeenCalledTimes(1);expect(ui.action).toHaveBeenCalledWith({kind:'export'});ui.button('Import layout').props.onClick();await Promise.resolve();expect(ui.action).toHaveBeenLastCalledWith({kind:'import'});
+});

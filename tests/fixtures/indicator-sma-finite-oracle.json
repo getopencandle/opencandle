@@ -1,0 +1,1146 @@
+{
+  "schemaVersion": 1,
+  "synthetic": true,
+  "generator": "tests/fixtures/indicator-sma-finite-oracle.py",
+  "generatorSha256": "244ae60a09a770c32c96cbabec303258685437a894617cf1d094aaabadf564e0",
+  "oracle": "Fraction.from_float for each binary64 input; independent full finite-window rational mean; Python float conversion nearest/ties-even; struct.pack big-endian output bits.",
+  "zeroPolicy": "Exact cancellation is +0; a negative nonzero rational rounded below the subnormal halfway threshold remains -0.",
+  "scope": "Forced persistent fallback, period1 identity, full-window absence and exact representable ordinary controls only. No once-rounded-rational requirement for other floating fast-path inputs.",
+  "cases": [
+    {
+      "id": "SYNTHETIC-period-one-identities",
+      "period": 1,
+      "inputBits": [
+        "7fefffffffffffff",
+        "ffefffffffffffff",
+        "7830000000000000",
+        "f830000000000000",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "8000000000000000",
+        "0000000000000000",
+        null,
+        "7ff8000000000000",
+        "7ff0000000000000",
+        "fff0000000000000"
+      ],
+      "expectedBits": [
+        "7fefffffffffffff",
+        "ffefffffffffffff",
+        "7830000000000000",
+        "f830000000000000",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000",
+        null,
+        null,
+        null,
+        null
+      ],
+      "exactExpectationBasis": "Period1 finite identity; exact arithmetic-zero convention is +0. Genuine nonfinite/missing observations remain gaps."
+    },
+    {
+      "id": "SYNTHETIC-exact-fast-integer-control",
+      "period": 2,
+      "inputBits": [
+        "0000000000000000",
+        "4000000000000000",
+        "4010000000000000",
+        "4018000000000000",
+        null,
+        "4020000000000000",
+        "4024000000000000",
+        "4028000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "3ff0000000000000",
+        "4008000000000000",
+        "4014000000000000",
+        null,
+        null,
+        "4022000000000000",
+        "4026000000000000"
+      ],
+      "exactExpectationBasis": "Representable small integer sums and division by2 are exact; no general rational rounding claim for the floating fast path."
+    },
+    {
+      "id": "SYNTHETIC-period-exceeds-prefix",
+      "period": 5,
+      "inputBits": [
+        "7fefffffffffffff",
+        "ffefffffffffffff",
+        "0000000000000001"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null
+      ],
+      "exactExpectationBasis": "All outputs require a full finite window and therefore remain null."
+    },
+    {
+      "id": "SYNTHETIC-overflow-recovery-p2-sign1",
+      "period": 2,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "0000000000000000",
+        "ffefffffffffffff",
+        "ffdfffffffffffff",
+        "0000000000000000",
+        "bfe0000000000000",
+        "0000000000000000",
+        "8000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-overflow-recovery-p2-sign-1",
+      "period": 2,
+      "inputBits": [
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "0000000000000000",
+        "7fefffffffffffff",
+        "7fdfffffffffffff",
+        "0000000000000000",
+        "bfe0000000000000",
+        "0000000000000000",
+        "8000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-overflow-recovery-p3-sign1",
+      "period": 3,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fd5555555555555",
+        "ffd5555555555555",
+        "ffe5555555555555",
+        "ffd5555555555555",
+        "0000000000000000",
+        "bfd5555555555555",
+        "0000000000000000",
+        "8000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-overflow-recovery-p3-sign-1",
+      "period": 3,
+      "inputBits": [
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffd5555555555555",
+        "7fd5555555555555",
+        "7fe5555555555555",
+        "7fd5555555555555",
+        "0000000000000000",
+        "bfd5555555555555",
+        "0000000000000000",
+        "8000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-overflow-recovery-p5-sign1",
+      "period": 5,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null,
+        null,
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fe3333333333333",
+        "7fc9999999999999",
+        "3fc999999999999a",
+        "ffc9999999999999",
+        "ffd9999999999999",
+        "ffc9999999999999",
+        "0000000000000000",
+        "bfc999999999999a",
+        "0000000000000000",
+        "8000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-overflow-recovery-p5-sign-1",
+      "period": 5,
+      "inputBits": [
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "3ff0000000000000",
+        "bff0000000000000",
+        "0000000000000001",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null,
+        null,
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "ffe3333333333333",
+        "ffc9999999999999",
+        "3fc999999999999a",
+        "7fc9999999999999",
+        "7fd9999999999999",
+        "7fc9999999999999",
+        "0000000000000000",
+        "bfc999999999999a",
+        "0000000000000000",
+        "8000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-gapped-overflow-initialization-sign1",
+      "period": 3,
+      "inputBits": [
+        "7fefffffffffffff",
+        null,
+        "7fefffffffffffff",
+        "0000000000000000",
+        "3ff0000000000000",
+        "4000000000000000",
+        "4008000000000000",
+        null,
+        "4010000000000000",
+        "4014000000000000",
+        "4018000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null,
+        null,
+        "7fd5555555555555",
+        "3ff0000000000000",
+        "4000000000000000",
+        null,
+        null,
+        null,
+        "4014000000000000"
+      ],
+      "exactExpectationBasis": "The second finite MAX addition overflows while the current window still has a missing member; initialization must retain both exact finite sum and valid-member count.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "incoming-overflow-with-incomplete-window"
+      }
+    },
+    {
+      "id": "SYNTHETIC-outgoing-overflow-sign1",
+      "period": 2,
+      "inputBits": [
+        "7fefffffffffffff",
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "3ff0000000000000",
+        "3ff0000000000000",
+        "0000000000000001",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "0000000000000000",
+        "ffefffffffffffff",
+        "ffdfffffffffffff",
+        "3ff0000000000000",
+        "3fe0000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Incoming update at index2 is finite, but subtracting the outgoing opposite-sign MAX overflows; initialize the exact CURRENT window once, without double applying the update.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "outgoing-subtraction-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-third-component-p3-sign1",
+      "period": 3,
+      "inputBits": [
+        "7830000000000000",
+        "4630000000000000",
+        "3ff0000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000001",
+        "0000000000000000",
+        "0000000000000001"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "7815555555555555",
+        "4615555555555555",
+        "3fd5555555555555",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000001"
+      ],
+      "exactExpectationBasis": "2**900 + 2**100 + 1 needs three separated binary64 components; losing the third component triggers exact fallback before the first full window.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "third-nonzero-component"
+      }
+    },
+    {
+      "id": "SYNTHETIC-third-component-cancellation-p5-sign1",
+      "period": 5,
+      "inputBits": [
+        "7830000000000000",
+        "4630000000000000",
+        "3ff0000000000000",
+        "f830000000000000",
+        "c630000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null,
+        null,
+        "3fc999999999999a",
+        "f80999999999999a",
+        "f80999999999999a",
+        "f80999999999999a",
+        "c60999999999999a",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Three separated components force fallback at index2; exact cancellation of both large components leaves a visible signed1/5 residual.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "third-nonzero-component"
+      }
+    },
+    {
+      "id": "SYNTHETIC-third-max-min-p3-sign1",
+      "period": 3,
+      "inputBits": [
+        "7fefffffffffffff",
+        "3ff0000000000000",
+        "0000000000000001",
+        "0000000000000000",
+        "0000000000000001",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "7fd5555555555555",
+        "3fd5555555555555",
+        "0000000000000001",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "MAX + 1 + MIN needs three components without finite overflow; the later [MIN,0,MIN] window distinguishes retained tiny residuals.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "third-nonzero-component"
+      }
+    },
+    {
+      "id": "SYNTHETIC-gapped-overflow-initialization-sign-1",
+      "period": 3,
+      "inputBits": [
+        "ffefffffffffffff",
+        null,
+        "ffefffffffffffff",
+        "0000000000000000",
+        "3ff0000000000000",
+        "4000000000000000",
+        "4008000000000000",
+        null,
+        "4010000000000000",
+        "4014000000000000",
+        "4018000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null,
+        null,
+        "ffd5555555555555",
+        "3ff0000000000000",
+        "4000000000000000",
+        null,
+        null,
+        null,
+        "4014000000000000"
+      ],
+      "exactExpectationBasis": "The second finite MAX addition overflows while the current window still has a missing member; initialization must retain both exact finite sum and valid-member count.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "incoming-overflow-with-incomplete-window"
+      }
+    },
+    {
+      "id": "SYNTHETIC-outgoing-overflow-sign-1",
+      "period": 2,
+      "inputBits": [
+        "ffefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "3ff0000000000000",
+        "3ff0000000000000",
+        "0000000000000001",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "0000000000000000",
+        "7fefffffffffffff",
+        "7fdfffffffffffff",
+        "3ff0000000000000",
+        "3fe0000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Incoming update at index2 is finite, but subtracting the outgoing opposite-sign MAX overflows; initialize the exact CURRENT window once, without double applying the update.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "outgoing-subtraction-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-third-component-p3-sign-1",
+      "period": 3,
+      "inputBits": [
+        "f830000000000000",
+        "c630000000000000",
+        "bff0000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000001",
+        "0000000000000000",
+        "0000000000000001"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "f815555555555555",
+        "c615555555555555",
+        "bfd5555555555555",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000001"
+      ],
+      "exactExpectationBasis": "2**900 + 2**100 + 1 needs three separated binary64 components; losing the third component triggers exact fallback before the first full window.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "third-nonzero-component"
+      }
+    },
+    {
+      "id": "SYNTHETIC-third-component-cancellation-p5-sign-1",
+      "period": 5,
+      "inputBits": [
+        "f830000000000000",
+        "c630000000000000",
+        "bff0000000000000",
+        "7830000000000000",
+        "4630000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null,
+        null,
+        "bfc999999999999a",
+        "780999999999999a",
+        "780999999999999a",
+        "780999999999999a",
+        "460999999999999a",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Three separated components force fallback at index2; exact cancellation of both large components leaves a visible signed1/5 residual.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "third-nonzero-component"
+      }
+    },
+    {
+      "id": "SYNTHETIC-third-max-min-p3-sign-1",
+      "period": 3,
+      "inputBits": [
+        "ffefffffffffffff",
+        "bff0000000000000",
+        "8000000000000001",
+        "0000000000000000",
+        "8000000000000001",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "ffd5555555555555",
+        "bfd5555555555555",
+        "8000000000000001",
+        "8000000000000000",
+        "8000000000000000"
+      ],
+      "exactExpectationBasis": "MAX + 1 + MIN needs three components without finite overflow; the later [MIN,0,MIN] window distinguishes retained tiny residuals.",
+      "declaredFallbackTrigger": {
+        "index": 2,
+        "kind": "third-nonzero-component"
+      }
+    },
+    {
+      "id": "SYNTHETIC-positive-subnormal-ties",
+      "period": 2,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "0000000000000000",
+        "0000000000000001",
+        "0000000000000002",
+        "0000000000000003",
+        "0000000000000000",
+        "0000000000000001",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "7fefffffffffffff",
+        "7fdfffffffffffff",
+        "0000000000000000",
+        "0000000000000002",
+        "0000000000000002",
+        "0000000000000002",
+        "0000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-negative-subnormal-ties",
+      "period": 2,
+      "inputBits": [
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "0000000000000000",
+        "8000000000000001",
+        "8000000000000002",
+        "8000000000000003",
+        "0000000000000000",
+        "8000000000000001",
+        "0000000000000001",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "ffefffffffffffff",
+        "ffdfffffffffffff",
+        "8000000000000000",
+        "8000000000000002",
+        "8000000000000002",
+        "8000000000000002",
+        "8000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-positive-normal-ties",
+      "period": 2,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "4340000000000000",
+        "3ff0000000000000",
+        "4340000000000001",
+        "3ff0000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "7fefffffffffffff",
+        "7fdfffffffffffff",
+        "4330000000000000",
+        "4330000000000002",
+        "4330000000000002",
+        "3fe0000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-negative-normal-ties",
+      "period": 2,
+      "inputBits": [
+        "ffefffffffffffff",
+        "ffefffffffffffff",
+        "c340000000000000",
+        "bff0000000000000",
+        "c340000000000001",
+        "bff0000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "ffefffffffffffff",
+        "ffdfffffffffffff",
+        "c330000000000000",
+        "c330000000000002",
+        "c330000000000002",
+        "bfe0000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-normal-exponent-carry",
+      "period": 2,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "3fffffffffffffff",
+        "4000000000000000",
+        "0000000000000000",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "7fefffffffffffff",
+        "7fdfffffffffffff",
+        "4000000000000000",
+        "3ff0000000000000",
+        "0000000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-subnormal-normal-boundary",
+      "period": 2,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "000fffffffffffff",
+        "0010000000000000",
+        "8010000000000000",
+        "800fffffffffffff",
+        "0000000000000000"
+      ],
+      "expectedBits": [
+        null,
+        "7fefffffffffffff",
+        "7fdfffffffffffff",
+        "0010000000000000",
+        "0000000000000000",
+        "8010000000000000",
+        "8008000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-gap-finite-warmup",
+      "period": 3,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        null,
+        "7fefffffffffffff",
+        null,
+        "3ff0000000000000",
+        "4000000000000000",
+        "4008000000000000",
+        "4010000000000000",
+        "7ff8000000000000",
+        "4014000000000000",
+        "4018000000000000",
+        "401c000000000000",
+        "7ff0000000000000",
+        "fff0000000000000",
+        "4020000000000000",
+        "4022000000000000",
+        "4024000000000000"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "7fefffffffffffff",
+        null,
+        null,
+        null,
+        null,
+        null,
+        "4000000000000000",
+        "4008000000000000",
+        null,
+        null,
+        null,
+        "4018000000000000",
+        null,
+        null,
+        null,
+        null,
+        "4022000000000000"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-fixed-seed-wide-exponent-p2",
+      "period": 2,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "9bc32bea20a54a5d",
+        "585a350f51fe682c",
+        "304c0b0ed53e12df",
+        "a92ca2b8402baa83",
+        "952e806097d78a9f",
+        "43c34aec4ccd0e90",
+        "757d5961ae578f8c",
+        "0a6ee0e533f65203",
+        "110b556625a33dd1",
+        "29667cfc207560f6",
+        "8f210be5618bd71c",
+        "f961265f8281a184",
+        "1b925a4c5bd9d35b",
+        "6c3ea1ad689868ba",
+        "2ee58b587174edba",
+        "c126766117c1294b",
+        "a6f79df176436cb4",
+        "0c09a399ce5a1b50",
+        "b428b6dc57721461",
+        "5b38903715a1a982",
+        "2f73247341fb127f",
+        "08f40e29b67f6230",
+        "11c1168a8ca76df2",
+        "e69df9ee0356ab8b",
+        "24d0b466bc964b15",
+        "45a9ebd1b2d39b51",
+        "82a07a6cc338cea0",
+        "8137a8179d1e85dd",
+        "0685a35e497bbba3",
+        "68bf72eee56516ab",
+        "cb9ad1a82851d731",
+        "656fe31573e57a19"
+      ],
+      "expectedBits": [
+        null,
+        "7fefffffffffffff",
+        "7fdfffffffffffff",
+        "584a350f51fe682c",
+        "584a350f51fe682c",
+        "303c0b0ed53e12df",
+        "a91ca2b8402baa83",
+        "43b34aec4ccd0e90",
+        "756d5961ae578f8c",
+        "756d5961ae578f8c",
+        "10fb556625a33dd1",
+        "29567cfc207560f6",
+        "29567cfc207560f6",
+        "f951265f8281a184",
+        "f951265f8281a184",
+        "6c2ea1ad689868ba",
+        "6c2ea1ad689868ba",
+        "c116766117c1294b",
+        "c116766117c1294b",
+        "a6e79df176436cb4",
+        "b418b6dc57721461",
+        "5b28903715a1a982",
+        "5b28903715a1a982",
+        "2f63247341fb127f",
+        "11b1168a8ca76df2",
+        "e68df9ee0356ab8b",
+        "e68df9ee0356ab8b",
+        "4599ebd1b2d39b51",
+        "4599ebd1b2d39b51",
+        "82907a6cf288fdda",
+        "0675a35e497bbba3",
+        "68af72eee56516ab",
+        "68af72eee56516ab",
+        "655fe31573e57a19"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-fixed-seed-wide-exponent-p3",
+      "period": 3,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7e6c5990b857f0e4",
+        "ff2299e27bdd078f",
+        "2d28518eec7f89ac",
+        "2c109658be874aad",
+        "b205327afeacc797",
+        "68a6049cd97e8c38",
+        "c2b61ccf852fc9ec",
+        "23145bc587c16645",
+        "518b340549c483f7",
+        "b8c47b24ee2e6612",
+        "e3379ed187dfd97b",
+        "664e0b8eed0a0651",
+        "77ba609acf07b539",
+        "d21e691f65d974a1",
+        "8815e96f7f8793fd",
+        "4141f8d639ab3355",
+        "07ec5cd6a6212bfd",
+        "ef73d78483147697",
+        "7f6311b719836edd",
+        "31e10f722f3bc326",
+        "92a0d31808644441",
+        "0502cf083d0bf2c8",
+        "d2056529f3b794ee",
+        "1a26acad933f7357",
+        "64b67fbfb0bcb435",
+        "fabcd91248c3adab",
+        "8d7da1ff40eafc26",
+        "debb9a7da8d74a38",
+        "c1bc1ee9e7c0819c",
+        "90c01ff4c4b4dabc",
+        "9b1ca71a4ade62ab",
+        "12b95b69129b110e"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        "7fefffffffffffff",
+        "7fe555555ec88592",
+        "7fd5548efecbe1ef",
+        "ff08cad12e6cad6b",
+        "ff08cd2dfa7c0a14",
+        "b1ec434ea8e65f74",
+        "688d5b7bcca8baf5",
+        "688d5b7bcca8baf5",
+        "688d5b7bcca8baf5",
+        "517222ae312dad4f",
+        "517222ae312dad4f",
+        "e31f7e6cb52a774f",
+        "663407b49e06aed9",
+        "77a195bc8a05237b",
+        "77a195bc8a05237b",
+        "77a195bc8a05237b",
+        "d2044614ee90f86b",
+        "4127f672f78eef1c",
+        "ef5a74b0aec5f374",
+        "7f496cf4220493d1",
+        "7f496cf4220493d1",
+        "7f496cf4220493d1",
+        "31c6bf42e9a50433",
+        "d1ec86e29a4a1be8",
+        "d1ec86e29a4a1be8",
+        "649dffaa40fb9af1",
+        "faa33b6185d7c91d",
+        "faa33b6185d7c91d",
+        "faa33b6185d7c91d",
+        "dea266fe708f86d0",
+        "dea266fe708f86d0",
+        "c1a2bf469a805668",
+        "9b031a11873eec72"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    },
+    {
+      "id": "SYNTHETIC-fixed-seed-wide-exponent-p5",
+      "period": 5,
+      "inputBits": [
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "7fefffffffffffff",
+        "6590beb4d219c566",
+        "129e6fb49026280d",
+        "424a17dacabc8855",
+        "e86a90c82be78c1d",
+        "2f412f968a596409",
+        "3d3e5ef05675af81",
+        "092710882ae22823",
+        "8efa62d742af4256",
+        "2c201e55afa827e2",
+        "8bafa9d1f32df976",
+        "a2fbd0581963d505",
+        "d0a5df9348df04c0",
+        "3b98fa9e8e7917b5",
+        "b3eb88ac41390e6f",
+        "b4a493fba15250bb",
+        "fe4187289b7b55e2",
+        "44ea6b72437803f0",
+        "2a7914edac7ebd0d",
+        "62c84ff91452ecb3",
+        "0289cbb65fa8ead1",
+        "e12867ee1f4c2f3b",
+        "a587f8ae555f7195",
+        "ba8d4d04733a4a43",
+        "13a7c22772103c5d",
+        "237eca1ca61ff419",
+        "08f6bc237bd44289",
+        "4bad8e57399a34b7",
+        "fc6475c7cac9546c",
+        "1812b6cdfa2f40b8",
+        "ddb1a1fb419c1cba",
+        "d778812ec38d982e",
+        "01395affdc91fa1c"
+      ],
+      "expectedBits": [
+        null,
+        null,
+        null,
+        null,
+        "7fefffffffffffff",
+        "7fe9999999999999",
+        "7fe3333333333333",
+        "7fd9999999999999",
+        "7fc9999999999999",
+        "e84540a0231fa2df",
+        "e84540a0231fa34a",
+        "e84540a0231fa34a",
+        "e84540a0231fa34a",
+        "3d184bf3785e2601",
+        "3d184bf3785e2601",
+        "2bf9ca22b2a6a636",
+        "d0817fa90718d09a",
+        "d0817fa90718d09a",
+        "d0817fa90718d09a",
+        "d0817fa90718d09a",
+        "fe1c0b742bf8896a",
+        "fe1c0b742bf8896a",
+        "fe1c0b742bf8896a",
+        "fe1c0b742bf8896a",
+        "fe1c0b742bf8896a",
+        "62a3732da4fa5a89",
+        "62a3732da4fa5a89",
+        "62a3732da4fa5a89",
+        "e10386581909bf62",
+        "e10386581909bf62",
+        "ba6770d05c2ea1cf",
+        "4b87a512947b5d5f",
+        "fc405e396f0776bd",
+        "fc405e396f0776bd",
+        "fc405e396f0776bd",
+        "fc405e396f0776bd",
+        "fc405e396f0776bd"
+      ],
+      "exactExpectationBasis": "Same-sign finite MAX addition overflows before division; exact mode persists for the call. Every earlier non-null result is an exact finite identity.",
+      "declaredFallbackTrigger": {
+        "index": 1,
+        "kind": "incoming-addition-overflow"
+      }
+    }
+  ]
+}

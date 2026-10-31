@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "LV-VELA-MAGNET-1",
+  "package": "@luxalgo/vela",
+  "version": "0.8.4",
+  "status": "applied-model-unverified",
+  "license": "Apache-2.0",
+  "licenseSha256": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+  "noticeSha256": "943b246985e5f0fc3b3291b2326eb05163ed36e2cfce4921688e4330edf53236",
+  "packageJsonSha256": "86946e6d9d619a6e2e307da60da76cf492fecaa6a750b66230f5fc47fd228e0f",
+  "before": "return momentaryOverride ? \"strong\" : sticky;",
+  "after": "return momentaryOverride ? (sticky === \"off\" ? \"strong\" : \"off\") : sticky; /*! LarryVision LV-VELA-MAGNET-1 modification, 2026-10-14. */",
+  "files": [
+    {
+      "path": "dist/chunk-UNUVPQFW.js",
+      "beforeSha256": "64b30329ebd75b5b1207ef3765d1ce8dffaf4c267d36ded3d9290e588249ddea",
+      "afterSha256": "ffd29906030d486cfbb5f1ee390bd04191fb095146a2bb1bf0bf672179c3dc1d"
+    },
+    {
+      "path": "dist/index.cjs",
+      "beforeSha256": "e608c8c9052a7502340523a7dce7309b1677b4249f860a37da346df284dfb2e6",
+      "afterSha256": "f05474fbaf0728408c3cb06d8d8a9291058587269126db5344e1b5ef63a69b93"
+    },
+    {
+      "path": "dist/vela.global.js",
+      "beforeSha256": "af13eed0ce6660f7dca4e6c7c4468933104873d2600844eb5c7854cb3434918b",
+      "afterSha256": "81e752710562d99b825f5bbc3a46da92a9fac0defea146d3d5374d10e7883745"
+    },
+    {
+      "path": "dist/widget.cjs",
+      "beforeSha256": "47cec7b06ea1cb2aaca2cf28a12554945ba143b834ea8bdfc13c62b39b68796c",
+      "afterSha256": "7863e6ee0bcfced3d57aaa277c8ece0fb87aa49823874500e1e768d6be7e85e4"
+    },
+    {
+      "path": "dist/workspace.cjs",
+      "beforeSha256": "90c92a50bb3df3bdbe5d2b4f5c45574e133b9da0bd6ffd31396371ba80ace9cf",
+      "afterSha256": "a6750895efacd0a9b7d81717d64eaf764aad0681898ad6d9ce2332675ddfe997"
+    }
+  ],
+  "sources": [
+    "Reference product public help article on drawing magnet mode (off, weak and strong snapping to bar OHLC values), consulted 2026-10-13 for observable behavior only.",
+    "Reference product public announcement describing a held modifier key that temporarily toggles magnet snapping while drawing, consulted 2026-10-13 for observable behavior only."
+  ],
+  "acceptance": {
+    "false/off": "off",
+    "false/weak": "weak",
+    "false/strong": "strong",
+    "true/off": "strong",
+    "true/weak": "off",
+    "true/strong": "off"
+  },
+  "redistribution": [
+    "Retain original LICENSE and NOTICE and chart attribution.",
+    "Five upstream runtime build inputs carry a retained legal LV patch comment; actual delivered renderer bundle and readable notices must be verified separately.",
+    "Root THIRD-PARTY-NOTICES and SBOM must record modified Vela0.8.4 patch ID, original/modified hashes and reproducibility command.",
+    "No upstream bug/fidelity claim beyond this six-case helper; native input remains unverified."
+  ]
+}

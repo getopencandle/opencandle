@@ -1,0 +1,16 @@
+{
+  "fixture": "SYNTHETIC EXAMPLE - not market data",
+  "symbol": "SPY",
+  "bars": [
+    { "time": 1704153600, "open": 100.00, "high": 100.90, "low": 99.40, "close": 100.60, "volume": 800000 },
+    { "time": 1704240000, "open": 100.60, "high": 101.20, "low": 100.10, "close": 100.20, "volume": 760000 },
+    { "time": 1704326400, "open": 100.20, "high": 100.50, "low": 99.10, "close": 99.30, "volume": 910000 },
+    { "time": 1704412800, "open": 99.30, "high": 100.40, "low": 99.00, "close": 100.10, "volume": 870000 },
+    { "time": 1704672000, "open": 100.10, "high": 101.50, "low": 100.00, "close": 101.40, "volume": 990000 },
+    { "time": 1704758400, "open": 101.40, "high": 101.60, "low": 100.70, "close": 100.90, "volume": 720000 },
+    { "time": 1704844800, "open": 100.90, "high": 101.30, "low": 100.50, "close": 101.10, "volume": 680000 },
+    { "time": 1704931200, "open": 101.10, "high": 102.00, "low": 101.00, "close": 101.80, "volume": 1050000 },
+    { "time": 1705017600, "open": 101.80, "high": 102.10, "low": 101.20, "close": 101.50, "volume": 830000 },
+    { "time": 1705363200, "open": 101.50, "high": 101.70, "low": 100.60, "close": 100.80, "volume": 940000 }
+  ]
+}

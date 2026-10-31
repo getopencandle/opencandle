@@ -1,0 +1,17 @@
+# Local news and SEC filings
+
+Open **News and filings** in the analysis toolbar. Nothing connects on startup. The News tab reads local files. The SEC filings tab can retrieve a public filing index on an explicit click without an account or key.
+
+For an offline exercise, choose **Import local news > Choose JSON file**, then select `examples/news-synthetic.json`. Its two records are marked synthetic and make no claims about either company or the market. Filter Instrument to GME, reset it, select SPY, save a named flow, and switch back after reopening the dialog. Read a story with Enter, then press Escape to return to the list. Arrow keys move between headline buttons. Save the workspace, restart and verify the saved content and flow.
+
+A news JSON document has `schemaVersion: 1`, a `label`, and an `items` array. Set `kind: "synthetic"` for all generated or test content. Each item requires a unique string `id`, `title`, `provider`, and `publishedAt`. Publication timestamps need seconds and an explicit timezone, such as `2024-01-02T14:30:00Z`. Optional `summary` and `sourceUrl` remain plain text. Optional array fields are `instruments`, `markets`, `sectors`, `corporateActivity`, `economics`, `countries`, and `formats`. Omitted classifications remain unknown. Empty arrays mean the source explicitly supplied no matching classification.
+
+The local filter policy combines values within a field using OR, and different fields using AND. It does not infer sector, geography or language from a ticker. Reset clears chosen values while retaining the field control. Remove takes the control off the filter bar. A saved flow preserves its filter controls and selections. Switching flows or closing the dialog discards unsaved filter edits. Rename changes the stored name without saving draft filters. Recently used lists the last five distinct flows opened.
+
+The reader never executes article markup, embeds remote images or follows URLs automatically. Copy a supplied URL if you want to inspect it separately. OpenCandle does not verify local content's publisher, timestamp, accuracy or rights. Imported material stays in the local workspace and is included in its export. Remove a document or reset local storage to delete OpenCandle's saved copy.
+
+The SEC tab accepts the entity CIK, independently of the selected chart ticker. It returns the exact requested entity's recent filings, with a retrieval timestamp and source URL. Select a form or filing-date range to filter actual loaded records. The older-file list is disclosed but is not fetched. Reported acceptance timestamps are displayed without treating them as validated intraday availability for a strategy. Empty optional fields stay unavailable. A local SEC submissions JSON file uses the same validation but has unverified local provenance.
+
+Current limits are 20 MiB per import, 10,000 news items per document, 20,000 news items across at most 100 documents, and 50,000 filing rows across at most 100 documents. The list displays at most 1,000 news results or 2,000 filing rows at once; narrow filters to inspect other records. The desktop workspace also has its own storage size limit. No commercial news feed, live news alert service or complete historical filing archive is claimed.
+
+Model tests and the actual SEC transport/parser observation are recorded separately from executable testing. Desktop interaction remains unverified under the documented host restriction.

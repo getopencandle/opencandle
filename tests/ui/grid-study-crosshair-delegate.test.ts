@@ -1,0 +1,14 @@
+import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
+import {expect,it,vi} from 'vitest';
+import {createCellCrosshairWatch} from '../../src/ui/grid-hover';
+const grid=readFileSync(new URL('../../src/ui/MultiChartGrid.tsx',import.meta.url),'utf8'),from=grid.indexOf(' const renderedCrosshair=props.onCellCrosshair;'),to=grid.indexOf(' useEffect(()=>()=>studyInspectionStream.dispose()',from);
+if(from<0||to<0)throw Error('Actual private grid delegate source boundary changed.');
+const code=stripTypeScriptTypes(`function bind(props,latest,alive,studyInspectionStream){${grid.slice(from,to)}return studyCrosshairDelegate;}`,{mode:'transform'}),bind=new Function(code+';return bind;')();
+it('real private latest delegate preserves current callback, stream fanout and same-controller single subscription',()=>{
+ const order:string[]=[],stream={emit:vi.fn(()=>order.push('study'))},alive={current:true},first={onCellCrosshair:vi.fn(()=>order.push('first'))},latest:{current:any}={current:first},listeners=new Set<(event:any)=>void>(),chart:any={onCrosshair:vi.fn((fn:(event:any)=>void)=>{listeners.add(fn);return()=>listeners.delete(fn);})},watch=createCellCrosshairWatch((id,owner,time)=>latest.current.onCellCrosshair?.(id,owner,time));
+ bind(first,latest,alive,stream);expect(first.onCellCrosshair).not.toBe(latest.current.onCellCrosshair);watch.attach('synthetic-cell',chart);watch.attach('synthetic-cell',chart);expect(chart.onCrosshair).toHaveBeenCalledOnce();for(const fn of listeners)fn({time:100});expect(order).toEqual(['study','first']);
+ const second={onCellCrosshair:vi.fn(()=>order.push('second'))};latest.current=second;bind(second,latest,alive,stream);latest.current={...latest.current,state:'synthetic accepted state'} as any;for(const fn of listeners)fn({time:160});expect(order).toEqual(['study','first','study','second']);expect(second.onCellCrosshair).toHaveBeenCalledExactlyOnceWith('synthetic-cell',chart,160);
+ alive.current=false;for(const fn of listeners)fn({time:220});expect(order).toHaveLength(4);watch.dispose();expect(listeners.size).toBe(0);expect(order).toHaveLength(4);
+});
+it('a reentrant replacement during study fanout cannot call the previous rendered callback or recursively wrap it',()=>{const alive={current:true},first={onCellCrosshair:vi.fn()},second={onCellCrosshair:vi.fn()},latest:{current:any}={current:first};const newer={emit:vi.fn()};const stream={emit:vi.fn(()=>{latest.current=second;bind(second,latest,alive,newer);})};const old=bind(first,latest,alive,stream);old('synthetic-cell',{},100);expect(first.onCellCrosshair).not.toHaveBeenCalled();expect(second.onCellCrosshair).not.toHaveBeenCalled();latest.current.onCellCrosshair('synthetic-cell',{},160);expect(newer.emit).toHaveBeenCalledOnce();expect(second.onCellCrosshair).toHaveBeenCalledOnce();});

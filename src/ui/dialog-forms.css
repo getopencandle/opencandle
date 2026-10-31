@@ -1,0 +1,56 @@
+/* Shared polish for the secondary dialogs (fundamentals, news, screener, heatmap, calendar).
+   Scoped to :is(.lv-pol,.screener-body,.news-panel); uses --lv-* tokens and the same button language as the portfolio dialog. */
+:is(.lv-pol,.screener-body,.news-panel){--lv-pol-gap:8px}
+:is(.lv-pol,.screener-body,.news-panel) :is(.screener-toolbar,.news-flowbar,.news-filterbar,.screener-controls-line,.button-row){display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:flex-start;gap:var(--lv-pol-gap);padding:0;margin:8px 0;font-size:12px}
+:is(.lv-pol,.screener-body,.news-panel) .screener-toolbar{padding:6px 0}
+:is(.lv-pol,.screener-body,.news-panel) .news-filterbar,:is(.lv-pol,.screener-body,.news-panel) .news-flowbar{align-items:center}
+/* Label column over control: aligned form grid for labelled fields. */
+:is(.lv-pol,.screener-body,.news-panel) :is(.screener-toolbar,.news-filterbar,.screener-controls-line)>label:not(:has(>input[type=checkbox])),:is(.lv-pol,.screener-body,.news-panel) .heatmap-controls label{display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:12px;color:var(--lv-text-secondary)}
+:is(.lv-pol,.screener-body,.news-panel) :is(.screener-toolbar,.news-filterbar,.screener-controls-line)>label:has(>input[type=checkbox]),:is(.lv-pol,.screener-body,.news-panel) label.news-check,:is(.lv-pol,.screener-body,.news-panel) label:has(>input[type=checkbox]:first-child){display:inline-flex;flex-direction:row;align-items:center;gap:8px;height:28px;font-size:12px;color:var(--lv-text-primary)}
+:is(.lv-pol,.screener-body,.news-panel) input[type=checkbox]{appearance:auto;width:16px;height:16px;margin:0;padding:0;accent-color:var(--lv-accent);cursor:pointer;flex-shrink:0}
+:is(.lv-pol,.screener-body,.news-panel) input:not([type=checkbox]):not([type=range]):not([type=color]),:is(.lv-pol,.screener-body,.news-panel) select{box-sizing:border-box;height:28px;padding:0 8px;font-size:13px}
+:is(.lv-pol,.screener-body,.news-panel) textarea{box-sizing:border-box;padding:6px 8px;background:var(--lv-bg-input);color:var(--lv-text-primary);border:1px solid var(--lv-input-border);border-radius:4px;font:12px ui-monospace,Consolas,monospace}
+:is(.lv-pol,.screener-body,.news-panel) :is(.screener-toolbar,.news-filterbar)>input:not([type=checkbox]){min-width:200px}
+:is(.lv-pol,.screener-body,.news-panel) .news-filterbar>input[aria-label="Search news"]{flex:1 1 260px}
+/* Secondary buttons (default) and primary. */
+:is(.lv-pol,.screener-body,.news-panel) :is(.screener-toolbar,.news-flowbar,.news-filterbar,.screener-controls-line,.button-row,.screener-controls .button-row,details)>button:not(.primary):not([role=tab]):not(.active),:is(.lv-pol,.screener-body,.news-panel) :is(.news-flowmenu,.screener-controls)>button:not(.primary){border:1px solid var(--lv-border-hover);border-radius:4px;background:transparent;color:var(--lv-text-primary);padding:0 12px;height:28px;font-size:13px;white-space:nowrap}
+:is(.lv-pol,.screener-body,.news-panel) :is(.screener-toolbar,.news-flowbar,.news-filterbar,.screener-controls-line,.button-row,details)>button:not(.primary):not([role=tab]):not(.active):hover:not(:disabled){background:var(--lv-hover)}
+:is(.lv-pol,.screener-body,.news-panel) .primary{height:28px;padding:0 12px;border-radius:4px;font-size:13px}
+:is(.lv-pol,.screener-body,.news-panel) button:disabled{color:var(--lv-text-disabled);opacity:1}
+:is(.lv-pol,.screener-body,.news-panel) button.active{border:1px solid var(--lv-accent);border-radius:4px}
+:is(.lv-pol,.screener-body,.news-panel) :is(.button-row,.news-filterbar)>button.active,:is(.lv-pol,.screener-body,.news-panel) .button-row>button.active{height:28px;padding:0 12px}
+/* Disclosures: a compact row rather than raw text. */
+:is(.lv-pol,.screener-body,.news-panel) details>summary{cursor:pointer;color:var(--lv-text-primary);font-size:13px;padding:6px 0}
+:is(.lv-pol,.screener-body,.news-panel) details[open]>summary{margin-bottom:6px}
+:is(.lv-pol,.screener-body,.news-panel) details>button{margin:4px 8px 4px 0}
+.news-flowmenu{position:relative;border:1px solid var(--lv-border-hover);border-radius:4px;padding:0 10px;height:28px;display:inline-flex;align-items:center}
+.news-flowmenu[open]{height:auto;align-items:flex-start;flex-direction:column;padding:0 10px 8px}
+.news-flowmenu>summary{padding:0;margin:0;line-height:26px}
+/* Explanatory text reads as quiet hints, not body copy. */
+:is(.lv-pol,.screener-body,.news-panel) .help,:is(.lv-pol,.screener-body,.news-panel) .source-note{margin:4px 0 8px;padding:0;background:transparent;font-size:11px;line-height:1.5;color:var(--lv-text-hint,var(--lv-text-secondary))}
+:is(.lv-pol,.screener-body,.news-panel) .fund-link{color:var(--lv-text-secondary)}
+:is(.lv-pol,.screener-body,.news-panel) .facts-json{margin:6px 0 8px;height:80px}
+:is(.lv-pol,.screener-body,.news-panel) .news-count{color:var(--lv-text-secondary);font-size:12px}
+:is(.lv-pol,.screener-body,.news-panel) .news-chip{display:inline-flex}
+:is(.lv-pol,.screener-body,.news-panel) .news-filter{border:1px solid var(--lv-border);border-radius:6px;padding:8px 12px;margin:8px 0}
+:is(.lv-pol,.screener-body,.news-panel) .news-list>button{border-radius:0}
+:is(.lv-pol,.screener-body,.news-panel) .fund-statement,:is(.lv-pol,.screener-body,.news-panel) .data-table{font-size:12px}
+:is(.lv-pol,.screener-body,.news-panel) .fund-tabs{padding:0;margin:8px 0}
+:is(.lv-pol,.screener-body,.news-panel) .fund-tabs button{color:var(--lv-text-secondary)}
+:is(.lv-pol,.screener-body,.news-panel) .fund-tabs button.active{color:var(--lv-text-primary);background:transparent;border:0;border-radius:4px 4px 0 0}
+:is(.lv-pol,.screener-body,.news-panel) .news-chip{align-items:center;height:28px;border:1px solid var(--lv-border-hover);border-radius:14px;overflow:hidden}
+:is(.lv-pol,.screener-body,.news-panel) .news-chip>button{height:26px;padding:0 10px;border-radius:0;font-size:12px;color:var(--lv-text-primary)}
+:is(.lv-pol,.screener-body,.news-panel) .news-chip>button+button{padding:0 8px 0 2px;color:var(--lv-text-secondary)}
+:is(.lv-pol,.screener-body,.news-panel) .screener-controls details,:is(.lv-pol,.screener-body,.news-panel) details{padding-top:4px;padding-bottom:4px}
+/* Info tips and overflow menus (dialog-extras.tsx): secondary actions and explanations stay out of the form flow. */
+.lv-info,.lv-ovf{position:relative;display:inline-flex;align-items:center;vertical-align:middle}
+.lv-info-btn,.lv-ovf-btn{box-sizing:border-box;min-width:24px;height:24px;padding:0 6px;border-radius:50%;font:italic 600 12px/1 serif;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--lv-border,currentColor);color:var(--lv-text-secondary);cursor:pointer}
+.lv-ovf-btn{border-radius:4px;font:700 16px/1 sans-serif;border-color:transparent;padding:0 8px}
+.lv-info-btn:hover,.lv-ovf-btn:hover,.lv-ovf-btn[aria-expanded=true]{color:var(--lv-text-primary);background:var(--lv-menu-hover,transparent)}
+.lv-info-btn:focus-visible,.lv-ovf-btn:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:1px}
+.lv-info-tip{position:absolute;left:0;top:calc(100% + 4px);z-index:96;width:max-content;max-width:min(320px,70vw);padding:8px 10px;border-radius:var(--lv-menu-radius,4px);background:var(--lv-menu-bg);border:1px solid var(--lv-menu-border);box-shadow:var(--lv-menu-shadow);color:var(--lv-menu-text);font:400 12px/1.5 inherit;white-space:normal;text-align:left;
+ clip-path:inset(50%);width:1px;height:1px;overflow:hidden;padding:0;border:0}
+.lv-info:hover .lv-info-tip,.lv-info:focus-within .lv-info-tip{clip-path:none;width:max-content;height:auto;overflow:visible;padding:8px 10px;border:1px solid var(--lv-menu-border)}
+.lv-ovf>.lv-ovf-menu{position:absolute;right:0;left:auto;top:calc(100% + 2px);width:max-content;min-width:200px}
+.lv-ovf>.lv-ovf-menu [role=menuitem]{white-space:nowrap}
+footer .lv-ovf>.lv-ovf-menu{top:auto;bottom:calc(100% + 2px)}

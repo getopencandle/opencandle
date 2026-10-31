@@ -1,0 +1,76 @@
+import {it,expect} from 'vitest';
+import {getNativeIndicator,type Vela,type NativeIndicator,type NativeIndicatorContext,type IndicatorHandle} from '@luxalgo/vela';
+import {createScriptPort,type ScriptInteraction} from '../../src/chart/script-port';
+import {createIndicatorPort} from '../../src/chart/indicator-port';
+import {createPaneRegistry} from '../../src/chart/pane-registry';
+import {ScriptBindingRuntime} from '../../src/ui/script-binding-runtime';
+import {restoreScriptBindings,type ScriptBinding} from '../../src/ui/script-library';
+const bars=[1000,1060,1120].map(time=>({time,open:10,high:12,low:9,close:11,volume:100}));
+function managedChart(delayed=false){
+ let sequence=0;const events=new Map<string,Set<(value:any)=>void>>(),handles=new Map<string,IndicatorHandle>(),rows=new Map<string,{model:NativeIndicator;pane:string;ownScale:boolean;mounted:boolean;visible:boolean;started:boolean;start:()=>void}>();
+ const emit=(event:string,value:unknown)=>{for(const fn of events.get(event)??[])fn(value);};
+ const chart={on:(event:string,fn:(value:any)=>void)=>{const set=events.get(event)??new Set();set.add(fn);events.set(event,set);return()=>{set.delete(fn);};},indicators:()=>[...handles.values()],panes:{list:()=>[...new Set(['price',...[...rows.values()].filter(row=>row.mounted).map(row=>row.pane)])].map(id=>({id,indicators:[...rows].filter(([,row])=>row.mounted&&row.pane===id).map(([id,row])=>({id,ownScale:row.ownScale}))}))},addNativeIndicator(type:string){
+  const descriptor=getNativeIndicator(type)!,id=`renderer-${++sequence}`,model=descriptor.create(),row={model,pane:descriptor.paneHint==='price'?'price':`pane-${sequence}`,ownScale:descriptor.paneHint==='price'&&!descriptor.overlay,mounted:false,visible:true,started:false,start:()=>{}};rows.set(id,row);
+  row.start=()=>{if(!rows.has(id)||!row.visible)return;row.started=true;model.start({id,symbol:'SYNTHETIC',timeframe:'1',live:false,data:{} as any,bars:()=>bars.map(bar=>({...bar,time:bar.time*1000})),emit:()=>{row.mounted=true;},pushData:()=>{},setStatus:()=>{}} as NativeIndicatorContext,descriptor.defaultInputs());};
+  const handle={id,setInputs:(values:any)=>model.setInputs(values),setVisible:(visible:boolean)=>{if(row.visible===visible)return;row.visible=visible;if(!visible){if(row.started)model.suspend();else row.mounted=true;}else if(row.started)model.resume();else row.start();emit('indicator:visibility',{id,visible});},moveTo:(target:any)=>{if(!row.mounted)return;row.pane=typeof target==='string'?target:target.pane??`fresh-${++sequence}`;row.ownScale=typeof target==='string'?!descriptor.overlay:'pane' in target;emit('indicator:moved',{id,paneId:row.pane});},remove:()=>{if(row.started)model.stop();rows.delete(id);handles.delete(id);emit('indicator:removed',{id});}} as unknown as IndicatorHandle;handles.set(id,handle);if(!delayed)row.start();return handle;
+ }};
+ return {chart:chart as unknown as Vela,rows,handles,start:()=>{for(const row of [...rows.values()])row.start();},restart:()=>{for(const row of rows.values()){if(row.started)row.model.stop();row.started=false;row.mounted=false;}for(const row of rows.values())row.start();}};
+}
+const binding:ScriptBinding={id:'binding',documentId:'document',name:'Synthetic example',source:'({onBar(){}})',version:1,pane:'price',paneId:null,ownScale:false,visible:true,plots:{}};
+const result={plots:[{id:'lvplot:Close',title:'Close',color:'#ffffff',values:bars.map(bar=>({time:bar.time,value:bar.close}))}],alerts:[],orders:[],diagnostics:[],elapsedMs:1,state:{},provisional:false,provenance:{kind:'synthetic'}};
+it('restoration/programmatic commands and source restart never impersonate external native actions',()=>{
+ const native=managedChart(true),port=createScriptPort(native.chart),events:ScriptInteraction[]=[];port.onInteraction(event=>events.push(event));port.add(result,{id:'binding',pane:'price',visible:false});native.start();port.show('binding',true);port.move('binding',{newPane:true});native.restart();port.remove('binding');expect(events).toEqual([]);port.dispose();
+});
+it('actual native visibility/move/delete events carry binding identity and logical pane/scale state',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart),events:ScriptInteraction[]=[];port.onInteraction(event=>events.push(event));port.add(result,{id:'binding'});const handle=native.handles.get(port.list()[0].rendererId)!;
+ handle.setVisible(false);handle.setVisible(true);handle.moveTo({newPane:true});handle.moveTo('price');handle.remove();
+ expect(events.slice(0,2)).toEqual([{kind:'visibility',id:'binding',visible:false},{kind:'visibility',id:'binding',visible:true}]);expect(events[2]).toMatchObject({kind:'moved',id:'binding',pane:'new',ownScale:false});expect((events[2] as Extract<ScriptInteraction,{kind:'moved'}>).paneId).toMatch(/^lv-pane-/);expect(events[3]).toEqual({kind:'moved',id:'binding',pane:'price',paneId:'price',ownScale:false});expect(events[4]).toEqual({kind:'removed',id:'binding'});expect(port.list()).toEqual([]);port.dispose();
+});
+it('shared logical panes restore with a single shared-scale master independent of arrival order',()=>{
+ const native=managedChart(true),registry=createPaneRegistry(native.chart),port=createScriptPort(native.chart,registry);port.add(result,{id:'independent',pane:'new',paneId:'saved-group',ownScale:true});port.add(result,{id:'master',pane:'new',paneId:'saved-group',ownScale:false});native.start();
+ const first=native.rows.get(port.list().find(row=>row.id==='independent')!.rendererId)!,second=native.rows.get(port.list().find(row=>row.id==='master')!.rendererId)!;expect(first.pane).toBe(second.pane);expect(first.ownScale).toBe(true);expect(second.ownScale).toBe(false);expect(port.list().map(row=>row.paneId)).toEqual(['saved-group','saved-group']);port.dispose();
+});
+it('two requested shared-scale masters reject before changing the existing native pane or saved settings',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart);port.add(result,{id:'first',pane:'new',paneId:'shared',ownScale:false});port.add(result,{id:'second',pane:'new',ownScale:false});const before=port.list(),a=native.rows.get(before[0].rendererId)!,b=native.rows.get(before[1].rendererId)!,placements=[a.pane,b.pane];
+ expect(()=>port.place('second',{pane:'new',paneId:'shared',ownScale:false})).toThrow('second shared-scale master');expect(port.list()).toEqual(before);expect([a.pane,b.pane]).toEqual(placements);expect([a.ownScale,b.ownScale]).toEqual([false,false]);port.dispose();
+});
+it('scripts restore into a domain indicator pane through the shared registry',()=>{
+ const native=managedChart(),registry=createPaneRegistry(native.chart),indicators=createIndicatorPort(native.chart,registry),scripts=createScriptPort(native.chart,registry);indicators.add('rsi',{length:2},{id:'rsi',paneId:'common'});scripts.add(result,{id:'script',pane:'new',paneId:'common',ownScale:true});const i=native.rows.get(indicators.list()[0].rendererId)!,s=native.rows.get(scripts.list()[0].rendererId)!;expect(i.pane).toBe(s.pane);expect(indicators.serialize()[0].paneId).toBe('common');expect(scripts.list()[0].paneId).toBe('common');indicators.dispose();scripts.dispose();
+});
+it('changing independent price scale recreates the native descriptor and retains source plots/styles',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart);port.add(result,{id:'binding'});port.place('binding',{pane:'price',paneId:'price',ownScale:true});expect(native.rows.get(port.list()[0].rendererId)!.ownScale).toBe(true);expect(port.list()[0].plotDescriptors[0].id).toBe('lvplot:Close');port.place('binding',{pane:'price',paneId:'price',ownScale:false});expect(native.rows.get(port.list()[0].rendererId)!.ownScale).toBe(false);expect(port.list()[0].ownScale).toBe(false);port.dispose();
+});
+it('unsupported second shared-scale study member rejects without changing saved settings or native placement',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart);port.add(result,{id:'master',pane:'new',paneId:'shared',ownScale:false});port.add(result,{id:'member',pane:'new',paneId:'shared',ownScale:true});const before=port.list(),row=native.rows.get(before.find(value=>value.id==='member')!.rendererId)!,pane=row.pane;
+ expect(()=>port.place('member',{pane:'new',paneId:'shared',ownScale:false})).toThrow('second shared-scale master');expect(port.list()).toEqual(before);expect(row.pane).toBe(pane);expect(row.ownScale).toBe(true);port.dispose();
+});
+it('an explicit new-pane selection leaves its prior shared group while retaining the plots',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart);port.add(result,{id:'master',pane:'new',paneId:'shared',ownScale:false});port.add(result,{id:'member',pane:'new',paneId:'shared',ownScale:true});port.place('member',{pane:'new',paneId:null,ownScale:true});const a=native.rows.get(port.list().find(value=>value.id==='master')!.rendererId)!,b=native.rows.get(port.list().find(value=>value.id==='member')!.rendererId)!;expect(a.pane).not.toBe(b.pane);expect(port.list().find(value=>value.id==='member')!.plotDescriptors[0].id).toBe('lvplot:Close');port.dispose();
+});
+it('native removal cancels a pending binding job before persistence and prevents late recreation',async()=>{
+ const native=managedChart(),port=createScriptPort(native.chart),jobs:Array<{resolve:(value:any)=>void;signal:AbortSignal}>=[],accepted:any[]=[];const execute=(args:any)=>new Promise<any>(resolve=>jobs.push({resolve,signal:args.signal})),runtime=new ScriptBindingRuntime(port,()=>{},value=>accepted.push(value),execute),context={bars,identity:'synthetic:1:candles:ordinary',fixture:true,bindings:[binding],ready:true};
+ runtime.update(context);jobs[0].resolve({result,barIds:['a','b','c']});await Promise.resolve();await Promise.resolve();expect(port.list()).toHaveLength(1);
+ runtime.update({...context,identity:'synthetic:2:candles:ordinary'});let saved=[binding];port.onInteraction(event=>{runtime.interact(event);if(event.kind==='removed')saved=saved.filter(row=>row.id!==event.id);});native.handles.get(port.list()[0].rendererId)!.remove();expect(jobs[1].signal.aborted).toBe(true);expect(saved).toEqual([]);
+ jobs[1].resolve({result,barIds:['new-a','new-b','new-c']});await Promise.resolve();await Promise.resolve();runtime.update({...context,bindings:saved});expect(port.list()).toEqual([]);expect(accepted).toHaveLength(1);runtime.dispose();port.dispose();
+});
+it('rejected placement stays an error, preserves valid results, and retry attempts placement without recalculation',async()=>{
+ const native=managedChart(),port=createScriptPort(native.chart),jobs:Array<{resolve:(value:any)=>void}>=[],states:any[]=[];let reject=true,attempts=0;const actual=port.place.bind(port);port.place=(id,pose)=>{attempts++;if(reject)throw new Error('Unsupported requested placement');return actual(id,pose);};const execute=()=>new Promise<any>(resolve=>jobs.push({resolve})),runtime=new ScriptBindingRuntime(port,rows=>states.push(rows),()=>{},execute),context={bars,identity:'synthetic:1:candles:ordinary',fixture:true,bindings:[binding],ready:true};
+ runtime.update(context);jobs[0].resolve({result,barIds:['a','b','c']});await Promise.resolve();await Promise.resolve();const accepted=port.list()[0].plotDescriptors,desired={...binding,pane:'new' as const,paneId:'desired-study'};
+ runtime.update({...context,bindings:[desired]});expect(states.at(-1)[0]).toMatchObject({status:'error',message:'Error: Unsupported requested placement'});expect(port.list()[0].plotDescriptors).toEqual(accepted);expect(jobs).toHaveLength(1);expect(attempts).toBe(1);
+ runtime.update({...context,bindings:[desired]});expect(attempts).toBe(1);expect(states.at(-1)[0].status).toBe('error');runtime.retry();runtime.update({...context,bindings:[desired]});expect(attempts).toBe(2);expect(jobs).toHaveLength(1);expect(states.at(-1)[0].status).toBe('error');
+ reject=false;runtime.retry();runtime.update({...context,bindings:[desired]});expect(attempts).toBe(3);expect(states.at(-1)[0].status).toBe('ready');expect(port.list()[0].paneId).toBe('desired-study');expect(jobs).toHaveLength(1);runtime.dispose();port.dispose();
+});
+it('legacy bindings migrate to isolated automatic panes and invalid combinations reject atomically',()=>{
+ const {paneId,ownScale,...legacy}=binding;expect(restoreScriptBindings([legacy])[0]).toMatchObject({paneId:null,ownScale:false});expect(()=>restoreScriptBindings([{...binding,pane:'new',paneId:'price'}])).toThrow('pane');expect(()=>restoreScriptBindings([{...binding,paneId:'x'.repeat(201)}])).toThrow('pane');
+});
+it('a trusted accepted-result checkpoint restores values and placement without impersonating native user actions',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart),interactions:ScriptInteraction[]=[],published:string[][]=[];port.onInteraction(event=>interactions.push(event));port.subscribe(()=>published.push(port.list().map(row=>row.id)));port.add(result,{id:'original',pane:'new',paneId:'historical-pane',ownScale:false});const checkpoint=port.captureAcceptedResults();expect(checkpoint.count).toBe(1);expect(()=>port.restoreAcceptedResults({count:1})).toThrow('Foreign');
+ const hold=port.beginExternalTransaction();port.remove('original');port.add({plots:[]},{id:'replacement'});port.restoreAcceptedResults(checkpoint);hold.release(false);expect(interactions).toEqual([]);expect(published).toEqual([['original']]);expect(port.list()).toHaveLength(1);expect(port.list()[0]).toMatchObject({id:'original',paneId:'historical-pane'});const row=native.rows.get(port.list()[0].rendererId)!;expect((row.model as any).result.plots[0].values).toEqual(result.plots[0].values);expect(port.placementStatus()).toEqual({ready:true,diagnostics:[]});port.dispose();
+});
+it('external script holds suppress input callbacks and publish one committed snapshot only',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart),snapshots:string[][]=[],inputs:string[]=[];port.subscribe(()=>snapshots.push(port.list().map(row=>row.id)));port.onInputChanged(id=>inputs.push(id));const hold=port.beginExternalTransaction();port.add(result,{id:'one'});port.add(result,{id:'two'});for(const row of native.rows.values())row.model.onBars();expect(inputs).toEqual([]);expect(snapshots).toEqual([]);hold.release(true);expect(snapshots).toEqual([['one','two']]);expect(()=>hold.release(true)).toThrow('already');port.dispose();
+});
+it('checkpoint restoration failure preserves the current accepted script instead of a partial target',()=>{
+ const native=managedChart(),port=createScriptPort(native.chart);port.add(result,{id:'old'});const old=port.captureAcceptedResults();port.remove('old');port.add({...result,plots:[{...result.plots[0],title:'Current',values:[{time:1000,value:99}]}]},{id:'current'});const original=native.chart.addNativeIndicator.bind(native.chart);let first=true;native.chart.addNativeIndicator=(...args)=>{if(first){first=false;throw new Error('Injected target mount failure');}return original(...args);};
+ expect(()=>port.restoreAcceptedResults(old)).toThrow('Injected target mount failure');expect(port.list().map(row=>row.id)).toEqual(['current']);expect((native.rows.get(port.list()[0].rendererId)!.model as any).result.plots[0].values).toEqual([{time:1000,value:99}]);port.dispose();
+});

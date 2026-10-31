@@ -1,0 +1,31 @@
+.lv-order-ticket{--lv-sell:var(--lv-trade-sell);--lv-buy:var(--lv-trade-buy);display:grid;gap:10px;padding:12px 16px;width:100%;min-width:0;box-sizing:border-box;animation:lv-ticket-in .14s ease-out}
+@keyframes lv-ticket-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.lv-order-ticket{animation:none}}
+.lv-order-ticket .toggle,.lv-order-ticket .tabs{display:flex;gap:4px}
+.lv-order-ticket .toggle button{flex:1;padding:8px;border-radius:var(--lv-radius-plate,6px);border:1px solid transparent;color:var(--lv-on-trade);cursor:pointer;font-weight:600;opacity:.55}
+.lv-order-ticket .toggle button.sell{background:var(--lv-sell)}
+.lv-order-ticket .toggle button.buy{background:var(--lv-buy)}
+.lv-order-ticket .toggle button[aria-pressed=true]{opacity:1}
+.lv-order-ticket .tabs{border-bottom:1px solid var(--lv-border)}
+.lv-order-ticket .tabs button{padding:5px 12px;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--lv-text-secondary);cursor:pointer}
+.lv-order-ticket .tabs button[aria-selected=true]{border-bottom-color:var(--lv-accent);color:var(--lv-text-primary);font-weight:600}
+.lv-order-ticket label{display:grid;gap:3px;font-size:12px;min-width:0;color:var(--lv-text-secondary)}
+.lv-order-ticket label>input:not([type=checkbox]),.lv-order-ticket label select{width:100%;min-width:0;box-sizing:border-box}
+.lv-order-ticket label>span{min-width:0}
+.lv-order-ticket label>span>select{flex:none;max-width:48%;min-width:0}
+.lv-order-ticket label>span>input{flex:1;min-width:0;width:auto}
+.lv-order-ticket .row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.lv-order-ticket .review{font-size:12px;line-height:1.5;color:var(--lv-text-secondary)}
+.lv-order-ticket .go{padding:9px;border:0;border-radius:var(--lv-radius-plate,6px);color:var(--lv-on-trade);cursor:pointer;font-weight:600}
+.lv-order-ticket .go.buy{background:var(--lv-buy)}
+.lv-order-ticket .go.sell{background:var(--lv-sell)}
+.lv-order-ticket .go:disabled{opacity:.5;cursor:default}
+.lv-order-ticket .lv-ticket-info{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;margin:0;font-size:12px;color:var(--lv-text-secondary)}
+.lv-order-ticket .lv-ticket-info dt{margin:0}
+.lv-order-ticket .lv-ticket-info dd{margin:0;text-align:right;color:var(--lv-text-primary);font-variant-numeric:tabular-nums}
+.lv-order-ticket .lv-ticket-info+.lv-ticket-info{padding-top:6px;border-top:1px solid var(--lv-border)}
+/* The marketable limit confirmation sits right above the submit button. */
+.lv-order-ticket .lv-ticket-confirm{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--lv-warning,#c99a2e);border-radius:var(--lv-radius-plate);font-size:12px;line-height:1.4}
+.lv-order-ticket .lv-ticket-confirm>button{align-self:flex-start}
+/* Submit (and the marketable-limit confirmation) stay in view when the ticket scrolls at short window heights. */
+.lv-order-ticket .lv-ticket-foot{position:sticky;bottom:0;display:grid;gap:6px;margin:0 -16px -12px;padding:8px 16px 12px;background:var(--lv-bg-raised);border-top:1px solid var(--lv-border);z-index:1}

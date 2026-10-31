@@ -1,0 +1,5 @@
+/** Original LV public dependency extension. Reservation never inserts drawings. */
+export function createDrawingIdReservations(reserve:(ids:readonly string[])=>unknown){
+ let accepted:Set<string>|null=null;
+ return{apply(ids:readonly string[]){if(!Array.isArray(ids)||Object.getPrototypeOf(ids)!==Array.prototype||ids.length>10000)throw Error('Drawing identity reservation capacity exceeded');if(Reflect.ownKeys(ids).length!==ids.length+1)throw Error('Canonical drawing reservations require a dense data array');const next=new Set<string>();for(let index=0;index<ids.length;index++){const field=Object.getOwnPropertyDescriptor(ids,String(index));if(!field||!field.enumerable||!Object.hasOwn(field,'value'))throw Error('Invalid canonical drawing reservation data');const id=field.value;if(typeof id!=='string'||!id||id.length>4096||next.has(id))throw Error('Invalid canonical drawing identity reservation');next.add(id);}if(accepted&&accepted.size===next.size&&[...next].every(id=>accepted!.has(id)))return;reserve([...next]);accepted=next;}};
+}

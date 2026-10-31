@@ -1,0 +1,45 @@
+/* Script editor extras: palette, minimap-lite, hover docs. Tokens come from overlay.css. */
+.script-editor-frame{position:relative}
+.script-palette{position:absolute;z-index:30;top:36px;left:50%;transform:translateX(-50%);width:min(440px,92%);background:var(--lv-menu-bg);border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);box-shadow:var(--lv-menu-shadow);color:var(--lv-menu-text);font-size:12px}
+.script-palette input{width:100%;box-sizing:border-box;padding:8px var(--lv-menu-pad-x);background:transparent;color:var(--lv-text-primary);border:0;border-bottom:1px solid var(--lv-divider);outline:none}
+.script-palette input:focus-visible{box-shadow:inset 0 0 0 1px var(--lv-focus-ring)}
+.script-palette ul{list-style:none;margin:0;padding:4px 0;max-height:240px;overflow:auto}
+.script-palette li{display:flex;justify-content:space-between;gap:12px;align-items:center;min-height:var(--lv-menu-row-h);padding:0 var(--lv-menu-pad-x);cursor:pointer}
+.script-palette li:hover{background:var(--lv-menu-hover)}
+.script-palette li.active{background:var(--lv-menu-active)}
+.script-palette kbd{color:var(--lv-menu-text-muted);font:inherit;font-size:11px}
+.script-palette-empty{color:var(--lv-menu-text-muted);cursor:default!important}
+.cm-editor.script-has-minimap{position:relative}
+.cm-editor.script-has-minimap .cm-scroller{margin-right:60px}
+.script-minimap{position:absolute;top:0;right:0;bottom:0;width:60px;background:var(--lv-bg-raised);border-left:1px solid var(--lv-divider);overflow:hidden;cursor:pointer;touch-action:none;z-index:5}
+.script-minimap-rows{position:absolute;inset:0;display:flex;flex-direction:column;padding:2px 4px;box-sizing:border-box}
+.script-minimap-row{flex:1 1 0;min-height:1px;max-height:3px;background:var(--lv-text-disabled);border-radius:1px}
+.script-minimap-row.error{background:var(--lv-error-text)}
+.script-minimap-row.warning{background:var(--lv-accent)}
+.script-minimap-thumb{position:absolute;left:0;right:0;background:var(--lv-hover-strong);border-top:1px solid var(--lv-border-hover);border-bottom:1px solid var(--lv-border-hover);pointer-events:none}
+.script-api-hover{padding:6px 10px;max-width:360px;font-size:12px;color:var(--lv-menu-text)}
+.script-api-hover code{display:block;font-family:Consolas,monospace;color:var(--lv-text-primary)}
+.script-api-hover p{margin:4px 0 0;color:var(--lv-text-secondary)}
+.cm-tooltip.cm-tooltip-hover,.cm-tooltip.cm-tooltip-autocomplete{background:var(--lv-menu-bg);border:1px solid var(--lv-menu-border);color:var(--lv-menu-text)}
+/* LV syntax palette (script-editor-theme.ts). Readable on both LV dark surfaces (>= 4.5:1 on --lv-bg-surface). */
+:root{--lv-code-keyword:#b99cf0;--lv-code-string:#9fd39a;--lv-code-number:var(--lv-notice-text);--lv-code-constant:#f2996e;--lv-code-comment:#8a92a5;--lv-code-function:#7bd9e4;--lv-code-property:#a9c7f5;--lv-code-variable:var(--lv-text-primary);--lv-code-type:var(--lv-notice-text);--lv-code-punctuation:var(--lv-text-secondary);--lv-code-invalid:var(--lv-error-text)}
+
+/* The script editor's one compact toolbar and its More menu. */
+.lv-script-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:30px}
+.lv-script-toolbar>input[aria-label="Script name"]{width:180px;min-width:100px}
+.lv-script-toolbar>button,.lv-script-more>summary{padding:4px 10px;border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);background:var(--lv-bg-input);color:var(--lv-text-primary);font-size:12px;line-height:18px;cursor:pointer}
+.lv-script-toolbar>button:hover:not(:disabled),.lv-script-more>summary:hover{background:var(--lv-hover);border-color:var(--lv-border-hover)}
+.lv-script-state{color:var(--lv-text-secondary);font-size:12px;white-space:nowrap}
+.lv-script-state-dirty{color:var(--lv-notice-text,var(--lv-text-secondary))}
+.lv-script-toolbar-sep{width:1px;align-self:stretch;margin:2px 2px;background:var(--lv-border)}
+.lv-script-more{position:relative;margin-left:auto}
+.lv-script-more>summary{list-style:none;user-select:none}
+.lv-script-more>summary::-webkit-details-marker{display:none}
+.lv-script-more>summary::after{content:'';display:inline-block;margin-left:8px;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg)}
+.lv-script-more[open]>summary{background:var(--lv-hover)}
+.lv-script-more-list{position:absolute;right:0;top:calc(100% + 4px);z-index:20;display:flex;flex-direction:column;gap:2px;min-width:220px;max-height:60vh;overflow:auto;padding:6px;background:var(--lv-menu-bg,var(--lv-bg-raised));border:1px solid var(--lv-menu-border,var(--lv-border));border-radius:var(--lv-menu-radius,var(--lv-radius-plate));box-shadow:var(--lv-menu-shadow,var(--lv-shadow))}
+.lv-script-more-list>button,.lv-script-more-group>button{width:100%;text-align:left;padding:6px 10px;border:0;border-radius:var(--lv-radius-plate);background:transparent;color:var(--lv-text-primary);font-size:12px}
+.lv-script-more-list>button:hover,.lv-script-more-group>button:hover{background:var(--lv-hover)}
+.lv-script-more-list>input,.lv-script-more-list>select,.lv-script-more-list>div:not(.lv-script-more-group){margin:2px 0 4px}
+.lv-script-more-group{display:flex;flex-direction:column;gap:2px;margin-top:4px;padding-top:6px;border-top:1px solid var(--lv-border)}
+.lv-script-more-group>small{padding:0 10px;color:var(--lv-text-tertiary);font-size:11px}

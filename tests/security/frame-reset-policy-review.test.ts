@@ -1,0 +1,24 @@
+import {expect,it} from 'vitest';
+import {createInitialWorkspace} from '../../src/ui/workspace-state';
+import {patchWorkspace,workspaceDatasets} from '../../src/ui/workspace-grid';
+import {resetIncompatibleFrame} from '../../src/ui/frame-reset-policy';
+import {sourceContextForDataset} from '../../src/chart/source-context';
+import type {HistoricalChartFrame} from '../../src/chart/historical-frame';
+// Pure ordinary-edit policy and workspace projections, no actual frame/native
+// state, gesture, Undo tree, numerical calculator or interface evidence.
+function fixture(){const workspace=createInitialWorkspace(),grid=workspace.grid!,id=grid.layout.activeCellId,sources=workspaceDatasets(workspace),cell=grid.cells[id],source=sourceContextForDataset(sources.find(row=>row.provenance.datasetId===cell.datasetId)!);const frame:HistoricalChartFrame={schemaVersion:1,basis:{basisIdentity:source.basisIdentity!,revision:source.revision,style:cell.style},calculationFingerprints:{},panes:[{key:{kind:'price'},owners:[],order:0,heightWeight:1,collapsed:false,mode:'price',log:false,invert:false,manualRange:{min:13,max:37}}],independent:[],maximized:null};cell.frame=frame;cell.chartOptions.auto=false;return{workspace,grid,id,sources,cell};}
+it('script numerical/source/placement changes reset ordinary manual intent while display-only changes retain it',()=>{
+ const s=fixture(),binding={id:'synthetic-script',documentId:'synthetic-doc',version:1,name:'Synthetic name',source:'({onBar(){}})',pane:'price' as const,visible:true,plots:{}},before={...s.cell,scriptBindings:[binding]};for(const patch of [{source:'({onBar(ctx){ctx.plot("Synthetic",1);}})'},{version:2},{pane:'new' as const,paneId:'synthetic-pane'},{ownScale:true}]){const after={...before,scriptBindings:[{...binding,...patch}]},next=resetIncompatibleFrame(before,after,s.sources,s.sources);expect(next.frame).toBeUndefined();/* The unprovable frame is dropped but the manual range (auto off) is kept for the grid to recapture. */expect(next.chartOptions.auto).toBe(false);expect(before.frame!.panes[0].manualRange).toEqual({min:13,max:37});}const display={...before,scriptBindings:[{...binding,name:'Other synthetic title',visible:false}]};expect(resetIncompatibleFrame(before,display,s.sources,s.sources)).toBe(display);
+});
+it('comparison numeric mode/baseline and declared revision changes clear ranges but color/visibility do not',()=>{
+ const s=fixture(),data=s.sources.find(row=>row.instrument.symbol==='SPY')!,comparison={id:'synthetic-comparison',datasetId:data.provenance.datasetId,mode:'absolute' as const,baseline:'first-loaded-match' as const,color:'#123456',width:2,visible:true},before={...s.cell,comparisons:[comparison]};for(const patch of [{mode:'percent' as const},{baseline:'first-visible-match' as const}])expect(resetIncompatibleFrame(before,{...before,comparisons:[{...comparison,...patch}]},s.sources,s.sources).frame).toBeUndefined();const revised=s.sources.map(row=>row===data?{...row,provenance:{...row.provenance,revision:'synthetic-revision-2'}}:row);expect(resetIncompatibleFrame(before,before,s.sources,revised).frame).toBeUndefined();const display={...before,comparisons:[{...comparison,color:'#abcdef',width:4,visible:false}]};expect(resetIncompatibleFrame(before,display,s.sources,s.sources)).toBe(display);
+});
+it('ordinary navigation resets manual intent and preserves independent valid appearance and controls without changing old history',()=>{
+ const s=fixture();s.cell.chartOptions.invert=true;s.cell.chartOptions.scale='logarithmic';const before=JSON.stringify(s.workspace),next=patchWorkspace(s.workspace,{symbol:'SPY'});expect(next.grid.cells[s.id].frame).toBeUndefined();expect(next.grid.cells[s.id].chartOptions).toMatchObject({auto:true,invert:true,scale:'logarithmic'});expect(next.grid.cells[s.id].appearance).toEqual(s.cell.appearance);expect(JSON.stringify(s.workspace)).toBe(before);
+});
+it('explicit target grid restoration bypasses ordinary frame reset and retains the provided history target',()=>{
+ const s=fixture(),ordinary=patchWorkspace(s.workspace,{chartStyle:'line'});expect(ordinary.grid.cells[s.id].frame).toBeUndefined();const restored=patchWorkspace(ordinary,{grid:s.grid});expect(restored.grid).toBe(s.grid);expect(restored.grid.cells[s.id].frame).toBe(s.cell.frame);expect(restored.chartOptions.auto).toBe(false);
+});
+it('an unavailable linked interval rejects navigation before changing any opening frame or saved cell',()=>{
+ const s=fixture(),row=s.grid.layout.cells[0];s.grid.presetId='two-rows';s.grid.layout.sync.symbol=true;s.grid.layout.cells.push({...row,id:'synthetic-second',interval:'1m'});s.grid.cells['synthetic-second']=structuredClone(s.cell);const before=JSON.stringify(s.workspace);expect(()=>patchWorkspace(s.workspace,{symbol:'SPY'})).toThrow('1m');expect(JSON.stringify(s.workspace)).toBe(before);
+});

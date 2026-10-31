@@ -1,0 +1,12 @@
+/* The Wick mode strip window (?window=wick). One tab row (34 px), the main window's theme colours (set inline on
+   :root from the snapshot), the layout tab styles of layout-tabs.css. The empty part drags the window; tabs and buttons do not. */
+:root[data-lv-wick],:root[data-lv-wick] body,:root[data-lv-wick] #root{height:100%;margin:0;overflow:hidden;background:var(--lv-bg-raised)}
+:root[data-lv-wick] body{user-select:none}
+.lv-wick{display:flex;align-items:stretch;gap:2px;height:100%;padding:0 2px 0 4px;background:var(--lv-bg-raised);color:var(--lv-text-secondary);-webkit-app-region:drag;app-region:drag}
+.lv-wick-tabs{flex:0 1 auto}
+.lv-wick .lv-layout-tab,.lv-wick button{-webkit-app-region:no-drag;app-region:no-drag}
+.lv-wick .lv-layout-tab-button{padding-right:10px}
+.lv-wick-grip{flex:1 1 0;min-width:12px}
+.lv-wick-waiting{align-self:center;padding:0 10px;font-size:13px;color:var(--lv-text-hint)}
+.lv-wick-expand{flex:none;align-self:center;display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border-radius:4px;color:var(--lv-text-secondary)}
+.lv-wick-expand:hover{background:var(--lv-hover-strong);color:var(--lv-text-primary)}

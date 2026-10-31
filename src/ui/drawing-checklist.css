@@ -1,0 +1,14 @@
+/* Checklist dropdown of the drawing settings dialog (DrawingChecklist.tsx). Colours come from the --lv-* tokens in styles.css. */
+fieldset.checklist-row{display:flex;align-items:center;justify-content:space-between;gap:16px;border:0;padding:0;margin:12px 0}
+fieldset.checklist-row>legend{float:left;padding:0;color:inherit}
+.lv-checklist{position:relative;width:180px;display:flex;flex-direction:column;gap:4px}
+.lv-checklist>button{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:30px;padding:4px 8px;text-align:left;color:var(--lv-text-primary);background:var(--lv-bg-input);border:1px solid var(--lv-input-border);border-radius:4px}
+.lv-checklist>button:disabled{opacity:.55;cursor:default}
+.lv-checklist>button[aria-expanded=true]{border-color:var(--lv-accent)}
+.lv-checklist-summary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv-checklist>[role=menu]{position:absolute;z-index:30;top:calc(100% + 2px);left:0;min-width:100%;padding:4px 0;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow)}
+.lv-checklist>[role=menu][hidden]{display:none}
+.lv-checklist-item{display:flex;align-items:center;gap:8px;padding:6px 12px;white-space:nowrap;cursor:pointer}
+.lv-checklist-item:hover,.lv-checklist-item:focus-within{background:var(--lv-hover)}
+.lv-checklist-item input{width:15px;height:15px;margin:0;accent-color:var(--lv-accent)}
+.lv-checklist-reason{font-size:11px;line-height:1.4;color:var(--lv-text-secondary)}

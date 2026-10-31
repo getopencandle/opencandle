@@ -1,0 +1,15 @@
+OpenCandle name and logo
+
+The OpenCandle logo (a flame with candlestick bars) was supplied by the project owner.
+The OpenCandle name and logo are not covered by the software license (PolyForm
+Noncommercial License 1.0.0) that applies to the application code. All rights in the name and logo are reserved by the
+project owner.
+
+Source image: Logo-clean.png (in the source tree)
+Recipe: scripts/generate-opencandle-icons.py (Python with Pillow)
+Assets: opencandle.ico, opencandle-256.png, opencandle-logo-512.png, opencandle-mark-64.png,
+        opencandle-favicon-32.png, opencandle-tray-16/20/24/32.png
+The 16, 20 and 24 px sizes and the 64 px menu mark use a simplified drawing (flame and
+green candle only) so the icon stays readable at small sizes.
+
+The earlier pre-release bitmap and mark are not used and are not included.

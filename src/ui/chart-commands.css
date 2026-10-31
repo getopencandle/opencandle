@@ -1,0 +1,60 @@
+/* Quick search palette, Table view, chart navigation buttons and the locked time line (our own look, theme tokens only). */
+.lv-quick-search{display:flex;flex-direction:column;gap:8px;min-width:min(560px,80vw)}
+.lv-quick-search-input{width:100%;box-sizing:border-box;height:36px;padding:0 10px;font-size:14px;border:1px solid var(--lv-border-panel);border-radius:var(--lv-radius-plate);background:var(--lv-bg-surface);color:var(--lv-text-primary)}
+.lv-quick-search-input:focus{outline:2px solid var(--lv-focus-ring);outline-offset:-1px}
+.lv-quick-search-filters{display:flex;flex-wrap:wrap;gap:4px}
+.lv-quick-search-filters button{height:24px;padding:0 8px;border-radius:12px;border:1px solid var(--lv-border-panel);background:transparent;color:var(--lv-text-secondary);font-size:12px;cursor:pointer}
+.lv-quick-search-filters button.active{background:var(--lv-toggle-active-bg);color:var(--lv-toggle-active-text);border-color:transparent}
+.lv-quick-search-results{max-height:min(420px,60vh);overflow-y:auto}
+.lv-quick-search-heading{padding:8px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--lv-text-tertiary)}
+.lv-quick-search-row{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 8px;border-radius:var(--lv-radius-plate);cursor:pointer;color:var(--lv-text-primary)}
+.lv-quick-search-row.active{background:var(--lv-hover)}
+.lv-quick-search-label{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv-quick-search-detail{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--lv-text-secondary);font-size:12px}
+.lv-quick-search-key{flex:0 0 auto;font-size:11px;color:var(--lv-text-secondary)}
+.lv-quick-search-empty{padding:12px 8px;color:var(--lv-text-secondary)}
+.lv-table-view{display:flex;flex-direction:column;gap:8px}
+.lv-table-view-scroll{max-height:60vh;overflow:auto;border:1px solid var(--lv-border-panel);border-radius:var(--lv-radius-plate)}
+.lv-table-view table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:12px}
+.lv-table-view th{position:sticky;top:0;background:var(--lv-bg-raised);text-align:right;padding:4px 8px;white-space:nowrap;color:var(--lv-text-secondary);font-weight:600}
+.lv-table-view td{text-align:right;padding:3px 8px;white-space:nowrap;border-top:1px solid var(--lv-divider)}
+.lv-table-view th:first-child,.lv-table-view td:first-child{text-align:left}
+.lv-nav-buttons{position:absolute;left:var(--lv-nav-left,50%);bottom:var(--lv-price-pane-bottom-gap,calc(var(--lv-bottom-h) + 36px));transform:translateX(-50%);z-index:8;display:flex;gap:4px;transition:opacity .15s;pointer-events:none}
+/* Only the visible buttons take the pointer: never the gaps between them, never while hidden. */
+.lv-nav-buttons button{pointer-events:auto}
+.lv-nav-buttons[data-visibility="mouseover"]{opacity:0}
+.lv-nav-buttons[data-visibility="mouseover"] button{pointer-events:none}
+/* Shown while the pointer is over a chart (not anywhere in the workspace: the heading, the replay bar and
+   the bottom toolbar no longer keep it drawn) or over the buttons, and while one of them has keyboard focus (a clicked button
+   keeps focus without a ring, so it no longer keeps the strip drawn after the pointer leaves). */
+.chart-workspace:has([data-chart-tree]:hover) .lv-nav-buttons[data-visibility="mouseover"],.lv-nav-buttons[data-visibility="mouseover"]:hover,.lv-nav-buttons[data-visibility="mouseover"]:has(:focus-visible){opacity:1}
+.chart-workspace:has([data-chart-tree]:hover) .lv-nav-buttons[data-visibility="mouseover"] button,.lv-nav-buttons[data-visibility="mouseover"]:hover button,.lv-nav-buttons[data-visibility="mouseover"]:has(:focus-visible) button{pointer-events:auto}
+.lv-nav-buttons button{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:50%;border:1px solid var(--lv-border-panel);background:var(--lv-bg-raised);color:var(--lv-text-primary);box-shadow:var(--lv-shadow);cursor:pointer}
+.lv-nav-buttons button:hover{background:var(--lv-hover)}
+.lv-locked-time-line{position:fixed;width:0;border-left:1px dashed var(--lv-accent);pointer-events:none;z-index:4}
+/* Chart context menu: the shared .lv-popup-menu look, kept above the chart overlays and scrolling when taller than the window. */
+.lv-chart-context-menu{z-index:1000;max-height:calc(100vh - 8px);overflow:auto}
+.lv-chart-context-submenu{z-index:1001}
+/* The menu and its submenus grow to their longest row (label plus shortcut) up to a cap, like desktop menus (past the cap a menu row label still ends in an ellipsis). */
+.lv-popup-menu.lv-chart-context-menu,.lv-popup-menu.lv-chart-context-submenu{width:max-content;min-width:260px;max-width:min(460px,calc(100vw - 8px))}
+.lv-chart-context-menu .lv-popup-shortcut{padding-left:16px}
+.lv-chart-context-menu hr.lv-popup-separator{width:100%;border:0;flex-shrink:0}
+/* Chart Sell / Buy block: two-line buttons (label over price) with the quantity box between, like the reference layout. */
+.lv-trade-buttons{--lv-sell:var(--lv-trade-sell);--lv-buy:var(--lv-trade-buy);z-index:3;display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:calc(100% - 16px);font-size:11px;pointer-events:auto}
+.lv-trade-buttons button{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:0;min-width:56px;height:36px;padding:2px 8px;border-radius:4px;border:0;color:var(--lv-on-trade);cursor:pointer;font-size:11px;line-height:14px}
+.lv-trade-buttons button b{font-size:13px;font-weight:600;line-height:16px;font-variant-numeric:tabular-nums}
+.lv-trade-buttons button.sell{background:var(--lv-sell)}
+.lv-trade-buttons button.buy{background:var(--lv-buy)}
+.lv-trade-buttons button.selected{outline:2px solid var(--lv-focus-ring);outline-offset:1px}
+.lv-trade-buttons button:disabled{opacity:.5;cursor:default}
+.lv-trade-qty{width:56px;height:36px;box-sizing:border-box;padding:3px 6px;border-radius:4px;border:1px solid var(--lv-input-border);background:var(--lv-bg-surface);caret-color:var(--lv-text-primary);color:var(--lv-text-primary);font:inherit;font-size:13px;font-variant-numeric:tabular-nums;text-align:center;cursor:text}
+.lv-trade-qty::placeholder{color:var(--lv-text-secondary);opacity:1}
+.lv-trade-qty:hover{border-color:var(--lv-input-border-hover);background:var(--lv-bg-surface)}
+.lv-trade-qty:focus{outline:none;border-color:var(--lv-input-border-focus);box-shadow:0 0 0 1px var(--lv-input-border-focus)}
+.lv-trade-buttons small{color:var(--lv-text-secondary)}
+/* Multi-chart cells. Drawing labels under the group show through it and get the clicks; only Sell, Qty and Buy take the pointer. */
+.lv-trade-buttons[data-lv-see-through=true]{pointer-events:none;opacity:.55;transition:opacity .12s}
+.lv-trade-buttons[data-lv-see-through=true] :is(button,input){pointer-events:auto}
+.lv-trade-buttons[data-lv-see-through=true]:is(:hover,:focus-within){opacity:1}
+/* The spread sits between Sell and Buy, 11px muted, like the reference. */
+.lv-trade-buttons small.lv-trade-spread{min-width:28px;text-align:center;font-size:11px;line-height:14px;color:var(--lv-text-secondary);font-variant-numeric:tabular-nums}

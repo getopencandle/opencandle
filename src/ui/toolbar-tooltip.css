@@ -1,0 +1,6 @@
+/* LV toolbar tooltip (toolbar-tooltip.ts). Uses the popup menu tokens so it follows the theme. */
+.lv-tooltip{position:fixed;z-index:400;display:flex;align-items:center;gap:8px;max-width:320px;padding:5px 8px;border-radius:4px;background:var(--lv-menu-bg,#2a2e39);border:1px solid var(--lv-menu-border,#434651);box-shadow:var(--lv-menu-shadow,0 2px 8px rgba(0,0,0,.35));color:var(--lv-menu-text,#e8eaf0);font-size:12px;line-height:16px;white-space:nowrap;pointer-events:none;animation:lv-tooltip-in 90ms ease-out}
+.lv-tooltip>span{overflow:hidden;text-overflow:ellipsis}
+.lv-tooltip-keys{font:inherit;font-size:11px;padding:0 5px;border-radius:3px;border:1px solid var(--lv-menu-border,#434651);color:var(--lv-menu-text-muted,#a3a6af);flex-shrink:0}
+@keyframes lv-tooltip-in{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.lv-tooltip{animation:none}}

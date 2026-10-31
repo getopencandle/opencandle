@@ -1,0 +1,107 @@
+import {afterEach,expect,it,vi} from 'vitest';
+import {all,invoke,mountControlledComponent,text,type ModelElement} from '../helpers/alert-dialog-harness';
+import {CompoundAlertDialogBoundary,type CompoundAlertDialogBoundaryProps} from '../../src/ui/CompoundAlertDialogBoundary';
+import {CompoundConditionEditor} from '../../src/ui/CompoundConditionEditor';
+import {encodeCompoundPrivateDocument} from '../../src/ui/compound-alert-document';
+import {CompoundAlertBook} from '../../src/ui/compound-alert-book';
+import {COMPOUND_POLICY,type CompoundDefinition} from '../../src/domain/compound-alerts';
+import {DEFAULT_ALERT_MANAGER_FILTER,DEFAULT_ALERT_MANAGER_SORT} from '../../src/domain/alert-manager-view';
+import {publishedSource,flushMtf,unix} from '../fixtures/qualified-nyse-mtf-source';
+import {selectAlpacaSyntheticStub,isAlpacaSyntheticStub} from '../../src/domain/alpaca-live';
+
+// Existing controlled React/ref/callback model. Expand only this packet's two
+// stateless presentation children, never nested hook components/Modal. This is
+// not browser key dispatch/focus, full App, native observation or GUI evidence.
+const closes:Array<()=>unknown>=[];
+afterEach(()=>{const errors:unknown[]=[];for(const close of closes.splice(0).reverse())try{close();}catch(error){errors.push(error);}vi.restoreAllMocks();vi.useRealTimers();if(errors.length)throw new AggregateError(errors,'Synthetic manager cleanup failed.');});
+function expand(value:unknown):unknown{
+ if(Array.isArray(value))return value.map(expand);if(!value||typeof value!=='object'||!('type'in value)||!('props'in value))return value;
+ const node=value as ModelElement;
+ if(typeof node.type==='function'&&['FirstAddedCondition','CompoundManagerRow'].includes(node.type.name))return expand(Reflect.apply(node.type,undefined,[node.props]));
+ return{...node,props:{...node.props,children:expand(node.props.children)}};
+}
+async function fixture(){
+ const previous=isAlpacaSyntheticStub();selectAlpacaSyntheticStub(true);closes.push(()=>selectAlpacaSyntheticStub(previous));const now=unix('2024-03-11T19:59:50Z'),producer=await publishedSource({now,resolution:'15m'});closes.push(()=>producer.dispose());const dataset=producer.regular();
+ const noNative=()=>{throw Error('This declaration-editor test must not acquire native/source observation permission.');};
+ const refs={financial:{current:{paper:{},paperBook:null,alerts:[]}},currentInput:{current:{dataset,bars:dataset.bars,replay:null}},activeController:{current:{getStyle:noNative,isInputExact:noNative,isInputCurrent:noNative}},financialGeneration:{current:0},gridGeneration:{current:0},storageMutation:{current:false},workspaceTransaction:{current:false},currentReplay:{current:null},startup:{current:{phase:'ready'}},mainWindow:true};
+ const book=new CompoundAlertBook(refs),clock={now};
+ const props:CompoundAlertDialogBoundaryProps={controller:{book,readActionTime:()=>clock.now},tab:'Create',scalarDraft:{name:'SYNTHETIC new alert',message:'SYNTHETIC message',kind:'greater',value:'407',lower:'3',upper:'7',amount:'1',bars:'1',percent:false,frequency:'every-time',expirationEnabled:false,expiresAt:''},sourceChoices:[{id:'actual-price-choice',label:'Close',source:{kind:'price',field:'close',transformId:'standard'}}],selectedSourceId:'actual-price-choice',managerAuthority:{token:{},assertCurrent:vi.fn()},requestKey:{},allowCreate:true,filter:{...DEFAULT_ALERT_MANAGER_FILTER},sort:{...DEFAULT_ALERT_MANAGER_SORT},onSaved:vi.fn()};
+ const live={props},ui=mountControlledComponent(()=>expand(CompoundAlertDialogBoundary(live.props)));closes.push(()=>ui.dispose());ui.settle();
+ const button=(label:string)=>ui.find(node=>node.type==='button'&&text(node)===label),click=(label:string)=>{invoke(button(label).props.onClick);ui.settle();},field=(label:string)=>ui.find(node=>node.props['aria-label']===label),fill=(label:string,value:string)=>{invoke(field(label).props.onChange,{target:{value}});ui.settle();};
+ const add=()=>{click('Add condition');fill('Added condition source','price:close');fill('Added condition operator','less');fill('Added condition value','3');click('Add');};
+ const submit=()=>{invoke(ui.find(node=>node.type==='form'&&node.props.className==='lv-compound-editor-fields').props.onSubmit,{preventDefault:vi.fn(),stopPropagation:vi.fn()});ui.settle();};
+ const existing=async()=>{const context=book.describeCurrentSource()!;const d:CompoundDefinition={kind:'compound',schemaVersion:1,policy:COMPOUND_POLICY,mode:'ordinary',id:'SYNTHETIC original',name:'Original',message:'Original message',context,predicates:[{id:'first',source:{kind:'price',field:'close'},operator:{kind:'greater',value:10}},{id:'second',source:{kind:'price',field:'open'},operator:{kind:'less',value:20}}],frequency:'every-time',createdAt:now-100,expiresAt:null};expect(book.prepareCreate(d,{schemaVersion:1,popup:true,desktop:false,sound:null}).commit()).toBe(true);await flushMtf();live.props={...live.props,tab:'Alerts'};ui.settle();return book.entry(d.id)!;};
+ return{book,refs,producer,dataset,clock,live,ui,button,click,field,fill,add,submit,existing};
+}
+
+// Actual Book/provider/session and Boundary event callbacks, under the original
+// controlled React model. No DOM/native pricing/source permission claim.
+type Fixture=Awaited<ReturnType<typeof fixture>>;
+async function manager(){const f=await fixture(),original=await f.existing();return{...f,id:original.id};}
+function tick(f:Fixture,ms:number){vi.advanceTimersByTime(ms);f.ui.settle();}
+function track(f:Fixture){const clock=vi.fn(()=>f.clock.now),prepare=vi.spyOn(f.book,'prepareLifecycle');f.live.props={...f.live.props,controller:{book:f.book,readActionTime:clock}};f.ui.settle();return{clock,prepare};}
+function rawButton(tree:unknown,label:string){const found=all(tree,node=>node.type==='button'&&text(node)===label);expect(found).toHaveLength(1);return found[0].props.onClick;}
+it('describes collection availability from actual Root holds without granting source or native permission',async()=>{
+ const f=await manager();expect(f.book.describeCollectionAvailability()).toBe(true);f.refs.storageMutation.current=true;expect(f.book.describeCollectionAvailability()).toBe(false);f.refs.storageMutation.current=false;f.refs.workspaceTransaction.current=true;expect(f.book.describeCollectionAvailability()).toBe(false);f.refs.workspaceTransaction.current=false;f.refs.startup.current={phase:'loading'};expect(f.book.describeCollectionAvailability()).toBe(false);f.refs.startup.current={phase:'ready'};f.refs.currentReplay.current={} as never;expect(f.book.describeCollectionAvailability()).toBe(false);f.refs.currentReplay.current=null;expect(f.book.describeCollectionAvailability()).toBe(true);
+ const dataset={...f.dataset};f.refs.currentInput.current={dataset,bars:dataset.bars,replay:null};expect(f.book.describeCurrentSource()).toBeNull();expect(f.book.describeCollectionAvailability()).toBe(true);
+});
+it('refuses borrowed collection-readiness methods on foreign objects or Proxies without supplied traps',async()=>{
+ const f=await manager();let traps=0;const proxy=new Proxy({}, {get(){traps++;throw Error('foreign get');},getPrototypeOf(){traps++;throw Error('foreign prototype');},getOwnPropertyDescriptor(){traps++;throw Error('foreign descriptor');}}),method=f.book.describeCollectionAvailability;expect(()=>Reflect.apply(method,{},[])).toThrow();expect(()=>Reflect.apply(method,proxy,[])).toThrow();expect(traps).toBe(0);
+});
+it.each(['Pause','Resume'] as const)('waits through a genuine storage hold before one fresh %s clock, preparation and canonical commit',async(label)=>{
+ const f=await manager();if(label==='Resume'){expect(f.book.prepareLifecycle(f.id,f.book.entry(f.id)!,'pause',f.clock.now).commit()).toBe(true);f.ui.settle();}vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click(label);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(1);expect(text(f.ui.settle())).toContain('The saved state is unchanged');tick(f,200);f.clock.now++;f.refs.storageMutation.current=false;tick(f,50);expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);expect(f.book.entry(f.id)!.state.status).toBe(label==='Pause'?'paused':'active');expect(vi.getTimerCount()).toBe(0);
+});
+it('allows canonical Pause without native completeness or a privately qualified current price source',async()=>{
+ const f=await manager(),dataset={...f.dataset};f.refs.currentInput.current={dataset,bars:dataset.bars,replay:null};expect(f.book.describeCurrentSource()).toBeNull();const t=track(f),source=vi.spyOn(f.book,'describeCurrentSource');f.click('Pause');expect(source).not.toHaveBeenCalled();expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);expect(f.book.entry(f.id)!.state.status).toBe('paused');
+});
+it('bounds a false readiness wait despite repeated clicks and a backward clock without resetting its intent',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f),probe=vi.spyOn(f.book,'describeCollectionAvailability');f.refs.workspaceTransaction.current=true;f.click('Pause');tick(f,500);for(let i=0;i<7;i++)f.click('Pause');expect(vi.getTimerCount()).toBe(1);vi.setSystemTime(Date.now()-100000);tick(f,3000);expect(probe).toHaveBeenCalledTimes(40);expect(vi.getTimerCount()).toBe(0);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(f.book.entry(f.id)!.state.status).toBe('active');expect(text(f.ui.settle())).toContain('try the action again');f.refs.workspaceTransaction.current=false;tick(f,500);expect(t.prepare).not.toHaveBeenCalled();f.click('Pause');expect(f.book.entry(f.id)!.state.status).toBe('paused');
+});
+it('cancels the shown lifecycle intent explicitly and requires a fresh user action after readiness returns',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');f.click('Cancel pending alert action');expect(vi.getTimerCount()).toBe(0);f.refs.storageMutation.current=false;tick(f,3000);expect(t.prepare).not.toHaveBeenCalled();expect(f.book.entry(f.id)!.state.status).toBe('active');f.click('Pause');expect(t.prepare).toHaveBeenCalledTimes(1);
+});
+it.each(['tab','request','authority','book'] as const)('retires an exact pending lifecycle %s owner without mutating either collection',async(kind)=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');const p=f.live.props,replacement=kind==='book'?new CompoundAlertBook({...f.refs,financial:{current:{paper:{},paperBook:null,alerts:[]}}}):null;if(replacement)closes.push(()=>replacement.close());f.live.props=kind==='tab'?{...p,tab:'History'}:kind==='request'?{...p,requestKey:{}}:kind==='authority'?{...p,managerAuthority:{token:{},assertCurrent:vi.fn()}}:{...p,controller:{book:replacement!,readActionTime:()=>f.clock.now}};f.ui.settle();expect(vi.getTimerCount()).toBe(0);f.refs.storageMutation.current=false;tick(f,3000);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(f.book.entry(f.id)!.state.status).toBe('active');if(replacement)expect(replacement.entries()).toHaveLength(0);
+});
+it.each(['Edit all-conditions alert','Delete all-conditions alert'] as const)('retires pending Pause when the user opens %s',async(label)=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');f.click(label);expect(vi.getTimerCount()).toBe(0);f.refs.storageMutation.current=false;tick(f,3000);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(f.book.entry(f.id)!.state.status).toBe('active');
+});
+it('retires the timer on unmount without any later clock or financial preparation',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');f.ui.dispose();expect(vi.getTimerCount()).toBe(0);f.refs.storageMutation.current=false;vi.advanceTimersByTime(3000);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(f.book.entry(f.id)!.state.status).toBe('active');
+});
+it('retires pending Pause on genuine adoption without treating restored entries as the old generation',async()=>{
+ const f=await manager(),json=encodeCompoundPrivateDocument(f.book.documentSnapshots(),f.clock.now),old=f.book.entry(f.id)!;vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');expect(f.book.prepareAdopt(json,f.clock.now).commit()).toBe(true);await flushMtf();f.ui.settle();expect(f.book.entry(f.id)!.generation).not.toBe(old.generation);expect(vi.getTimerCount()).toBe(0);f.refs.storageMutation.current=false;tick(f,3000);expect(t.prepare).not.toHaveBeenCalled();expect(f.book.entry(f.id)!.state.status).toBe('waiting-for-data');
+});
+it('never retargets a removed and recreated canonical entry with the same ID',async()=>{
+ const f=await manager(),old=f.book.entry(f.id)!;vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');f.refs.storageMutation.current=false;expect(f.book.prepareRemove(f.id,f.book.entry(f.id)!).commit()).toBe(true);expect(f.book.prepareCreate(old.state.definition,old.delivery).commit()).toBe(true);f.refs.storageMutation.current=true;expect(f.book.entry(f.id)!.generation).not.toBe(old.generation);tick(f,50);expect(vi.getTimerCount()).toBe(0);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(f.book.entry(f.id)!.state.status).toBe('active');
+});
+it('does not overwrite a genuine intervening lifecycle generation',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');f.refs.storageMutation.current=false;expect(f.book.prepareLifecycle(f.id,f.book.entry(f.id)!,'pause',f.clock.now).commit()).toBe(true);f.refs.storageMutation.current=true;tick(f,50);expect(vi.getTimerCount()).toBe(0);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).toHaveBeenCalledTimes(1);expect(f.book.entry(f.id)!.state.status).toBe('paused');
+});
+it('hands a harmless true-readiness rerender to the latest runner before action work',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f),actual=f.book.describeCollectionAvailability.bind(f.book);let first=true;vi.spyOn(f.book,'describeCollectionAvailability').mockImplementation(()=>{const value=actual();if(first){first=false;f.ui.settle();}return value;});f.click('Pause');expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(1);tick(f,50);expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);expect(f.book.entry(f.id)!.state.status).toBe('paused');
+});
+it.each(['entry','availability','clock','prepare','publication'] as const)('latches timer-driven lifecycle reentry through the actual forwarding %s callback',async(stage)=>{
+ const f=await manager();vi.useFakeTimers();const actualPrepare=f.book.prepareLifecycle.bind(f.book),actualEntry=f.book.entry.bind(f.book),actualAvailability=f.book.describeCollectionAvailability.bind(f.book),t=track(f);let armed=false,again:unknown,events=0;const reenter=()=>{if(armed)invoke(again);};if(stage==='entry')vi.spyOn(f.book,'entry').mockImplementation(id=>{reenter();return actualEntry(id);});const probe=vi.spyOn(f.book,'describeCollectionAvailability');if(stage==='availability')probe.mockImplementation(()=>{reenter();return actualAvailability();});if(stage==='clock')t.clock.mockImplementation(()=>{reenter();return f.clock.now;});if(stage==='prepare')t.prepare.mockImplementation((...args)=>{reenter();return actualPrepare(...args);});closes.push(f.book.subscribe(event=>{if(event.kind==='lifecycle'){events++;if(stage==='publication')reenter();}}));f.refs.storageMutation.current=true;f.click('Pause');const tree=f.ui.render();again=rawButton(tree,'Pause');armed=true;f.refs.storageMutation.current=false;vi.advanceTimersByTime(50);f.ui.settle();expect(probe).toHaveBeenCalledTimes(2);expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);expect(events).toBe(1);expect(f.book.entry(f.id)!.state.status).toBe('paused');expect(vi.getTimerCount()).toBe(0);
+});
+it('refuses a hold started by the fresh clock after one financial preparation without polling again',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f),probe=vi.spyOn(f.book,'describeCollectionAvailability');t.clock.mockImplementation(()=>{f.refs.workspaceTransaction.current=true;return f.clock.now;});f.click('Pause');expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);expect(f.book.entry(f.id)!.state.status).toBe('active');expect(text(f.ui.settle())).toContain('collection is suspended');expect(vi.getTimerCount()).toBe(0);f.refs.workspaceTransaction.current=false;tick(f,3000);expect(probe).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);
+});
+it('preserves actual financial CAS refusal after one canonical preparation and never retries it',async()=>{
+ const f=await manager();vi.useFakeTimers();const actual=f.book.prepareLifecycle.bind(f.book),t=track(f);t.prepare.mockImplementation((...args)=>{const action=actual(...args);f.refs.financial.current={...f.refs.financial.current,paper:{}};return action;});f.click('Pause');expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);expect(f.book.entry(f.id)!.state.status).toBe('active');expect(text(f.ui.settle())).toContain('changed before the action completed');expect(vi.getTimerCount()).toBe(0);tick(f,3000);expect(t.prepare).toHaveBeenCalledTimes(1);
+});
+it.each(['request','deadline'] as const)('rechecks %s after the final public entry lookup before financial preparation',async(kind)=>{
+ const f=await manager();vi.useFakeTimers();const actual=f.book.entry.bind(f.book),t=track(f);let afterClock=false,reads=0;t.clock.mockImplementation(()=>{afterClock=true;return f.clock.now;});vi.spyOn(f.book,'entry').mockImplementation(id=>{const entry=actual(id);if(afterClock&&++reads===2){if(kind==='request'){f.live.props={...f.live.props,requestKey:{}};f.ui.render();}else vi.setSystemTime(Date.now()+2001);}return entry;});f.click('Pause');expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);expect(f.book.entry(f.id)!.state.status).toBe('active');
+});
+it.each(['Edit all-conditions alert','Delete all-conditions alert'] as const)('does not create a Pause intent after initial lookup synchronously opens %s without a render',async(label)=>{
+ const f=await manager();vi.useFakeTimers();const actual=f.book.entry.bind(f.book),t=track(f),probe=vi.spyOn(f.book,'describeCollectionAvailability');let once=true,interact:unknown;vi.spyOn(f.book,'entry').mockImplementation(id=>{const entry=actual(id);if(once){once=false;invoke(interact);}return entry;});const tree=f.ui.render(),pause=rawButton(tree,'Pause');interact=rawButton(tree,label);invoke(pause);f.ui.settle();expect(probe).not.toHaveBeenCalled();expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);expect(f.book.entry(f.id)!.state.status).toBe('active');
+});
+it('does not let an old shown Cancel or row click affect a newer pending action',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Pause');const oldTree=f.ui.render(),oldCancel=rawButton(oldTree,'Cancel pending alert action'),oldPause=rawButton(oldTree,'Pause');invoke(oldCancel);f.ui.settle();f.click('Pause');invoke(oldCancel);invoke(oldPause);expect(vi.getTimerCount()).toBe(1);f.refs.storageMutation.current=false;tick(f,50);expect(t.prepare).toHaveBeenCalledTimes(1);expect(f.book.entry(f.id)!.state.status).toBe('paused');
+});
+it('surfaces actual readiness metadata exceptions once rather than retrying them as false',async()=>{
+ const f=await manager();vi.useFakeTimers();const t=track(f),probe=vi.spyOn(f.book,'describeCollectionAvailability');f.refs.storageMutation.current=undefined as unknown as boolean;f.click('Pause');expect(probe).toHaveBeenCalledTimes(1);expect(t.clock).not.toHaveBeenCalled();expect(t.prepare).not.toHaveBeenCalled();expect(vi.getTimerCount()).toBe(0);expect(text(f.ui.settle())).toContain('boolean data refs');f.refs.storageMutation.current=false;tick(f,3000);expect(t.prepare).not.toHaveBeenCalled();
+});
+it('retains original expired Restart refusal after availability recovers, without automatic financial retries',async()=>{
+ const f=await manager(),entry=f.book.entry(f.id)!;expect(f.book.prepareEdit(f.id,entry,{...entry.state.definition,expiresAt:f.clock.now+1},entry.delivery,f.clock.now).commit()).toBe(true);f.clock.now+=2;expect(f.book.prepareLifecycle(f.id,f.book.entry(f.id)!,'advance',f.clock.now).commit()).toBe(true);f.ui.settle();expect(f.book.entry(f.id)!.state.status).toBe('expired');vi.useFakeTimers();const t=track(f);f.refs.storageMutation.current=true;f.click('Restart');expect(t.clock).not.toHaveBeenCalled();f.refs.storageMutation.current=false;tick(f,50);expect(t.clock).toHaveBeenCalledTimes(1);expect(t.prepare).toHaveBeenCalledTimes(1);expect(text(f.ui.settle())).toContain('cannot be rearmed');expect(f.book.entry(f.id)!.state.status).toBe('expired');expect(vi.getTimerCount()).toBe(0);tick(f,3000);expect(t.prepare).toHaveBeenCalledTimes(1);
+});

@@ -1,0 +1,22 @@
+.lv-utility-groups{display:flex;flex-direction:column;align-items:center;gap:5px}
+.lv-utility-group{display:flex;align-items:center;position:relative}
+.drawing-toolbar .lv-utility-group>button:first-child{width:34px}
+.drawing-toolbar .lv-utility-arrow{width:11px;height:36px;padding:0;font-size:11px;color:var(--lv-menu-text-muted)}
+.drawing-toolbar .lv-utility-arrow[aria-expanded=true]{color:var(--lv-accent);background:var(--lv-menu-active)}
+.drawing-toolbar .lv-utility-group>button.active,.lv-utility-menu>button.checked{color:var(--lv-accent);background:var(--lv-menu-active)}
+.drawing-toolbar .lv-utility-group>button:first-child svg{width:28px;height:28px}
+.lv-utility-icon{display:inline-flex;font-style:normal}
+/* Utility menus share the overlay menu look (--lv-menu-* tokens): 32px rows, 14px text, same open animation. */
+.lv-utility-menu{position:fixed;left:56px;top:0;z-index:var(--lv-drawing-flyout-z,90);min-width:230px;padding:4px 0;background:var(--lv-menu-bg);border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);box-shadow:var(--lv-menu-shadow);color:var(--lv-menu-text);text-align:left;animation:lv-overlay-in var(--lv-overlay-ms,120ms) ease-out}
+.lv-utility-menu>button{display:flex;align-items:center;width:100%;height:var(--lv-menu-row-h);padding:0 var(--lv-menu-pad-x);font-size:14px;line-height:18px;text-align:left;border-radius:0;background:transparent;color:var(--lv-menu-text)}
+.lv-utility-menu>button:hover{background:var(--lv-menu-hover)}
+.lv-utility-menu>button:focus-visible{background:var(--lv-menu-active);outline:none;box-shadow:inset 2px 0 0 var(--lv-focus-ring)}
+.lv-utility-menu>button[disabled]{color:var(--lv-text-disabled);background:transparent;cursor:default}
+.lv-utility-menu>button[role=menuitemcheckbox][aria-checked=true]::before{content:'\2713  ' / ''}
+/* The check mark above is decoration. Its empty alternative text keeps it out of the row's accessible name
+   (aria-checked carries the state), so "Always remove locked drawings" keeps its name when checked. */
+.lv-utility-menu>hr{margin:4px 0;border:0;border-top:1px solid var(--lv-menu-border)}
+.lv-zoom-region-overlay{position:absolute;inset:0;z-index:30;touch-action:none}
+.lv-zoom-region-box{position:absolute;top:0;bottom:0;background:var(--lv-zoom-region-fill,color-mix(in srgb,var(--lv-accent) 20%,transparent));border:1px solid var(--lv-zoom-region-edge,var(--lv-accent))}
+@media(max-width:1150px){.drawing-toolbar .lv-utility-group>button:first-child{width:31px}.drawing-toolbar .lv-utility-arrow{width:10px}}
+@media(prefers-reduced-motion:reduce){.lv-utility-menu{animation:none}}

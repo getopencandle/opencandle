@@ -1,0 +1,516 @@
+/* OpenCandle shell. Default look: "LV Medium Dark", OpenCandle's own medium-dark slate theme (our own
+   design, not a measured reference). The previous graphite "LV Dark" shell stays available: it
+   applies while the workspace theme is LV Dark (main.workspace[data-theme="lv-dark"], block below :root).
+   All colours go through the --lv-* tokens below; component CSS should use them instead of hex values.
+   Contrast (WCAG): text-primary on surface 11.9:1, text-secondary on raised 5.4:1, accent on surface 6.8:1,
+   on-accent text on accent 8.1:1. Fonts are system fonts only (no bundled font files). */
+:root{
+ color-scheme:dark;
+ --lv-font:-apple-system,BlinkMacSystemFont,"Trebuchet MS",Roboto,Ubuntu,sans-serif;
+ --lv-font-size:14px;
+ /* surfaces */
+ --lv-bg-gutter:#1a1d26;--lv-bg-surface:#232734;--lv-bg-raised:#2c3141;--lv-bg-input:#343a4c;
+ --lv-bg-pill:#3a4052;--lv-bg-pill-hover:#454c60;--lv-bg-tooltip:#40465a;--lv-tooltip-text:#f1f3f7;
+ --lv-legend-bg:rgba(35,39,52,.6);
+ /* text */
+ --lv-text-primary:#e3e6ee;--lv-text-secondary:#a0a7b8;--lv-text-tertiary:#adb3c2;--lv-text-disabled:#5f6678;--lv-text-hint:#767d8f;
+ /* lines */
+ --lv-border:#3a4052;--lv-border-hover:#50586c;--lv-border-panel:#2c3141;--lv-divider:#454c5e;
+ --lv-input-border:#50586c;--lv-input-border-hover:#6d7589;--lv-input-border-focus:#3cc0cf;
+ /* states */
+ --lv-hover:#2f3444;--lv-hover-strong:#3a4052;--lv-selected:#1e4651;--lv-highlight:#1d3943;
+ --lv-toggle-active-bg:#1d3943;--lv-toggle-active-text:#3cc0cf;
+ /* LV accent: lagoon cyan (not a reference hue) */
+ --lv-accent:#3cc0cf;--lv-accent-hover:#5ccfdc;--lv-accent-pressed:#2ea6b4;--lv-accent-secondary:#7bd9e4;
+ --lv-focus-ring:#5ccfdc;--lv-positive-text:#4cc795;--lv-negative-text:#f2736c;--lv-positive-border:#2f6b55;
+ --lv-up:#38b486;--lv-down:#e8605a;--lv-trade-buy:#2f74c8;--lv-trade-sell:#c9454a;--lv-on-trade:#fff;
+ --lv-shadow:0 2px 4px rgba(10,12,18,.35);--lv-scrollbar:#454c5e;
+ /* LV-only status hues: synthetic/local data labels and errors */
+ --lv-notice-text:#e9c27a;--lv-notice-border:#7a6338;--lv-notice-bg:#3a3326;--lv-error-text:#f2736c;--lv-error-bg:#43282d;--lv-error-border:#8f4a52;
+ /* geometry */
+ --lv-gutter:4px;--lv-radius-panel:4px;--lv-radius-plate:6px;--lv-radius-rail-plate:8px;
+ --lv-header-h:38px;--lv-left-w:52px;--lv-panel-w:302px;--lv-rail-w:45px;--lv-bottom-h:38px;
+ font-family:var(--lv-font);font-size:var(--lv-font-size);background:var(--lv-bg-gutter);color:var(--lv-text-primary);font-synthesis:none;scrollbar-color:var(--lv-scrollbar) transparent;
+}
+/* LV Dark (the previous graphite default), kept for workspaces whose saved theme is LV Dark. */
+:root:has(main.workspace[data-theme="lv-dark"]){
+ --lv-bg-gutter:#2e2e2e;--lv-bg-surface:#0f0f0f;--lv-bg-raised:#1f1f1f;--lv-bg-input:#2e2e2e;
+ --lv-bg-pill:#3d3d3d;--lv-bg-pill-hover:#4a4a4a;--lv-bg-tooltip:#3d3d3d;--lv-tooltip-text:#f2f2f2;
+ --lv-legend-bg:rgba(15,15,15,.5);
+ --lv-text-primary:#dbdbdb;--lv-text-secondary:#8c8c8c;--lv-text-tertiary:#9c9c9c;--lv-text-disabled:#575757;--lv-text-hint:#636363;
+ --lv-border:#3d3d3d;--lv-border-hover:#575757;--lv-border-panel:#2e2e2e;--lv-divider:#4a4a4a;
+ --lv-input-border:#575757;--lv-input-border-hover:#808080;--lv-input-border-focus:#2962ff;
+ --lv-hover:#2e2e2e;--lv-hover-strong:#3d3d3d;--lv-selected:#142e61;--lv-highlight:#132042;
+ --lv-toggle-active-bg:#132042;--lv-toggle-active-text:#2962ff;
+ --lv-accent:#2962ff;--lv-accent-hover:#1e53e5;--lv-accent-pressed:#1848cc;--lv-accent-secondary:#448aff;
+ --lv-focus-ring:#2962ff;--lv-positive-text:#22ab94;--lv-negative-text:#f7525f;--lv-positive-border:#3e6b52;
+ --lv-up:#089981;--lv-down:#f23645;--lv-trade-buy:#2962ff;--lv-trade-sell:#f23645;
+ --lv-shadow:0 2px 4px rgba(0,0,0,.4);--lv-scrollbar:#3d3d3d;
+ --lv-notice-text:#e4bb76;--lv-notice-border:#755c35;--lv-notice-bg:#251f17;--lv-error-text:#f7525f;--lv-error-bg:#3a1d21;--lv-error-border:#8d434d;
+ --lv-on-accent:#fff;--lv-backdrop:rgba(0,0,0,.6);
+ --lv-menu-shadow:0 4px 12px rgba(0,0,0,.45),0 1px 3px rgba(0,0,0,.3);--lv-dialog-shadow:0 12px 32px rgba(0,0,0,.55),0 2px 6px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+body{margin:0;overflow:hidden;background:var(--lv-bg-gutter)}
+button,input,select{font:inherit}
+button{background:transparent;border:0;color:inherit;cursor:pointer;border-radius:var(--lv-radius-plate)}
+button:hover{background:var(--lv-hover)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:1px}
+/* The chart's keyboard canvas (vela data canvas, role=application) took the UA focus ring as a light frame around the plot after any key (Shift drags). The active cell border already marks the focused chart. */
+canvas[role=application]:focus,canvas[role=application]:focus-visible{outline:none}
+button:disabled{opacity:.35;cursor:default}
+button:disabled:hover{background:transparent}
+input,select{background:var(--lv-bg-input);color:inherit;border:1px solid var(--lv-input-border);border-radius:4px;padding:7px}
+input:hover,select:hover{border-color:var(--lv-input-border-hover)}
+input:focus,select:focus{border-color:var(--lv-input-border-focus)}
+button.active{color:var(--lv-toggle-active-text);background:var(--lv-toggle-active-bg)}
+
+/* Panel model: rounded surface panels on a gutter-coloured page, separated by 4px gutters. */
+.workspace{height:100vh;display:grid;grid-template-columns:var(--lv-left-w) minmax(0,1fr) min(calc(var(--lv-panel-w) - 1px),max(219px,calc(100vw - 530px))) calc(var(--lv-rail-w) - var(--lv-gutter));grid-template-rows:var(--lv-header-h) minmax(0,1fr);gap:var(--lv-gutter);background:var(--lv-bg-gutter)}
+.workspace.lv-panel-collapsed{grid-template-columns:var(--lv-left-w) minmax(0,1fr) 0 calc(var(--lv-rail-w) - var(--lv-gutter))}
+.workspace>.drawing-toolbar{grid-column:1;grid-row:2}.workspace>.chart-workspace{grid-column:2;grid-row:2}.workspace>.right-panel{grid-column:3;grid-row:2}.workspace>.lv-right-rail{grid-column:4;grid-row:2}
+.workspace>.right-panel[hidden]{display:none}
+
+/* Header toolbar: 38px, text buttons 38px tall with an inset hover plate. */
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:0;padding:0 4px 0 0;height:var(--lv-header-h);background:var(--lv-bg-surface);white-space:nowrap}
+.brand{font-weight:900;font-size:19px;letter-spacing:-1px;color:var(--lv-text-primary);padding:0;height:var(--lv-header-h);display:flex;align-items:center;justify-content:center}
+.symbol-search{display:flex;align-items:center;gap:2px;height:28px;min-width:128px;padding:0 12px 0 4px;margin:0 4px 0 0;background:var(--lv-bg-pill);border-radius:14px;flex-shrink:0}
+.symbol-search:hover{background:var(--lv-bg-pill-hover)}
+.symbol-search:focus-within{box-shadow:0 0 0 2px var(--lv-focus-ring)}
+.symbol-search>span{font-size:18px;color:var(--lv-text-primary)}
+.symbol-search input{border:0;background:transparent;font-weight:600;width:84px;height:28px;padding:0 2px;color:var(--lv-text-primary)}
+.symbol-search input:focus-visible{outline:none}
+.topbar button{position:relative;isolation:isolate;height:var(--lv-header-h);padding:0 9px;border-radius:0;background:transparent;color:var(--lv-text-primary)}
+.topbar button::before{content:'';position:absolute;inset:2px;border-radius:4px;z-index:-1;transition:background-color 100ms ease}
+.topbar button:hover{background:transparent}
+.topbar button:hover::before{background:var(--lv-hover)}
+.topbar button:disabled:hover::before{background:transparent}
+.topbar button.active{background:transparent;color:var(--lv-toggle-active-text)}
+.topbar button.active::before{background:var(--lv-toggle-active-bg)}
+.topbar .symbol-search-open{height:28px;width:24px;padding:0;font-size:17px;line-height:1;border-radius:50%}
+.topbar .symbol-search-open::before{inset:2px;border-radius:50%}
+.topbar .symbol-search-open:hover::before{background:var(--lv-bg-pill-hover)}
+/* The header symbol is one pill button (search icon and the symbol) that opens the search. Its minimum width is the reference pill (128x28, visual-layout-spec header "symbol search pill"). */
+.topbar .symbol-search-open.symbol-button{width:auto;min-width:128px;padding:0 14px 0 8px;gap:6px;display:inline-flex;align-items:center;border-radius:14px;background:var(--lv-bg-pill);flex-shrink:0;margin-right:4px}
+.topbar .symbol-search-open.symbol-button::before{display:none}
+.topbar .symbol-search-open.symbol-button:hover{background:var(--lv-bg-pill-hover)}
+.symbol-button-text{font-weight:600;font-size:14px;color:var(--lv-text-primary)}
+.topbar button[aria-label="Undo"],.topbar button[aria-label="Redo"]{width:38px;padding:0 5px;font-size:20px;line-height:1}
+.toolbar-divider{flex-shrink:0;height:22px;border-left:1px solid var(--lv-divider);margin:0 4px}
+.topbar select{height:34px;margin:2px 0;border:0;border-radius:var(--lv-radius-plate);background:transparent;color:var(--lv-text-primary);padding:0 6px;max-width:160px}
+.topbar select:hover{background:var(--lv-hover)}
+.topbar select option{background:var(--lv-bg-raised);color:var(--lv-text-primary)}
+.topbar .interval-badge{padding:0 10px;color:var(--lv-text-primary)}
+.topbar-spacer,.status-spacer{flex:1}
+.local-badge{font-size:9px;letter-spacing:1.4px;color:var(--lv-text-secondary);margin-right:7px}
+.save-button{color:var(--lv-text-primary)}
+
+/* Left drawing toolbar: 52px wide, 52x38 rows, 34x34 #3d3d3d plate behind an unchanged icon. */
+.drawing-toolbar{display:flex;align-items:center;flex-direction:column;gap:0;padding:6px 0 20px;background:var(--lv-bg-surface);border-radius:0 var(--lv-radius-panel) 0 0}
+.drawing-toolbar>button,.drawing-toolbar .lv-drawing-groups>button,.drawing-toolbar .lv-drawing-group>button:first-child,.drawing-toolbar .lv-drawing-favorites>button{position:relative;isolation:isolate;width:52px;height:38px;padding:0;border-radius:0;background:transparent;color:var(--lv-text-primary);font-size:22px;line-height:1;display:flex;align-items:center;justify-content:center}
+.drawing-toolbar>button::before,.drawing-toolbar .lv-drawing-groups>button::before,.drawing-toolbar .lv-drawing-group>button:first-child::before,.drawing-toolbar .lv-drawing-favorites>button::before{content:'';position:absolute;inset:2px 9px;border-radius:var(--lv-radius-plate);z-index:-1}
+.drawing-toolbar>button:hover,.drawing-toolbar .lv-drawing-groups>button:hover,.drawing-toolbar .lv-drawing-group>button:first-child:hover,.drawing-toolbar .lv-drawing-favorites>button:hover,
+.drawing-toolbar>button.active,.drawing-toolbar .lv-drawing-groups>button.active,.drawing-toolbar .lv-drawing-group>button.active:first-child,.drawing-toolbar .lv-drawing-favorites>button.active{background:transparent;color:var(--lv-text-primary)}
+.drawing-toolbar>button:hover::before,.drawing-toolbar .lv-drawing-groups>button:hover::before,.drawing-toolbar .lv-drawing-group>button:first-child:hover::before,.drawing-toolbar .lv-drawing-favorites>button:hover::before,
+.drawing-toolbar>button.active::before,.drawing-toolbar .lv-drawing-groups>button.active::before,.drawing-toolbar .lv-drawing-group>button.active:first-child::before,.drawing-toolbar .lv-drawing-favorites>button.active::before{background:var(--lv-hover-strong)}
+.drawing-toolbar>button:disabled:hover::before,.drawing-toolbar .lv-drawing-groups>button:disabled:hover::before,.drawing-toolbar .lv-drawing-group>button:first-child:disabled:hover::before{background:transparent}
+.drawing-toolbar .lv-drawing-favorites>button{font-size:11px;font-weight:700}
+.tool-divider{flex-shrink:0;width:36px;border-top:1px solid var(--lv-divider);margin:6px 8px}
+.drawing-toolbar>select{flex-shrink:0;width:40px;max-width:40px;height:24px;margin:2px 6px 4px;padding:0 2px;font-size:11px}
+
+/* Chart region: 4px top corners; legend-like heading on one row. */
+.chart-workspace{position:relative;min-width:0;min-height:0;container:lv-chart/inline-size;display:flex;flex-direction:column;background:var(--lv-bg-surface);border-radius:var(--lv-radius-panel) var(--lv-radius-panel) 0 0}
+.chart-heading{position:absolute;left:4px;top:4px;z-index:6;max-width:calc(100% - 80px);height:24px;display:flex;align-items:center;flex-wrap:nowrap;overflow:hidden;white-space:nowrap;column-gap:12px;padding:0 6px;background:var(--lv-legend-bg);border-radius:4px;pointer-events:none;font-size:13px}
+.chart-heading>div{display:flex;align-items:center;gap:4px}
+/* Values never clip; the title descriptor gives way first (ellipsis); symbol and SYNTHETIC/REPLAY badges stay. */
+.chart-heading>div:first-child{flex:0 1 auto;min-width:0;overflow:hidden}
+.chart-heading>div:first-child>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-heading>.ohlc{flex:0 0 auto}
+.chart-heading strong,.chart-heading .synthetic-badge{flex-shrink:0}
+.chart-heading strong{font-size:16px;font-weight:400;color:var(--lv-text-primary)}
+.chart-heading>div>span{font-size:16px;color:var(--lv-text-primary)}
+.synthetic-badge{font-size:10px;font-weight:400;color:var(--lv-notice-text);border:1px solid var(--lv-notice-border);padding:1px 6px;border-radius:9px;margin-left:8px;letter-spacing:.4px;background:transparent}
+.ohlc{gap:6px!important;font-size:13px}
+.ohlc b{color:var(--lv-text-primary);font-weight:400}
+.positive{color:var(--lv-positive-text)!important}
+.negative{color:var(--lv-negative-text)!important}
+.chart-panel{position:relative;flex:1;min-height:160px;overflow:hidden}
+.chart-canvas{position:absolute;inset:0}
+.chart-error{position:absolute;inset:80px 30px auto;background:var(--lv-error-bg);border:1px solid var(--lv-error-border);border-radius:var(--lv-radius-plate);padding:15px;z-index:10}
+
+/* Bottom toolbar: 38px + 1px #2e2e2e top edge, 14px text, ranges from x+8. */
+.chart-bottom{height:calc(var(--lv-bottom-h) + 1px);display:flex;align-items:center;gap:0;border-top:1px solid var(--lv-border-panel);padding:0 4px 0 8px;background:var(--lv-bg-surface)}
+.ranges{display:flex;align-items:center;gap:0;flex:1}
+.ranges button,.chart-bottom>button{position:relative;isolation:isolate;height:var(--lv-bottom-h);padding:0 6px;border-radius:0;background:transparent;color:var(--lv-text-primary);font-size:14px}
+.ranges button::before,.chart-bottom>button::before{content:'';position:absolute;inset:2px;border-radius:var(--lv-radius-plate);z-index:-1}
+.ranges button:hover,.chart-bottom>button:hover{background:transparent}
+.ranges button:hover::before,.chart-bottom>button:hover::before{background:var(--lv-hover)}
+.chart-bottom>button:disabled:hover::before{background:transparent}
+.chart-bottom>button.active{background:transparent}
+.chart-bottom>button.active::before{background:var(--lv-toggle-active-bg)}
+.chart-bottom>span{font-size:14px;color:var(--lv-text-secondary)}
+.workspace-footer{min-height:32px;border-top:1px solid var(--lv-border-panel);display:flex;align-items:center;gap:4px;padding:0 8px;background:var(--lv-bg-surface);color:var(--lv-text-secondary);font-size:12px}
+.workspace-footer button{padding:4px 7px;color:var(--lv-text-primary);white-space:nowrap}
+.workspace-footer>span:nth-child(2){flex:1}
+.source-pill{padding:2px 6px;border:1px solid var(--lv-notice-border);border-radius:9px;color:var(--lv-notice-text);white-space:nowrap}
+
+/* Widget panel: 302px including a 1px #2e2e2e left edge, 4px top-left corner. */
+.right-panel{background:var(--lv-bg-surface);overflow:auto;min-width:0;margin-left:-1px;border-left:1px solid var(--lv-border-panel);border-radius:var(--lv-radius-panel) 0 0 0}
+.panel-heading{display:flex;align-items:center;justify-content:space-between;height:48px;padding:0 10px 0 16px}
+.panel-heading strong{font-size:14px;font-weight:600;line-height:28px}
+.panel-heading button{height:38px;min-width:38px;font-size:14px;padding:0 8px;color:var(--lv-text-primary)}
+.watchlist-head,.watchlist-row{display:grid;grid-template-columns:1fr 68px 67px;align-items:center;gap:8px}
+.watchlist-head{font-size:14px;color:var(--lv-text-secondary);border-bottom:1px solid var(--lv-border);padding:5px 16px}
+.watchlist-head>span:not(:first-child),.watchlist-row>span{text-align:right}
+.watchlist-row{width:100%;height:30px;padding:0 16px;border-radius:0;font-variant-numeric:tabular-nums;font-size:14px;text-align:left}
+.watchlist-row strong{font-size:14px;font-weight:400}
+.watchlist-row.selected{background:var(--lv-selected);box-shadow:none}
+.watchlist-note{margin:0;padding:6px 16px;font-size:11px;line-height:1.45;color:var(--lv-text-secondary);border-bottom:1px solid var(--lv-border-panel)}
+.symbol-detail{padding:20px 16px}
+.symbol-monogram{width:39px;height:39px;background:var(--lv-hover);border-radius:50%;color:var(--lv-text-hint);display:grid;place-items:center;font-size:20px;font-weight:700}
+.symbol-detail h2{font-size:20px;margin:13px 0 5px}
+.symbol-detail p{font-size:12px;color:var(--lv-text-secondary);margin:0 0 20px}
+.quote{font-size:28px;line-height:36px;font-weight:600;font-variant-numeric:tabular-nums;margin-bottom:9px}
+.quote small{font-size:12px;color:var(--lv-text-secondary);font-weight:400}
+.source-note{margin-top:26px;padding:12px;background:var(--lv-bg-raised);border-radius:var(--lv-radius-plate);color:var(--lv-text-tertiary);font-size:12px;line-height:1.6}
+.objects{padding:8px;color:var(--lv-text-tertiary)}
+.objects>div{display:flex;justify-content:space-between;padding:10px;border-bottom:1px solid var(--lv-border-panel)}
+.objects p{font-size:13px;line-height:1.6}
+
+/* Status messages: one persistent role=status live region shown as a toast at the top center of the chart area, below the
+   legend and the Buy/Sell row (it no longer covers the time axis, the bottom toolbar or the legend). It fades out on its own; a toast that points to
+   Settings carries an "Open settings" action that leaves with it (visibility hidden, so it is not clickable once faded). */
+.statusbar{position:fixed;left:0;right:0;width:max-content;margin:0 auto;display:flex;align-items:stretch;justify-content:center;top:calc(var(--lv-header-h) + var(--lv-tabstrip-h,0px) + 84px);z-index:60;transform:translateY(var(--lv-toast-shift,0px));max-width:min(640px,calc(100vw - 480px));pointer-events:none}
+.statusbar output{display:block;min-width:0}
+.lv-toast-text{display:inline-block;padding:8px 12px;border-radius:var(--lv-radius-plate);background:var(--lv-bg-tooltip);color:var(--lv-tooltip-text);font-size:13px;line-height:18px;box-shadow:var(--lv-shadow);animation:lv-toast 6s ease forwards,lv-toast-in 150ms ease-out}
+.lv-toast-text.lv-toast-has-action{border-top-right-radius:0;border-bottom-right-radius:0;animation-duration:10s,150ms}
+.lv-toast-action{pointer-events:auto;flex:none;margin:0;padding:0 12px;border:0;border-left:1px solid var(--lv-border);border-radius:0 var(--lv-radius-plate) var(--lv-radius-plate) 0;background:var(--lv-bg-tooltip);color:var(--lv-accent,var(--lv-tooltip-text));font:inherit;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--lv-shadow);animation:lv-toast 10s ease forwards,lv-toast-in 150ms ease-out}
+.lv-toast-action:hover{text-decoration:underline}
+.lv-toast-action:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:-2px}
+@keyframes lv-toast-in{from{opacity:0}to{opacity:1}}
+.lv-toast-text:empty{display:none}
+@keyframes lv-toast{0%,85%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
+@media(prefers-reduced-motion:reduce){.lv-toast-text,.lv-toast-action{animation-duration:8s;animation-timing-function:steps(1,end)}.lv-toast-text.lv-toast-has-action,.lv-toast-action{animation-duration:12s}}
+
+/* Floating panels, popups and dialogs: raised #1f1f1f, 6px radius, light shadow. */
+.data-window{position:absolute;right:88px;top:70px;z-index:8;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);padding:14px;width:270px;box-shadow:var(--lv-shadow)}
+.data-window strong{display:block;margin-bottom:10px}
+.data-window>span{display:flex;justify-content:space-between;gap:15px;font-size:13px;padding:4px 0;color:var(--lv-text-secondary)}
+.data-window b{font-weight:400;color:var(--lv-text-primary)}
+.modal-shade{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center}
+.settings-body{display:flex;flex:1;min-height:0}
+.settings-body nav{width:139px;border-right:1px solid var(--lv-border);padding:13px 8px;display:flex;flex-direction:column;gap:5px;flex-shrink:0}
+.settings-body nav button{padding:12px 14px;text-align:left}
+.settings-body form{flex:1;min-width:0;overflow:auto;padding:20px}
+.primary{background:var(--lv-accent)!important;color:var(--lv-on-accent)!important;border-color:var(--lv-accent)!important}
+.primary:hover{background:var(--lv-accent-hover)!important;border-color:var(--lv-accent-hover)!important}
+.primary:active{background:var(--lv-accent-pressed)!important}
+.theme-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.theme-card{padding:7px;text-align:left;border:1px solid var(--lv-border);background:var(--lv-bg-surface);min-width:0}
+.theme-card.selected{border:2px solid var(--lv-accent);padding:6px;box-shadow:none}
+.theme-preview{height:92px;display:flex;align-items:flex-end;justify-content:center;gap:10px;overflow:hidden;border-radius:2px;margin-bottom:9px;padding:8px 10px}
+.theme-preview i{display:block;flex-shrink:0}
+.theme-card strong{font-size:13px;display:block;margin:0 4px 5px}
+.theme-card small{font-size:11px;color:var(--lv-text-secondary);margin-left:4px;display:block}
+.setting-fields{display:flex;flex-direction:column;gap:18px}
+.check-setting{display:flex;align-items:center;gap:10px;padding:3px 0}
+.check-setting input{accent-color:var(--lv-accent);width:15px;height:15px}
+.color-setting{display:grid;grid-template-columns:minmax(100px,1fr) 30px 145px 55px 31px;align-items:center;gap:7px;font-size:12px}
+.color-setting input[type=color]{width:30px;height:30px;padding:1px}
+.color-setting input:not([type]){width:145px;padding:7px 5px;font-size:11px}
+.color-setting input[type=range]{width:55px;padding:0;accent-color:var(--lv-accent)}
+.color-setting output{font-size:11px;color:var(--lv-text-secondary)}
+.number-setting{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.number-setting input{width:100px}
+.number-setting select{min-width:150px}
+@media(max-width:1150px){.local-badge{display:none}.workspace-footer>span:nth-child(2){max-width:180px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}.ohlc{gap:6px!important;font-size:12px}.synthetic-badge{margin-left:6px}.watchlist-head,.watchlist-row{grid-template-columns:1fr 57px 55px;gap:4px}.ranges button{padding:0 5px}.topbar button{padding:0 7px}}
+@media(max-width:980px){.topbar select{max-width:120px}.color-setting{grid-template-columns:1fr 30px 130px}.color-setting input[type=range],.color-setting output{display:none}}
+.topbar .layout-library-button{max-width:180px;min-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1}
+
+/* Top-left cell: 52x38, aligned with the left toolbar; LV's own 28px logo. */
+.topbar .brand-logo-button{width:var(--lv-left-w);height:var(--lv-header-h);padding:0;margin-right:var(--lv-gutter);flex-shrink:0}
+.brand-logo-button img{display:block;width:28px;height:28px;object-fit:contain}
+.about-larryvision-body{padding:16px 24px 8px}
+/* The drawing settings dialog is anchored near the top, not centred, so switching tabs (Style, Coordinates,
+   Levels...) never moves its title bar and tabs under the pointer; only the bottom edge follows the tab's height. */
+.drawing-dialog-scope>.modal-shade{align-items:flex-start;padding-top:max(24px,8vh);box-sizing:border-box}
+.about-larryvision{display:flex;align-items:center;gap:20px;padding:0 0 8px}
+.about-larryvision-logo{display:block;width:144px;height:144px;object-fit:contain;flex-shrink:0}
+.about-larryvision h3{font-size:22px;margin:0 0 8px}
+.about-larryvision p{line-height:1.5}
+.about-larryvision-notice{margin:8px 0 0;font-size:12px;line-height:1.5;color:var(--lv-text-tertiary)}
+/* A control focused again after its dialog closed (opened by the mouse) shows no keyboard focus ring until a key is pressed. */
+[data-lv-quiet-focus]:focus-visible{outline:none}
+.lv-alert-dialog .alert-row:focus-visible,.lv-alert-dialog tbody tr:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:-2px}
+
+/* ---- LV Dark overrides for shell surfaces styled in other files -------------------------
+   CSS-only, scoped to existing selectors with enough specificity to win over the component's
+   own rules (drawing-toolbar.css, the WatchlistPanel inline <style>, analysis.css). They can move
+   into their own files later. */
+/* Drawing toolbar groups and flyout arrows (drawing-toolbar.css) */
+.drawing-toolbar .lv-drawing-groups{gap:0;align-items:stretch;width:52px}
+.drawing-toolbar .lv-drawing-group{position:relative;width:52px;height:38px}
+.workspace .drawing-toolbar .lv-drawing-group>button:first-child{width:52px}
+.drawing-toolbar .lv-drawing-groups>button:first-of-type{margin-top:7px}
+.drawing-toolbar .lv-drawing-groups>button:first-of-type::after{content:'';position:absolute;left:8px;right:8px;top:-4px;height:1px;background:var(--lv-divider)}
+.workspace .drawing-toolbar .lv-drawing-arrow{position:absolute;top:2px;right:0;width:11px;height:34px;padding:0;border-radius:4px 0 0 4px;background:transparent;color:var(--lv-text-secondary);font-size:13px;line-height:1;opacity:0;isolation:isolate;transition:opacity .1s}
+.workspace .drawing-toolbar .lv-drawing-arrow::before{content:'';position:absolute;inset:1px 2px;border-radius:4px;z-index:-1}
+.workspace .drawing-toolbar .lv-drawing-arrow:hover::before{background:var(--lv-hover)}
+.workspace .drawing-toolbar .lv-drawing-group:hover>.lv-drawing-arrow,.workspace .drawing-toolbar .lv-drawing-arrow:focus-visible,.workspace .drawing-toolbar .lv-drawing-arrow[aria-expanded=true]{opacity:1}
+.workspace .drawing-toolbar .lv-drawing-arrow[aria-expanded=true]{color:var(--lv-text-primary);background:transparent}
+.workspace .drawing-toolbar .lv-drawing-arrow[aria-expanded=true]::before{background:var(--lv-hover)}
+.workspace .drawing-toolbar .lv-drawing-favorites{position:relative;width:52px;gap:0;margin-top:6px;padding-top:7px;border-top:0}
+.workspace .drawing-toolbar .lv-drawing-favorites::before{content:'';position:absolute;top:0;left:8px;right:8px;height:1px;background:var(--lv-divider)}
+/* ---- Phase B shell structure ------------------------------------------------------------ */
+.lv-sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+svg[data-lv-icon]{flex-shrink:0;display:block}
+/* Header: icon buttons 38x38 (28px icons), icon+text buttons with 0 10px 0 5px padding. */
+.topbar .lv-icon-button{width:38px;padding:0 5px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.topbar .lv-icon-text{display:inline-flex;align-items:center;padding:0 10px 0 5px;flex-shrink:0}
+.topbar .lv-icon-button.active,.topbar .lv-icon-text.active{color:var(--lv-toggle-active-text)}
+.topbar .layout-library-button{display:inline-flex;align-items:center;gap:2px}
+.topbar .layout-library-button svg{width:16px;height:8px}
+.topbar .symbol-search-open svg{width:18px;height:18px}
+.lv-chart-type{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;flex-shrink:0}
+.lv-chart-type::before{content:'';position:absolute;inset:2px;border-radius:var(--lv-radius-plate);z-index:-1}
+.lv-chart-type:hover::before{background:var(--lv-hover)}
+.lv-chart-type>svg{position:absolute;pointer-events:none;z-index:1}
+.topbar .lv-chart-type select{position:absolute;inset:2px;width:34px;height:34px;max-width:none;margin:0;padding:0;border:0;border-radius:var(--lv-radius-plate);background:transparent;color:transparent;appearance:none;cursor:pointer}
+.topbar .lv-chart-type select:hover{background:transparent}
+.topbar .lv-chart-type select:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:0}
+.topbar .lv-chart-type select option{color:var(--lv-text-primary)}
+/* Popup menus: 260px, #1f1f1f, 6px radius, 40px items with 6px inner radius, 28px icon slot. */
+.lv-main-menu{top:calc(var(--lv-header-h) + var(--lv-tabstrip-h,0px) + 2px);left:4px}
+/* Right rail: 45px incl. a 1px left edge, 44x44 buttons, 38x38 #3d3d3d r8 plates. */
+.lv-right-rail{margin-left:calc(-1 * var(--lv-gutter));display:flex;flex-direction:column;align-items:center;padding:0 0 4px;background:var(--lv-bg-surface);border-left:1px solid var(--lv-border-panel);min-height:0}
+/* At short window heights the rail scrolls (wheel, or Tab brings a button into view) instead of hiding its bottom buttons past the window edge. */
+.lv-right-rail{overflow-y:auto;overflow-x:hidden;scrollbar-width:none;overscroll-behavior:contain}
+.lv-right-rail::-webkit-scrollbar{display:none}
+.lv-rail-group{display:flex;flex-direction:column;align-items:center}
+.lv-rail-spacer{flex:1}
+.lv-rail-item{position:relative;isolation:isolate;width:44px;height:44px;margin-top:2px;flex-shrink:0;color:var(--lv-text-primary)}
+.lv-rail-item>svg{position:absolute;left:0;top:0;z-index:1;pointer-events:none}
+.lv-rail-button{position:absolute;inset:0;z-index:0;width:44px;height:44px;padding:0;border-radius:0;font-size:0;line-height:0;color:transparent;background:transparent;isolation:isolate}
+.lv-rail-button::before{content:'';position:absolute;inset:3px;border-radius:var(--lv-radius-rail-plate);z-index:-1}
+.lv-rail-button:hover{background:transparent}
+.lv-rail-button:hover::before,.lv-rail-button[aria-pressed=true]::before{background:var(--lv-hover-strong)}
+.lv-rail-button:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:-2px}
+.lv-rail-button:disabled:hover::before{background:transparent}
+.lv-rail-arrow{position:absolute;left:0;top:5px;z-index:2;width:10px;height:34px;padding:0;display:flex;align-items:center;justify-content:center;color:var(--lv-text-secondary);border-radius:0 4px 4px 0;opacity:0}
+.lv-rail-arrow svg{transform:scaleX(-1)}
+.lv-rail-item:hover>.lv-rail-arrow,.lv-rail-arrow:focus-visible,.lv-rail-arrow[aria-expanded=true]{opacity:1}
+.lv-rail-counter{position:absolute;right:3px;top:3px;z-index:2;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--lv-accent);color:var(--lv-on-accent);font-size:10px;line-height:16px;text-align:center;pointer-events:none}
+/* Fixed (not clipped by the scrolling rail): beside the rail, at the top of its item. */
+.lv-rail-menu{position:fixed;right:calc(var(--lv-rail-w) + 6px);top:auto}
+/* Widget panel heading follows the active rail panel. */
+.workspace>.right-panel{display:flex;flex-direction:column}
+/* Bottom toolbar extras. */
+.chart-bottom .topbar-spacer{flex:1}
+.chart-bottom .lv-icon-button{position:relative;isolation:isolate;width:38px;height:var(--lv-bottom-h);padding:0 5px;display:inline-flex;align-items:center;justify-content:center;border-radius:0;background:transparent}
+.chart-bottom .lv-icon-button::before{content:'';position:absolute;inset:2px;border-radius:var(--lv-radius-plate);z-index:-1}
+.chart-bottom .lv-icon-button:hover{background:transparent}
+.chart-bottom .lv-icon-button:hover::before{background:var(--lv-hover)}
+.lv-adjustment{padding:0 6px;font-size:14px;color:var(--lv-text-secondary)}
+/* Multi-chart controls (MultiChartGrid markup, not edited here): the layout and sync row opens as the
+   header Layout setup popover; in a single layout the cell header overlays the pane under the legend. */
+.lv-multichart>div:first-child{display:none!important}
+.workspace[data-layout-setup=open] [data-chart-tree]:not([aria-hidden=true]) .lv-multichart>div:first-child{display:flex!important;position:fixed;top:calc(var(--lv-header-h) + var(--lv-tabstrip-h,0px) + 2px);right:var(--lv-layout-setup-right,60px);z-index:95;flex-direction:column;align-items:stretch!important;gap:8px!important;width:260px;padding:12px!important;background:var(--lv-bg-raised);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow);font-size:14px!important}
+.lv-multichart>div:first-child label{display:flex;align-items:center;gap:8px;text-transform:capitalize}
+.lv-multichart>div:first-child>span{font-size:11px;text-transform:uppercase;color:var(--lv-text-secondary)}
+.lv-multichart>output[role=status]{position:absolute;top:64px;left:50%;transform:translateX(-50%);z-index:7;padding:8px 12px;border-radius:var(--lv-radius-plate);background:var(--lv-bg-tooltip);color:var(--lv-tooltip-text);font-size:13px}
+.lv-multichart>div:last-child>div{border-color:var(--lv-border-panel)!important}
+.lv-multichart>div:last-child>div:has(>div:first-child>button[aria-pressed=true]){border-color:var(--lv-accent)!important}
+.lv-multichart>div:last-child>div:only-child,.lv-multichart>div:last-child>div:only-child:has(>div:first-child>button[aria-pressed=true]){position:relative;border-color:transparent!important}
+.lv-multichart>div:last-child>div:only-child>div:first-child{position:absolute;top:32px;left:4px;z-index:6;height:24px;padding:0 4px!important;gap:4px!important;background:var(--lv-legend-bg);border-radius:4px;font-size:12px!important}
+.lv-multichart>div:last-child>div>div:first-child button{height:22px;padding:0 6px;font-size:12px}
+.lv-multichart>div:last-child>div>div:first-child select{height:22px;padding:0 4px;font-size:12px;max-width:220px}
+.indicator-legend{top:60px;left:4px}
+/* With two or more cells (or one maximized) each cell header row is in flow at the top of its cell, so the
+   workspace legend moves below that row (1px border + 3px + 22px controls + 3px) instead of covering its select and Expand. */
+.chart-workspace:has(.lv-multichart>div:last-child>div+div) .chart-heading{top:34px}
+.chart-workspace:has(.lv-multichart>div:last-child>div+div) .indicator-legend{top:64px}
+/* When the one-row title + OHLC no longer fits (about 720px of chart width), the OHLC values take their own
+   second 24px row, as in the reference (visual-dialogs-legend series.parts: the OHLC values row follows the 24px title
+   row). The single cell header and the indicator legend move below the 48px heading so nothing is covered.
+   860px (was 720) so a 6-digit OHLC line with the change still fits one row beside the title. */
+@container lv-chart (max-width:860px){
+.chart-heading{height:48px;flex-wrap:wrap;align-content:flex-start}
+.chart-heading>div{height:24px}
+.chart-heading>.ohlc{flex-basis:100%}
+.lv-multichart>div:last-child>div:only-child>div:first-child{top:56px}
+.indicator-legend{top:84px}
+.chart-workspace:has(.lv-multichart>div:last-child>div+div) .indicator-legend{top:86px}
+}
+/* Below 1150px only the DEFAULT panel width narrows (236px). The splitter writes --lv-panel-w inline on the
+   root, so a dragged width still wins and the panel stays resizable at every window width; double-click returns to this default. The
+   header collapses progressively: Alert and Replay drop their labels at 1150px, Indicators at 980px; the layout name ellipsizes. */
+@media(max-width:1150px){:root{--lv-panel-w:236px}.topbar .lv-icon-text:is([aria-label="Create alert"],[aria-label=Replay]) span{display:none}}
+@media(max-width:980px){.topbar .lv-icon-text span{display:none}}
+/* SCALEX bottom toolbar (src/ui/bottom-toolbar.tsx): timezone clock, ADJ and the two popup menus share the
+   38px button and inset-2px hover plate of visual-layout-spec#bottomToolbar.button. */
+.lv-bottom-toolbar .ranges button.active::before{background:var(--lv-toggle-active-bg)}
+.lv-bottom-timezone,.lv-bottom-ranges-collapsed{position:relative;display:flex;align-items:center}
+.lv-bottom-timezone>button,.lv-bottom-ranges-collapsed>button{position:relative;isolation:isolate;height:var(--lv-bottom-h);padding:0 6px;border-radius:0;background:transparent;color:var(--lv-text-primary);font-size:14px;display:inline-flex;align-items:center;gap:2px}
+.lv-bottom-timezone>button::before,.lv-bottom-ranges-collapsed>button::before{content:'';position:absolute;inset:2px;border-radius:var(--lv-radius-plate);z-index:-1}
+.lv-bottom-timezone>button:hover::before,.lv-bottom-ranges-collapsed>button:hover::before,.lv-bottom-timezone>button[aria-expanded=true]::before{background:var(--lv-hover)}
+.lv-bottom-clock{font-variant-numeric:tabular-nums;white-space:nowrap}
+.chart-bottom>button.lv-bottom-adj{cursor:default;color:var(--lv-text-secondary)}
+.chart-bottom>button.lv-bottom-adj.active{color:var(--lv-text-primary)}
+.lv-bottom-menu{position:absolute;bottom:calc(100% + 4px);left:0;z-index:95;min-width:200px;max-height:min(480px,70vh);overflow:auto;padding:6px;display:flex;flex-direction:column;background:var(--lv-bg-raised);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow)}
+.lv-bottom-menu-up{left:auto;right:0;min-width:260px}
+.lv-bottom-menu>button{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:var(--lv-radius-plate);background:transparent;color:var(--lv-text-primary);font-size:14px;text-align:left;white-space:nowrap}
+.lv-bottom-menu>button:hover{background:var(--lv-hover)}
+.lv-bottom-menu>button[aria-disabled=true]{color:var(--lv-text-disabled);cursor:default}
+.lv-bottom-menu>button[aria-disabled=true]:hover{background:transparent}
+.lv-bottom-menu-check{width:16px;text-align:center}
+.lv-bottom-menu-hint{margin-left:auto;padding-left:16px;color:var(--lv-text-secondary);font-size:12px}
+/* SCALEX price scale chrome (src/chart/price-scale-port.ts): currency and unit label at the bottom of the main price
+   scale column, background = pane, text = scale text (visual-layout-spec#priceScale). */
+.lv-scale-currency{position:absolute;z-index:5;box-sizing:border-box;padding:0 4px;font:12px -apple-system,BlinkMacSystemFont,"Trebuchet MS",Roboto,Ubuntu,sans-serif;line-height:20px;height:20px;text-align:center;color:var(--vela-fg-muted,#b8b8b8);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Interval dropdown: a compact popup under the interval badge. */
+.lv-interval-menu{width:240px;max-height:min(70vh,520px);overflow:auto;top:calc(var(--lv-header-h) + var(--lv-tabstrip-h,0px) + 2px);left:120px}
+.lv-interval-group{padding:8px var(--lv-menu-pad-x) 2px;font-size:12px;line-height:16px;color:var(--lv-text-disabled)}
+/* Group headers collapse their rows; the strip keeps favorites fixed and the dropdown a stable width. */
+.lv-popup-menu button.lv-interval-group{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:24px;background:transparent;font-weight:600;text-transform:uppercase;letter-spacing:.02em;font-size:11px}
+.lv-popup-menu button.lv-interval-group:hover{color:var(--lv-text-primary)}
+.lv-interval-group-chevron{font-size:10px}
+.lv-interval-custom select{flex:0 0 auto;max-width:92px}
+.lv-interval-strip{display:inline-flex;align-items:stretch}
+.topbar .lv-interval-strip>button[data-interval-favorite]{padding:0 7px}
+/* The dropdown keeps one width whether or not it shows a non-favorite current interval (it moved the toolbar 24 px). */
+.topbar .lv-interval-strip>.interval-badge{display:inline-flex;align-items:center;justify-content:center;gap:3px;min-width:62px;box-sizing:border-box;padding:0 6px;white-space:nowrap}
+.lv-interval-row{display:flex;align-items:center;min-width:0}
+.lv-popup-menu .lv-interval-row>[role=menuitemradio]{flex:1 1 auto;width:auto;min-width:0;padding-left:var(--lv-menu-pad-x)}
+.lv-popup-menu .lv-interval-row>[role=menuitemradio]:disabled{color:var(--lv-text-disabled)}
+.lv-popup-menu .lv-interval-row>[role=menuitem],.lv-popup-menu .lv-interval-row>[role=menuitemcheckbox]{flex:0 0 32px;width:32px;padding:0;justify-content:center;color:var(--lv-menu-text-muted)}
+.lv-popup-menu .lv-interval-row>[role=menuitemcheckbox]{opacity:0}
+.lv-popup-menu .lv-interval-row:hover>[role=menuitemcheckbox],.lv-popup-menu .lv-interval-row>[role=menuitemcheckbox]:focus-visible,.lv-popup-menu .lv-interval-row[data-favorite]>[role=menuitemcheckbox]{opacity:1}
+.lv-popup-menu .lv-interval-row[data-favorite]>[role=menuitemcheckbox]{color:var(--lv-accent)}
+.lv-popup-menu .lv-interval-row:has([aria-checked=true][role=menuitemradio]){background:var(--lv-accent);color:var(--lv-on-accent)}
+.lv-popup-menu .lv-interval-row>[role=menuitemradio][aria-checked=true]{background:transparent}
+.lv-popup-menu .lv-interval-row:has([aria-checked=true][role=menuitemradio])>[role=menuitemcheckbox]{color:var(--lv-on-accent)}
+.lv-interval-row:hover{background:var(--lv-menu-hover)}
+.lv-popup-menu .lv-interval-row:hover>[role=menuitemradio]:not([aria-checked=true]){background:transparent}
+.lv-interval-custom{display:flex;gap:6px;padding:4px var(--lv-menu-pad-x)}
+.lv-interval-custom input{flex:1;min-width:0}
+.lv-interval-error{margin:4px var(--lv-menu-pad-x);font-size:12px;line-height:16px;color:var(--lv-error-text)}
+/* Chart type picker (icon button and grouped radio menu). */
+.lv-chart-type-picker{display:inline-flex;flex-shrink:0}
+/* Favorited chart types as header buttons next to the chart type button. */
+.topbar .lv-chart-type-favorite[aria-pressed=true]{color:var(--lv-accent)}
+.topbar .lv-chart-type{border:0;background:transparent;color:inherit;padding:0;cursor:pointer}
+.lv-chart-type-menu,.lv-layout-menu{top:calc(var(--lv-header-h) + var(--lv-tabstrip-h,0px) + 2px);max-height:calc(100vh - var(--lv-header-h) - 12px);overflow:auto}
+.lv-layout-menu{left:auto}
+.lv-popup-hint{margin-left:auto;opacity:.6;font-size:12px}
+.lv-popup-check{display:inline-block;width:20px;text-align:center;flex-shrink:0}
+.lv-popup-heading{padding:4px 10px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--lv-text-secondary)}
+.lv-layout-menu-prompt{display:flex;flex-direction:column;gap:8px;padding:6px}
+.lv-layout-menu-prompt label{display:flex;flex-direction:column;gap:4px;font-size:12px}
+.lv-layout-menu-prompt p{margin:0;font-size:13px}
+.lv-layout-menu-host{display:inline-flex;flex-shrink:1;min-width:0}
+/* The layout name ellipsizes (text-overflow needs its own box; the button is a flex row with the chevron). */
+.topbar .layout-library-button .layout-library-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar .layout-library-button svg{flex-shrink:0}
+/* Scroll to the most recent bar. */
+.lv-scroll-latest{position:absolute;right:76px;bottom:var(--lv-price-pane-bottom-gap,calc(var(--lv-bottom-h) + 36px));z-index:8;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:50%;border:1px solid var(--lv-border-panel);background:var(--lv-bg-raised);color:var(--lv-text-primary);box-shadow:var(--lv-shadow);cursor:pointer}
+.lv-scroll-latest:hover{background:var(--lv-hover)}
+/* No extra strip on a single chart; on a grid each cell keeps a compact status line and shows its source and
+   maximize controls on hover or focus. The layout choice is a group of tiles. */
+.lv-grid-strip>:not(:first-child){visibility:hidden}
+.lv-multichart>div:last-child>div:hover>.lv-grid-strip>:not(:first-child),.lv-grid-strip:focus-within>:not(:first-child){visibility:visible}
+.lv-grid-strip .lv-link-group{font-size:11px;max-width:96px}
+.lv-layout-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.lv-layout-tile{position:relative;display:block!important;cursor:pointer}
+.lv-layout-tile input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.lv-layout-tile-cells{gap:2px;width:44px;height:32px;padding:3px;border:1px solid var(--lv-border-panel);border-radius:4px}
+.lv-layout-tile-cells i{display:block;background:var(--lv-text-secondary);opacity:.55;border-radius:1px}
+.lv-layout-tile input:checked+.lv-layout-tile-cells{border-color:var(--lv-accent)}
+.lv-layout-tile input:checked+.lv-layout-tile-cells i{background:var(--lv-accent);opacity:1}
+.lv-layout-tile input:focus-visible+.lv-layout-tile-cells{outline:2px solid var(--lv-focus-ring)}
+/* One legend stack per pane inside the legend; rows keep their own background. */
+.indicator-legend>.lv-legend-pane{background:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.lv-legend-pane+.lv-legend-pane{margin-top:6px}
+.lv-legend-pane>div{background:var(--lv-legend-bg);border-radius:4px;display:flex;align-items:center}
+.lv-legend-values{display:inline-flex;gap:6px;padding:0 4px;font-size:13px;font-variant-numeric:tabular-nums}
+/* The templates dropdown hangs under its toolbar button. */
+.lv-template-menu-host{position:relative;display:inline-flex}
+
+
+.lv-grid-error{flex:none;margin:4px 8px;color:var(--lv-text-primary);font-size:12px}
+/* G1 polish: layout setup popover (tiles, trading session, vertical sync checklist). */
+.workspace[data-layout-setup=open] [data-chart-tree]:not([aria-hidden=true]) .lv-multichart>div:first-child{width:auto!important;min-width:0;box-sizing:border-box;padding:12px 16px!important;border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);box-shadow:var(--lv-menu-shadow);max-height:calc(100vh - var(--lv-header-h) - var(--lv-tabstrip-h,0px) - 16px);overflow-y:auto;animation:lv-overlay-in var(--lv-overlay-ms,120ms) ease-out}
+.lv-multichart>div:first-child .lv-layout-tiles{grid-template-columns:repeat(4,44px);gap:8px;justify-content:start}
+.lv-multichart>div:first-child>label{display:flex;flex-direction:column;align-items:stretch;gap:4px;font-size:12px!important;color:var(--lv-text-secondary);text-transform:none}
+.lv-multichart>div:first-child>label select{width:100%;height:32px;font-size:14px;color:var(--lv-text-primary)}
+.lv-multichart>div:first-child .lv-sync-items{flex-direction:column;align-items:stretch!important;gap:4px!important}
+.lv-multichart>div:first-child .lv-sync-items>span:first-child{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--lv-text-secondary);padding:4px 0 2px}
+.lv-multichart>div:first-child .lv-sync-items label{height:28px;white-space:nowrap;font-size:14px;color:var(--lv-text-primary);cursor:pointer}
+.lv-multichart>div:first-child .lv-sync-items input{margin:0;width:16px;height:16px}
+/* Symbol info card. */
+.lv-symbol-info{display:grid;grid-template-columns:max-content 1fr;column-gap:20px;row-gap:8px;margin:0;padding:16px 20px;font-size:14px;overflow:auto}
+.lv-symbol-info dt{color:var(--lv-text-secondary)}.lv-symbol-info dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.lv-symbol-info-actions{display:flex;justify-content:flex-end;padding:12px 20px;border-top:1px solid var(--lv-border)}
+.lv-symbol-info-actions button{padding:8px 16px;border:1px solid var(--lv-border-hover)}
+/* Compare dialog: search box, option selects, then a flat symbol list; the added comparisons sit on the right. */
+[data-lv-compare]{padding:0!important}
+[data-lv-compare]>section{padding:16px 20px;display:flex;flex-direction:column;gap:8px;min-height:0;overflow:auto}
+[data-lv-compare]>.indicator-catalog{border-right:1px solid var(--lv-border)}
+[data-lv-compare]>section select{height:32px;font-size:14px}
+[data-lv-compare]>.indicator-catalog>input{height:36px;font-size:14px;padding:0 12px}
+[data-lv-compare] .help{margin:0;font-size:12px;line-height:16px;color:var(--lv-text-secondary)}
+[data-lv-compare]>.indicator-catalog>button{display:grid;grid-template-columns:72px minmax(0,1fr) 24px;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:4px;text-align:left;font-size:14px;flex-shrink:0}
+[data-lv-compare]>.indicator-catalog>button:hover:not(:disabled){background:var(--lv-hover)}
+[data-lv-compare]>.indicator-catalog>button span{color:var(--lv-text-secondary);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+[data-lv-compare]>.indicator-catalog>button b{text-align:center;font-size:18px;font-weight:400;color:var(--lv-text-secondary)}
+[data-lv-compare] h3{margin:8px 0 0;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--lv-text-secondary);font-weight:600}
+[data-lv-compare] .indicator-instances>h3{font-size:14px;text-transform:none;letter-spacing:0;color:var(--lv-text-primary);margin:0 0 4px}
+[data-lv-compare] .indicator-instances fieldset{border:1px solid var(--lv-border);border-radius:6px;padding:8px 12px;margin:0 0 8px;display:flex;flex-direction:column;gap:6px}
+[data-lv-compare] .indicator-instances .form-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px}
+/* Quick search. */
+.lv-quick-search{padding:12px 20px 16px;box-sizing:border-box;gap:10px}
+.lv-quick-search .lv-quick-search-input{height:40px;padding:0 12px 0 38px;font-size:14px;background:var(--lv-bg-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 18 18' fill='none' stroke='%239598a1' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='8' cy='8' r='5.5'/%3E%3Cpath d='M12.2 12.2L16 16'/%3E%3C/svg%3E") no-repeat 12px center}
+.lv-quick-search .lv-quick-search-input:focus{outline:none;border-color:var(--lv-accent)}
+.lv-quick-search .lv-quick-search-row{min-height:32px;font-size:14px}
+.lv-quick-search .lv-quick-search-key{font-family:inherit;font-size:12px}
+.lv-quick-search .lv-quick-search-filters button{height:28px;padding:0 12px;font-size:13px}
+/* Symbol search: tab strip, 14px text, 1px accent focus border. */
+.symbol-search-dialog .symbol-search-controls{padding:12px 20px 0;gap:8px;border-bottom:1px solid var(--lv-border)}
+.symbol-search-dialog .symbol-search-controls>input{height:40px;padding:0 12px;border:1px solid var(--lv-input-border);border-radius:6px;background:var(--lv-bg-input);font-size:15px}
+.symbol-search-dialog .symbol-search-controls>input:focus,.symbol-search-dialog .symbol-search-controls>input:focus-visible{outline:none;box-shadow:none;border-color:var(--lv-accent)}
+.symbol-search-dialog .symbol-search-filters{flex-wrap:nowrap;gap:12px}
+.symbol-search-dialog .symbol-search-filters [role=group]{flex-wrap:nowrap;gap:0}
+.symbol-search-dialog .symbol-search-filters [role=group] button{height:36px;padding:0 12px;border:0;border-bottom:2px solid transparent;border-radius:0;font-size:14px;color:var(--lv-text-secondary);background:transparent}
+.symbol-search-dialog .symbol-search-filters [role=group] button:hover{color:var(--lv-text-primary)}
+.symbol-search-dialog .symbol-search-filters [role=group] button[aria-pressed=true]{border-bottom-color:var(--lv-accent);color:var(--lv-text-primary);background:transparent}
+.symbol-search-dialog .symbol-search-filters select{height:28px;padding:0 8px;font-size:13px}
+.symbol-search-dialog .symbol-search-status{padding:4px 0 8px;font-size:12px;color:var(--lv-text-secondary)}
+.symbol-search-dialog .symbol-search-row{padding:0 20px;min-height:40px;justify-content:center;border-bottom:0;font-size:14px}
+.symbol-search-dialog .symbol-search-row:hover{background:var(--lv-hover)}
+.symbol-search-dialog .symbol-search-row.active{background:var(--lv-hover-strong)}
+.symbol-search-dialog .symbol-search-main{align-items:center}
+.symbol-search-dialog .symbol-search-main strong{min-width:84px;font-size:14px}
+.symbol-search-dialog .symbol-search-name{font-size:14px;color:var(--lv-text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.symbol-search-dialog .symbol-search-main .symbol-search-exchange,.symbol-search-dialog .symbol-search-main .symbol-search-type{font-size:12px;color:var(--lv-text-secondary)}
+.symbol-search-dialog .symbol-search-section{padding:8px 20px 4px;border-bottom:0;font-size:11px;color:var(--lv-text-secondary)}
+.symbol-search-dialog footer{padding:10px 20px}
+/* Strategy tester empty state (docked and floating). */
+.lv-strategy-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:32px 16px;text-align:center}
+.lv-strategy-empty .empty-message{margin:0;color:var(--lv-text-secondary);font-size:14px}
+.lv-strategy-empty .primary{padding:6px 16px;border:0;border-radius:var(--lv-radius-plate);background:var(--lv-accent);color:var(--lv-on-accent,#fff);font-size:13px;line-height:18px;cursor:pointer}
+.lv-strategy-empty .primary:hover{background:var(--lv-accent-hover,var(--lv-accent))}
+/* While the saved workspace loads, the default workspace (GME, "Local layout *") is not shown, so the first
+   visible header is the saved one; the loading note waits 800 ms, so a normal start never flashes it. visibility keeps the
+   layout, so nothing moves when the workspace arrives. A clean "Local workspace restored" stays in the live region only. */
+.workspace[data-lv-starting]>.topbar>:not(.brand),.workspace[data-lv-starting]>.right-panel{visibility:hidden}
+.workspace[data-lv-starting] .source-note{animation:lv-starting-note 800ms steps(1,end)}
+@keyframes lv-starting-note{from,to{visibility:hidden}}
+.lv-toast-text.lv-toast-quiet{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;box-shadow:none}
+/* A long series title (Bitcoin / US Dollar (Coinbase public feed)) gives way first; the interval and exchange
+   keep their width, so a live chart never shows its interval as "· ·.". */
+.chart-heading>div:first-child>strong[data-status-part=title],.lv-cell-series-heading strong[data-status-part=title]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-heading>div:first-child>span:is([data-status-part=interval],[data-status-part=exchange]){flex:none;overflow:visible}
+/* A clean layout name keeps the width of its " *" marker (invisible), so marking unsaved changes never moves the
+   right toolbar group. The pseudo text is not part of the button's text. */
+.topbar .layout-library-button[data-layout-clean] .layout-library-name::after{content:' *';white-space:pre;visibility:hidden}
+/* While a rail dialog (Screener, Calendar, News, Fundamentals, Heatmap, Markets, Portfolio) is open the rail stays above its shade, so pressing its button again closes it. */
+.workspace[data-lv-rail-dialog]>.lv-right-rail{position:relative;z-index:101}

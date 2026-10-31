@@ -1,0 +1,14 @@
+/* Saved-layouts dropdown rows: a search box, and a row per layout whose star, rename and delete buttons appear on hover or focus.
+   Menu surface, row height and colors come from overlay.css (.lv-popup-menu). */
+.lv-layout-menu .lv-layout-search{padding:4px var(--lv-menu-pad-x)}
+.lv-layout-menu .lv-layout-search input{width:100%;box-sizing:border-box;height:28px;padding:0 8px;background:var(--lv-bg-base,transparent);color:var(--lv-text-primary);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate,6px)}
+.lv-layout-menu .lv-layout-search input:focus-visible{outline:none;border-color:var(--lv-accent)}
+.lv-layout-menu .lv-layout-row{display:flex;align-items:center}
+.lv-layout-menu .lv-layout-row:hover{background:var(--lv-menu-hover)}
+.lv-layout-menu .lv-layout-row>[role=menuitem]:first-child{flex:1 1 auto;min-width:0;width:auto;background:transparent}
+.lv-layout-menu .lv-layout-row>.lv-layout-star,.lv-layout-menu .lv-layout-row>.lv-layout-act{flex:0 0 28px;width:28px;padding:0;justify-content:center;color:var(--lv-menu-text-muted);opacity:0;background:transparent}
+.lv-layout-menu .lv-layout-row:hover>.lv-layout-star,.lv-layout-menu .lv-layout-row:hover>.lv-layout-act,.lv-layout-menu .lv-layout-row>.lv-layout-star:focus-visible,.lv-layout-menu .lv-layout-row>.lv-layout-act:focus-visible,.lv-layout-menu .lv-layout-row[data-favorite]>.lv-layout-star{opacity:1}
+.lv-layout-menu .lv-layout-row[data-favorite]>.lv-layout-star{color:var(--lv-accent)}
+.lv-layout-menu .lv-layout-row>.lv-layout-act:hover{color:var(--lv-text-primary)}
+/* The check slot (Autosave, the open layout) takes the same 28px column as the item icons, so the labels align. */
+.lv-layout-menu.lv-popup-menu [role=menuitem]>span.lv-popup-check:not(.lv-popup-shortcut),.lv-layout-menu.lv-popup-menu [role=menuitemcheckbox]>span.lv-popup-check:not(.lv-popup-shortcut){flex:0 0 28px;width:28px;text-align:center}

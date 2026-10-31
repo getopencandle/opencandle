@@ -1,0 +1,129 @@
+/* Indicators picker and its settings card. Colours from the --lv-* tokens in styles.css; no inline styling in the
+ * dialog except the windowed list spacers. The shell follows the selector fact size (840 wide). */
+.lv-modal.wide:has(>[data-lv-picker]){width:min(840px,94vw)}
+.indicator-layout[data-lv-picker]{position:relative;overflow:hidden;grid-template-columns:none;border:0;margin:0;padding:0;min-width:0;min-height:0;display:flex;flex-direction:column;height:min(560px,calc(90vh - 120px))}
+.lv-picker-body{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:208px minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+
+/* Search */
+.lv-picker-search{grid-column:1/-1;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;height:48px;border-bottom:1px solid var(--lv-border);color:var(--lv-text-secondary)}
+.lv-picker-search>input{flex:1;min-width:0;height:100%;border:0;border-radius:0;background:transparent;padding:0;font-size:16px;color:var(--lv-text-primary)}
+.lv-picker-search>input::placeholder{color:var(--lv-text-hint)}
+.lv-picker-search>input:focus,.lv-picker-search>input:focus-visible{outline:none;border:0}
+.lv-picker-search:focus-within{color:var(--lv-text-primary)}
+[data-lv-picker] .lv-picker-clear{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;color:var(--lv-text-secondary)}
+[data-lv-picker] .lv-picker-clear:hover{color:var(--lv-text-primary)}
+.lv-picker-icon{flex:none;display:block}
+
+/* Left column: sources, then the instances on this chart */
+.lv-picker-side{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--lv-border);overflow:auto;scrollbar-width:thin}
+.lv-picker-nav{display:flex;flex-direction:column;gap:2px;padding:8px}
+.lv-picker-group{display:flex;flex-direction:column;gap:1px}
+.lv-picker-group+.lv-picker-group{margin-top:10px}
+.lv-picker-group-title{padding:4px 10px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--lv-text-secondary)}
+[data-lv-picker] .lv-picker-nav-item{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;text-align:left;font-size:14px;color:var(--lv-text-primary);border-radius:var(--lv-radius-plate)}
+[data-lv-picker] .lv-picker-nav-item:hover{background:var(--lv-hover)}
+[data-lv-picker] .lv-picker-nav-item.active{background:var(--lv-hover-strong);color:var(--lv-text-primary)}
+.lv-picker-nav-item .lv-star-filled{color:var(--lv-notice-text)}
+
+.lv-picker-onchart{margin-top:auto;padding:8px;border-top:1px solid var(--lv-border)}
+.lv-picker-onchart>h3{margin:0;padding:4px 10px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--lv-text-secondary)}
+.lv-picker-onchart-empty{margin:4px 10px 8px;font-size:12px;line-height:1.5;color:var(--lv-text-hint)}
+.lv-picker-onchart-note{margin:0 10px 6px;font-size:11px;line-height:1.45;color:var(--lv-text-hint)}
+[data-lv-picker] .instance-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;column-gap:2px;border:0;border-radius:var(--lv-radius-plate);padding:2px 2px 4px}
+[data-lv-picker] .instance-row:hover{background:var(--lv-hover)}
+[data-lv-picker] .instance-row.selected{background:var(--lv-selected)}
+[data-lv-picker] .lv-instance-edit{display:flex;align-items:center;gap:6px;min-width:0;height:26px;padding:0 6px 0 8px;font-size:13px;text-align:left}
+[data-lv-picker] .lv-instance-edit>span{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+[data-lv-picker] .lv-instance-edit .lv-gear-glyph{opacity:0;color:var(--lv-text-secondary)}
+[data-lv-picker] .instance-row:hover .lv-gear-glyph,[data-lv-picker] .lv-instance-edit:focus-visible .lv-gear-glyph{opacity:1}
+[data-lv-picker] .lv-instance-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;color:var(--lv-text-secondary)}
+[data-lv-picker] .lv-instance-icon:hover{color:var(--lv-text-primary);background:var(--lv-hover-strong)}
+[data-lv-picker] .lv-instance-icon[data-hidden=true]{color:var(--lv-text-hint)}
+[data-lv-picker] .indicator-data-state{grid-column:1/-1;padding:0 8px;font-size:11px;line-height:15px;color:var(--lv-text-hint);white-space:normal;overflow-wrap:anywhere}
+[data-lv-picker] .indicator-data-state.unavailable,[data-lv-picker] .indicator-data-state.partial{color:var(--lv-error-text)}
+[data-lv-picker] .indicator-data-state.short-history,[data-lv-picker] .indicator-data-state.waiting{color:var(--lv-notice-text)}
+
+/* Main column: tabs, column header, rows */
+.lv-picker-main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.lv-picker-tabs{flex:none;display:flex;gap:4px;padding:8px 12px 0;border-bottom:1px solid var(--lv-border);overflow-x:auto;scrollbar-width:none}
+[data-lv-picker] .lv-picker-tabs>button{position:relative;height:36px;padding:0 10px;border-radius:var(--lv-radius-plate) var(--lv-radius-plate) 0 0;font-size:14px;color:var(--lv-text-secondary);background:transparent;white-space:nowrap}
+[data-lv-picker] .lv-picker-tabs>button:hover{color:var(--lv-text-primary);background:var(--lv-hover)}
+[data-lv-picker] .lv-picker-tabs>button.active{color:var(--lv-text-primary);background:transparent}
+[data-lv-picker] .lv-picker-tabs>button.active::after{content:'';position:absolute;left:8px;right:8px;bottom:-1px;height:2px;border-radius:1px;background:var(--lv-text-primary)}
+.lv-picker-columns{flex:none;display:flex;justify-content:space-between;padding:12px 20px 6px 48px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--lv-text-secondary)}
+.lv-picker-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 8px 8px;scrollbar-width:thin;overscroll-behavior:contain}
+.lv-picker-spacer{flex:none}
+
+[data-lv-picker] .indicator-catalog-row{display:flex;align-items:center;gap:0;height:32px;border-radius:var(--lv-radius-plate);flex-wrap:nowrap}
+[data-lv-picker] .indicator-catalog-row[data-active=true]{background:var(--lv-hover-strong)}
+[data-lv-picker] .indicator-catalog-row[data-default=true]{background:var(--lv-hover)}
+[data-lv-picker] .lv-picker-star{flex:none;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;color:var(--lv-text-secondary);background:transparent;opacity:0}
+[data-lv-picker] .lv-picker-star[data-favorite=true]{opacity:1;color:var(--lv-notice-text)}
+[data-lv-picker] .indicator-catalog-row:hover .lv-picker-star,[data-lv-picker] .indicator-catalog-row[data-active=true] .lv-picker-star{opacity:1}
+[data-lv-picker] .lv-picker-star:hover{background:transparent;color:var(--lv-text-primary)}
+[data-lv-picker] .lv-picker-star[data-favorite=true]:hover{color:var(--lv-notice-text)}
+[data-lv-picker] .lv-picker-add{flex:1;min-width:0;display:flex;align-items:center;gap:12px;height:32px;padding:0 12px 0 4px;text-align:left;background:transparent;border-radius:0 var(--lv-radius-plate) var(--lv-radius-plate) 0}
+[data-lv-picker] .lv-picker-add:hover{background:transparent}
+[data-lv-picker] .indicator-catalog-name{flex:1;min-width:0;font-size:14px;color:var(--lv-text-primary);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+[data-lv-picker] .indicator-catalog-acronym{flex:none;max-width:120px;font-size:12px;font-weight:400;color:var(--lv-text-secondary);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+[data-lv-picker] .lv-picker-count{flex:none;padding:1px 6px;border-radius:9px;font-size:11px;line-height:16px;color:var(--lv-toggle-active-text);background:var(--lv-toggle-active-bg)}
+[data-lv-picker] mark{background:transparent;color:var(--lv-accent-secondary);font-weight:600}
+
+[data-lv-picker] .lv-picker-entry{display:flex;align-items:center;width:100%;height:32px;padding:0 12px 0 36px;font-size:14px;text-align:left;border-radius:var(--lv-radius-plate);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+[data-lv-picker] .lv-picker-entry:hover{background:transparent}
+[data-lv-picker] .lv-picker-entry[data-active=true]{background:var(--lv-hover-strong)}
+.lv-picker-section{padding:14px 12px 4px 36px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--lv-text-secondary)}
+.lv-picker-empty{margin:56px 24px;text-align:center;font-size:14px;line-height:1.6;color:var(--lv-text-secondary)}
+
+/* Footer: a slim status line with the add or remove confirmation */
+.lv-modal footer.lv-picker-footer{min-height:48px;padding:8px 16px}
+.lv-picker-footer>span:empty{display:none}
+.lv-picker-footer>[role=status]{flex:1;min-width:0;font-size:13px;color:var(--lv-text-secondary);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.lv-picker-footer>[role=alert]:not(:empty){flex:1}
+.lv-picker-footer>[role=alert]:not(:empty)~[role=status]{flex:0 1 auto}
+.lv-picker-footer>button{margin-left:auto}
+.lv-picker-toast{animation:lv-picker-toast 4.2s ease-out forwards}
+@keyframes lv-picker-toast{0%{opacity:0;transform:translateY(4px)}6%{opacity:1;transform:none}82%{opacity:1}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.lv-picker-toast{animation:none}}
+
+/* Settings card opened from On this chart: a separate dialog layer over the picker */
+[data-lv-picker][data-editing=true]>.lv-picker-body{opacity:.35}
+.lv-picker-settings-shade{position:absolute;inset:0;z-index:2;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--lv-backdrop,rgba(0,0,0,.45))}
+.lv-picker-settings{position:relative;width:min(520px,100%);max-height:100%;overflow:auto;padding:4px 20px 12px;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-dialog-radius,8px);box-shadow:var(--lv-dialog-shadow,var(--lv-shadow));scrollbar-width:thin}
+[data-lv-picker] .lv-picker-settings-close{position:absolute;top:10px;right:10px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;color:var(--lv-text-secondary)}
+[data-lv-picker] .lv-picker-settings-close:hover{color:var(--lv-text-primary)}
+.lv-picker-settings>[role=group]{margin:12px 0;padding:10px 12px;border:1px solid var(--lv-notice-border);border-radius:var(--lv-radius-plate);font-size:13px}
+.lv-picker-settings>[role=group]>p{margin:0 0 8px}
+
+/* Settings editor (picker card and the compact window from the legend gear) */
+
+.lv-picker-settings .indicator-settings{margin-top:0}
+.lv-picker-settings .indicator-settings>h3,.lv-indicator-compact .indicator-settings>h3{margin:14px 36px 10px 0;font-size:16px;font-weight:600}
+.lv-indicator-compact .indicator-settings>h3{display:none}
+.lv-picker-settings .indicator-settings>.tab-row,.lv-indicator-compact .indicator-settings>.tab-row{gap:2px;padding:0;margin:0 -20px 4px;padding:0 16px;border-bottom:1px solid var(--lv-border)}
+.lv-picker-settings .indicator-settings>.tab-row>button,.lv-indicator-compact .indicator-settings>.tab-row>button{position:relative;height:36px;padding:0 10px;border-radius:0;background:transparent;color:var(--lv-text-secondary)}
+.lv-picker-settings .indicator-settings>.tab-row>button.active,.lv-indicator-compact .indicator-settings>.tab-row>button.active{color:var(--lv-text-primary);background:transparent}
+.lv-picker-settings .indicator-settings>.tab-row>button.active::after,.lv-indicator-compact .indicator-settings>.tab-row>button.active::after{content:'';position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:var(--lv-text-primary)}
+.lv-picker-settings .indicator-settings .help{font-size:12px;line-height:1.5;color:var(--lv-text-hint)}
+.lv-picker-settings .indicator-settings .button-row{flex-wrap:wrap;gap:6px;margin:10px 0}
+.lv-picker-settings .indicator-settings .button-row>button,.lv-indicator-compact .indicator-settings .button-row>button,.lv-defaults-menu>summary{padding:6px 12px;border:1px solid var(--lv-border-hover);border-radius:var(--lv-radius-plate);font-size:13px}
+.lv-picker-settings .indicator-settings .button-row>button.primary,.lv-indicator-compact .indicator-settings .button-row>button.primary{background:var(--lv-accent);border-color:var(--lv-accent);color:var(--lv-on-accent)}
+.lv-picker-settings .indicator-settings .button-row>button.primary:hover,.lv-indicator-compact .indicator-settings .button-row>button.primary:hover{background:var(--lv-accent-hover)}
+.indicator-settings p[role=status]:empty,.indicator-settings p[role=alert]:empty{display:none}
+
+/* Compact settings window (legend gear): tabs, Defaults menu, Cancel and Ok */
+.lv-modal:has(>.lv-indicator-compact){width:min(460px,94vw)}
+.lv-indicator-compact{border:0;margin:0;padding:0 20px 4px;min-width:0;max-height:min(70vh,640px);overflow:auto;scrollbar-width:thin}
+.lv-settings-footer{display:flex;justify-content:flex-end;gap:8px;align-items:center;margin:12px -20px 0;padding:12px 20px 4px;border-top:1px solid var(--lv-border)}
+/* The compact window scrolls its body; Defaults/Cancel/OK stay pinned at the bottom of the visible area. */
+.lv-indicator-compact .lv-settings-footer{position:sticky;bottom:-4px;z-index:2;margin-bottom:-4px;padding-bottom:12px;background:var(--lv-bg-raised)}
+.lv-defaults-menu{position:relative;margin-right:auto}
+.lv-defaults-menu>summary{list-style:none;cursor:pointer;user-select:none}
+.lv-defaults-menu>summary::-webkit-details-marker{display:none}
+.lv-defaults-menu>summary::after{content:'';display:inline-block;margin-left:8px;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:translateY(-2px) rotate(45deg)}
+.lv-defaults-menu[open]>summary{background:var(--lv-hover)}
+.lv-defaults-list{position:absolute;left:0;bottom:calc(100% + 4px);z-index:3;display:flex;flex-direction:column;min-width:180px;padding:4px 0;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow)}
+.lv-defaults-list>button{width:100%;text-align:left;padding:8px 14px;border-radius:0;font-size:13px}
+.lv-defaults-list>button:hover{background:var(--lv-hover)}
+@media (max-width:640px){.lv-picker-body{grid-template-columns:156px minmax(0,1fr)}.lv-picker-columns{padding-left:44px}}
+.lv-modal:has(>.lv-indicator-compact)>footer:not(:has(>span:not(:empty))){display:none}

@@ -1,0 +1,13 @@
+/* Heatmap dialog polish: summary row, scope chip, quiet reset, advanced and about disclosures. --lv-* tokens only. */
+.lv-heatmap .lv-heatmap-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:4px 0 8px;font-size:12px;color:var(--lv-text-primary)}
+.lv-heatmap .lv-heatmap-summary .synthetic-badge{margin-left:0}
+.lv-heatmap .lv-heatmap-chip{padding:1px 8px;border-radius:10px;background:var(--lv-bg-pill);color:var(--lv-text-secondary);font-size:11px;line-height:18px}
+.lv-heatmap .lv-heatmap-summary .lv-info-end{margin-left:auto}
+.lv-heatmap .lv-info-end .lv-info-tip{left:auto;right:0}
+.lv-heatmap details>summary{cursor:pointer;color:var(--lv-text-secondary);font-size:12px;padding:4px 0}
+.lv-heatmap details[open]>summary{color:var(--lv-text-primary)}
+.lv-heatmap input[type=datetime-local]{min-width:210px}
+.lv-heatmap .lv-heatmap-about{margin-top:8px;border-top:1px solid var(--lv-border);padding-top:6px}
+.lv-heatmap .lv-heatmap-about ul{margin:4px 0 8px;padding-left:18px;font-size:12px;color:var(--lv-text-secondary)}
+.lv-heatmap-footer .lv-quiet{background:none;border-color:transparent;color:var(--lv-text-secondary)}
+.lv-heatmap-footer .lv-quiet:hover{color:var(--lv-text-primary)}

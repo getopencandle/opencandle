@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "observations": [
+    {
+      "id": "SYNTHETIC-GME-fictional-revenue", "revision": 1,
+      "market": {"exchange": "SYNTHETIC", "symbol": "GME", "synthetic": true},
+      "metric": "revenue", "value": 123400000, "unit": "currency", "currency": "USD",
+      "period": {"label": "Fictional annual example", "start": 1735689600, "end": 1767225599},
+      "asOf": 1767225600, "availableAt": 1767312000,
+      "definition": "Made-up annual revenue for an original LV example. Not actual GME financial data.",
+      "source": {"label": "SYNTHETIC documentation example", "datasetId": null, "basisKey": null, "fixture": true, "adjustment": "unknown"},
+      "coverage": "complete-period", "state": "ready"
+    },
+    {
+      "id": "SYNTHETIC-GME-fictional-EPS", "revision": 1,
+      "market": {"exchange": "SYNTHETIC", "symbol": "GME", "synthetic": true},
+      "metric": "reportedEps", "value": -0.25, "unit": "currency/share", "currency": "USD",
+      "period": {"label": "Fictional annual example", "start": 1735689600, "end": 1767225599},
+      "asOf": 1767225600, "availableAt": 1767312000,
+      "definition": "Made-up reported EPS for an original LV example. Not actual GME EPS or diluted TTM EPS.",
+      "source": {"label": "SYNTHETIC documentation example", "datasetId": null, "basisKey": null, "fixture": true, "adjustment": "unknown"},
+      "coverage": "complete-period", "state": "ready"
+    },
+    {
+      "id": "SYNTHETIC-GME-fictional-sector", "revision": 1,
+      "market": {"exchange": "SYNTHETIC", "symbol": "GME", "synthetic": true},
+      "metric": "sector", "value": "Fictional example sector", "unit": "category", "currency": null,
+      "period": {"label": "Example classification", "start": null, "end": null},
+      "asOf": 1767225600, "availableAt": 1767312000,
+      "definition": "Invented classification for testing grouping. Not an actual issuer sector classification.",
+      "source": {"label": "SYNTHETIC documentation example", "datasetId": null, "basisKey": null, "fixture": true, "adjustment": "unknown"},
+      "coverage": "unknown", "state": "ready"
+    }
+  ],
+  "associations": [],
+  "fx": []
+}

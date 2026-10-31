@@ -1,0 +1,26 @@
+.color-control{display:flex;align-items:center;gap:7px;min-width:0;position:relative}
+.color-control>input{min-width:0;width:100%;flex:1}
+.color-trigger{width:32px;min-width:32px;height:32px;padding:4px!important;border:1px solid var(--lv-input-border);border-radius:var(--lv-radius-plate,6px);background:transparent;cursor:pointer}
+.color-trigger:hover:not(:disabled){border-color:var(--lv-input-border-hover)}
+.color-checker{display:block;width:100%;height:100%;border-radius:3px;overflow:hidden;background:conic-gradient(var(--lv-text-secondary) 25%,var(--lv-tooltip-text) 0 50%,var(--lv-text-secondary) 0 75%,var(--lv-tooltip-text) 0);background-size:10px 10px}
+.color-checker i{display:block;width:100%;height:100%}
+.color-popover{position:fixed;z-index:140;width:min(280px,calc(100vw - 16px));max-height:calc(100vh - 16px);overflow:auto;padding:12px;border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);background:var(--lv-menu-bg);color:var(--lv-menu-text);box-shadow:var(--lv-menu-shadow);white-space:normal;font-size:12px}
+.color-popover header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.color-popover header strong{overflow-wrap:anywhere}
+.color-popover header button{font-size:21px}
+.color-palette{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px}
+.color-palette button{height:24px;min-width:0;border:1px solid var(--lv-border);border-radius:3px;padding:0}
+.color-palette button[aria-pressed=true]{outline:2px solid var(--lv-text-primary);outline-offset:1px}
+.color-popover p{font-size:11px;line-height:1.4}
+.color-custom,.color-opacity{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:12px}
+.color-custom input[type=color]{width:48px;height:30px;padding:2px}
+.color-opacity input{width:94px;min-width:0}
+.color-popover>input[type=range]{display:block;width:100%;padding:0;margin-top:10px;accent-color:var(--lv-accent)}
+.color-popover>output{display:block;color:var(--lv-error-text);font-size:11px;margin-top:8px}
+.color-automatic{padding:7px;margin-top:9px;border:1px solid var(--lv-menu-border)}
+.form-row>.color-control{width:min(280px,60%)}
+.color-setting:has(>.color-control){grid-template-columns:minmax(100px,1fr) minmax(140px,260px)}
+.color-setting .color-control>input{width:100%;font-size:11px}
+.color-setting .color-popover input[type=range]{display:block;width:100%}
+.color-setting .color-popover output{display:block}
+@media(max-width:600px){.color-setting:has(>.color-control){grid-template-columns:1fr}.form-row>.color-control{width:65%}}

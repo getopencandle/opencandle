@@ -1,0 +1,93 @@
+/* R4 INDUI wiring: series status line parts, indicator legend rows, hover buttons, More menu and legend toggler. */
+.lv-status-logo{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:var(--lv-accent);color:var(--lv-on-accent);overflow:hidden}
+.lv-status-logo img{border-radius:50%}
+.chart-heading [data-status-part=title],.chart-heading [data-status-part=interval]{cursor:pointer}
+.lv-status-unavailable{opacity:.6;cursor:help}
+.lv-status-reason{display:inline-flex;align-items:center;gap:3px}
+.lv-status-value{white-space:nowrap}
+.lv-legend-row{position:relative;gap:2px}
+.lv-legend-row[data-hidden=true] .lv-legend-title{opacity:.5}
+.lv-legend-title{display:inline-flex;gap:4px;white-space:nowrap}
+.lv-legend-args{color:var(--lv-text-secondary)}
+/* Hover buttons fade in (opacity), never visibility:hidden, so they stay keyboard-focusable and named for assistive tech while the row is not hovered; a hidden indicator keeps its Show button visible. */
+.indicator-legend .lv-legend-button{display:inline-flex;align-items:center;justify-content:center;padding:0;opacity:0}
+.lv-legend-row:hover .lv-legend-button,.lv-legend-row:focus-within .lv-legend-button,.lv-legend-row[data-hidden=true] .lv-legend-hide{opacity:1}
+.lv-legend-menu,.lv-legend-submenu,.lv-template-menu{display:flex;flex-direction:column;padding:4px 0;background:var(--lv-menu-bg);border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);box-shadow:var(--lv-menu-shadow);color:var(--lv-menu-text);animation:lv-overlay-in var(--lv-overlay-ms,120ms) ease-out}
+.lv-legend-menu{position:absolute;top:100%;left:0;z-index:20;min-width:240px}
+.lv-legend-menu-entry{position:relative}
+.lv-legend-menu button[role=menuitem],.lv-legend-menu button[role=menuitemradio],.lv-template-menu button[role=menuitem],.lv-template-menu button[role=menuitemradio]{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;height:var(--lv-menu-row-h);padding:0 var(--lv-menu-pad-x);border:0;border-radius:0;background:transparent;color:var(--lv-menu-text);font-size:14px;line-height:18px;text-align:left;cursor:pointer;white-space:nowrap}
+.lv-legend-menu button[role=menuitem]:hover,.lv-legend-menu button[role=menuitemradio]:hover,.lv-template-menu button:hover{background:var(--lv-menu-hover)}
+.lv-legend-menu button:focus-visible,.lv-template-menu button:focus-visible{background:var(--lv-menu-active);outline:none;box-shadow:inset 2px 0 0 var(--lv-focus-ring)}
+.lv-legend-menu button[role=menuitemradio][aria-checked=true]{background:var(--lv-accent);color:var(--lv-on-accent)}
+.lv-legend-menu button:disabled{color:var(--lv-text-disabled);background:transparent;cursor:default}
+.lv-legend-menu button[aria-haspopup]::after{content:"";width:6px;height:6px;margin-left:auto;border:solid var(--lv-menu-text-muted);border-width:1.5px 1.5px 0 0;transform:rotate(45deg);flex-shrink:0}
+.lv-legend-menu kbd{font:inherit;font-size:12px;color:var(--lv-menu-text-muted)}
+.lv-legend-menu-separator{height:1px;margin:4px 0;background:var(--lv-menu-border)}
+.lv-legend-submenu{position:absolute;left:100%;top:0;min-width:200px}
+.lv-legend-toggler{align-self:flex-start;width:28px;height:22px;display:inline-flex;align-items:center;justify-content:center;padding:0}
+/* Collapsed legend counter (legend-collapsed-sources-counter); the toggler widens to fit it. */
+.lv-legend-toggler:has(.lv-legend-counter){width:auto;min-width:28px;padding:0 4px;gap:2px}
+.lv-legend-counter{font-size:11px;font-variant-numeric:tabular-nums;color:var(--lv-text-secondary)}
+/* Per-pane legend stacks and live values. */
+.lv-legend-pane{display:flex;flex-direction:column;align-items:flex-start;gap:0;pointer-events:none}
+.lv-legend-pane>*{pointer-events:auto}
+.lv-legend-values{display:inline-flex;gap:6px;margin-left:6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+/* Indicator templates dropdown. */
+.lv-template-menu{min-width:220px}
+.lv-template-menu-host>.lv-template-menu[role=menu]{position:fixed;top:var(--lv-template-menu-top,40px);left:var(--lv-template-menu-left,0);z-index:95}
+.lv-template-menu button[aria-checked=true]{font-weight:600}
+.lv-template-menu-empty{padding:4px var(--lv-menu-pad-x);color:var(--lv-menu-text-muted)}
+/* Main series Flag symbol and More buttons (always shown), its More
+ * menu (outside the clipped heading) and the Status line background switch on the series row. */
+.chart-heading>div:first-child>span.lv-series-buttons{display:inline-flex;flex-shrink:0;overflow:visible;gap:0;margin-left:4px;pointer-events:auto}
+.lv-series-buttons .lv-legend-button{display:inline-flex;align-items:center;justify-content:center;padding:0;background:transparent;color:var(--lv-text-primary)}
+.lv-series-buttons .lv-legend-flag[aria-pressed=true]{color:var(--lv-negative-text)}
+.chart-heading[data-status-background=off]{background:transparent}
+.lv-series-menu-host{position:absolute;left:4px;top:30px;z-index:21}
+.chart-workspace:has(.lv-multichart>div:last-child>div+div) .lv-series-menu-host{top:60px}
+.lv-series-menu-host>.lv-legend-menu{position:relative;top:0}
+.lv-legend-create-list{display:flex;gap:4px;padding:4px 8px}
+.lv-legend-create-list input{flex:1;min-width:0}
+
+/* Pane readability: position-only overlays have no influence on native chart heights. Higher specificity
+ * also neutralizes components.css's generic direct-div background/flex rules on the structural host. */
+.chart-workspace>.indicator-legend{inset:0;left:0!important;top:0!important;display:block;max-height:none;overflow:visible;pointer-events:none}
+.chart-workspace>.indicator-legend>.lv-legend-pane{position:absolute;margin:0;gap:2px;background:transparent;border-radius:0;align-items:flex-start;overflow:auto;overscroll-behavior:contain;max-width:calc(100% - 16px);pointer-events:auto;scrollbar-width:thin}
+.chart-workspace>.indicator-legend>.lv-legend-pane:not([data-legend-pane=price]){display:none}
+.chart-workspace>.indicator-legend>.lv-legend-price-scroll{left:4px;top:60px;max-height:180px}
+.chart-workspace>.indicator-legend .lv-legend-row{flex-shrink:0;min-height:22px;max-width:none}
+.chart-workspace>.indicator-legend .lv-legend-name{font-weight:600;color:var(--lv-text-primary)}
+.chart-workspace>.indicator-legend .lv-legend-row[data-hidden=true] .lv-legend-name{color:var(--lv-text-secondary)}
+.lv-pane-legend-separators{position:absolute;inset:0;background-color:transparent;pointer-events:none;background-repeat:no-repeat}
+.chart-workspace[data-pane-legend-ready=true]>.chart-heading{top:var(--lv-pane-heading-top)!important;left:var(--lv-pane-heading-left)!important;max-width:var(--lv-pane-heading-width);visibility:var(--lv-pane-heading-visibility,visible)}
+.chart-workspace[data-pane-legend-ready=true]>.lv-series-menu-host{top:var(--lv-pane-menu-top)!important;left:var(--lv-pane-menu-left)!important}
+.lv-pane-menu-marker{display:none}
+.lv-pane-menu-anchor{position:fixed;z-index:95;pointer-events:none;background:transparent;visibility:hidden}
+.lv-pane-menu-anchor>.lv-legend-menu{pointer-events:auto}
+@container lv-chart (max-width:860px){.chart-workspace>.indicator-legend>.lv-legend-price-scroll{top:84px}}
+.chart-workspace[data-pane-legend-ready=true]>.lv-trade-buttons{left:var(--lv-pane-heading-left)!important;visibility:var(--lv-pane-heading-visibility,visible)}
+.chart-workspace[data-pane-legend-ready=true]>.lv-series-menu-host{visibility:var(--lv-pane-heading-visibility,visible)}
+
+
+/* Real per-cell study overlays share the native pane positions without entering flex sizing. */
+.lv-cell-study-legend{position:absolute;inset:0!important;display:block!important;overflow:visible!important;max-height:none!important;pointer-events:none;z-index:6;background:transparent!important}
+.lv-cell-study-legend>.lv-legend-pane{position:absolute;margin:0;gap:2px;background:transparent;align-items:flex-start;overflow:auto;overscroll-behavior:contain;max-width:calc(100% - 16px);pointer-events:auto;scrollbar-width:thin}
+.lv-cell-study-legend>.lv-legend-pane:not([data-legend-pane=price]){display:none}
+.lv-cell-study-legend>.lv-legend-price-scroll{left:4px;top:56px;max-height:180px}
+.lv-cell-study-legend .lv-legend-row{flex-shrink:0;min-height:22px;max-width:none;display:flex;align-items:center}
+.lv-cell-study-legend .lv-legend-name{font-weight:600;color:var(--lv-text-primary)}
+.lv-cell-study-legend .lv-legend-row[data-hidden=true] .lv-legend-name{color:var(--lv-text-secondary)}
+.lv-cell-study-legend .lv-study-unavailable{color:var(--lv-text-secondary)}
+.lv-cell-study-toggle{position:absolute;right:88px;top:4px;pointer-events:auto}
+.lv-study-unplaced{position:absolute;left:4px;top:4px;max-height:calc(100% - 16px);max-width:calc(100% - 96px);overflow:auto;pointer-events:auto;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:3px;padding:2px}
+/* A study whose pane is not published yet (a template apply rebuilds the chart) joins this group for a moment;
+   it shows only if it stays unplaced for 1.5 s, so the chip no longer flashes. */
+.lv-study-unplaced{animation:lv-unplaced-settle 1.5s step-end}
+@keyframes lv-unplaced-settle{from{visibility:hidden}to{visibility:visible}}
+.lv-study-unplaced>.help{display:block;font-size:11px}
+.chart-workspace>.indicator-legend>.lv-active-study-unplaced{top:auto;left:auto;right:8px;bottom:8px;max-width:min(360px,calc(100% - 16px));max-height:max(0px,min(180px,calc(100% - 104px)))}
+
+.lv-study-control-message{position:absolute;bottom:8px;left:4px;right:88px;pointer-events:none;color:var(--lv-text-secondary);background:var(--lv-bg-raised);border-radius:3px;padding:3px}
+/* The chart Sell/Qty/Buy group sits under the series heading; the price-pane legend rows start below it
+   (ChartTradingButtonsPlacement publishes the group height; 0 when the buttons are off or hidden). */
+.chart-workspace>.indicator-legend>.lv-legend-price-scroll{margin-top:var(--lv-trade-buttons-h,0px)}

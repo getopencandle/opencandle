@@ -1,0 +1,23 @@
+/* LV Select: trigger button + listbox in the shared .lv-popup-menu family (overlay.css tokens). */
+.lv-select{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;box-sizing:border-box;min-width:0;max-width:100%;height:28px;padding:0 8px;background:var(--lv-bg-input);color:var(--lv-text-primary);border:1px solid var(--lv-input-border);border-radius:4px;font:inherit;text-align:left;cursor:pointer}
+.lv-select:hover:not(:disabled){border-color:var(--lv-text-secondary)}
+.lv-select:focus-visible,.lv-select[aria-expanded=true]{outline:none;border-color:var(--lv-focus-ring)}
+.lv-select:disabled{color:var(--lv-text-disabled);cursor:default}
+.lv-select-value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv-select-chevron{flex:none;width:6px;height:6px;border:solid var(--lv-text-secondary);border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg)}
+.lv-popup-menu.lv-select-menu{width:auto;max-width:min(420px,calc(100vw - 8px));max-height:min(320px,calc(100vh - 8px));overflow-y:auto;z-index:1000}
+.lv-select-option{display:flex;align-items:center;gap:8px;height:var(--lv-menu-row-h);padding:0 var(--lv-menu-pad-x) 0 8px;font-size:14px;line-height:18px;color:var(--lv-menu-text);cursor:pointer;flex-shrink:0;white-space:nowrap}
+.lv-select-option.active{background:var(--lv-menu-hover)}
+.lv-select-option[aria-selected=true]{font-weight:600}
+.lv-select-option[aria-disabled=true]{color:var(--lv-text-disabled);cursor:default}
+.lv-select-check{flex:none;width:16px;text-align:center;font-size:12px}
+.lv-select-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+/* Native <select> elements that have not moved to the LV Select (tests drive them natively): same look as the .lv-select trigger. */
+select:not([multiple]):not([size]){appearance:none;-webkit-appearance:none;box-sizing:border-box;min-height:28px;padding:0 26px 0 8px;background-color:var(--lv-bg-input);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%239598a1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;background-size:10px 6px;color:var(--lv-text-primary);border:1px solid var(--lv-input-border);border-radius:4px;font:inherit;cursor:pointer;text-overflow:ellipsis}
+select[multiple],select[size]{box-sizing:border-box;padding:2px;background-color:var(--lv-bg-input);color:var(--lv-text-primary);border:1px solid var(--lv-input-border);border-radius:4px;font:inherit}
+select:hover:not(:disabled){border-color:var(--lv-text-secondary)}
+select:focus,select:focus-visible{outline:none;border-color:var(--lv-focus-ring)}
+select:disabled{color:var(--lv-text-disabled);cursor:default;opacity:.7}
+select option,select optgroup{background-color:var(--lv-bg-input);color:var(--lv-text-primary)}
+select option:disabled{color:var(--lv-text-disabled)}

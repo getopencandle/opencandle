@@ -1,0 +1,135 @@
+/* Watchlist panel, its menus and dialogs. Moved out of the inline <style> in WatchlistPanel.tsx. */
+.watchlist-panel-v2{flex:1 1 0;min-height:0;display:flex;flex-direction:column;font-size:14px}
+.watchlist-panel-v2 .wl-toolbar{display:flex;align-items:center;gap:2px;padding:0 10px 6px;flex-wrap:wrap}
+.watchlist-panel-v2 .wl-toolbar button{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:2px;min-width:28px;height:28px;padding:0 6px;font-size:13px;color:var(--lv-text-primary);border-radius:var(--lv-radius-plate)}
+.watchlist-panel-v2 .wl-toolbar button svg{width:28px;height:28px;margin:0 -6px}
+.watchlist-panel-v2 .wl-toolbar button svg[data-lv-icon=chevron-down]{width:16px;height:8px;margin:0}
+.watchlist-panel-v2 .wl-list-name{font-weight:600}
+.watchlist-panel-v2 .wl-table{overflow:auto;flex:1 1 0;min-height:120px;container:lv-watchlist/inline-size}
+.watchlist-panel-v2 table{border-collapse:collapse;table-layout:fixed;min-width:100%}
+.watchlist-panel-v2 th{position:sticky;top:0;background:var(--lv-bg-surface);padding:0;z-index:1;height:28px;border-bottom:1px solid var(--lv-border)}
+.watchlist-panel-v2 .wl-column-edge{position:absolute;right:-3px;top:0;width:7px;height:100%;cursor:col-resize;touch-action:none;z-index:2}
+/* UI audit 1028 #21: the last column's resize edge must not stick out past the table, which forced a horizontal scrollbar. */
+.watchlist-panel-v2 th:last-child .wl-column-edge{right:0;width:4px}
+.wl-column-edge:focus-visible{outline:2px solid var(--lv-focus-ring)}
+.watchlist-panel-v2 th button{display:block;width:100%;height:28px;text-align:right;padding:0 8px 0 4px;font-size:14px;font-weight:400;line-height:18px;color:var(--lv-text-secondary);border-radius:0}
+.watchlist-panel-v2 th:first-child button{padding-left:16px;text-align:left}
+.watchlist-panel-v2 td{height:30px;padding:0 8px 0 4px;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.watchlist-panel-v2 td:first-child{text-align:left;padding-left:16px}
+.watchlist-panel-v2 td.wl-unavailable{color:var(--lv-text-disabled)}
+.watchlist-panel-v2 td.wl-up{color:var(--lv-positive-text)}
+.watchlist-panel-v2 td.wl-down{color:var(--lv-negative-text)}
+.watchlist-panel-v2 .wl-status{display:inline-block;width:6px;height:6px;margin-left:5px;border-radius:50%;vertical-align:middle;background:var(--lv-text-disabled)}
+.watchlist-panel-v2 .wl-status[data-state=open]{background:var(--lv-positive-text)}
+.watchlist-panel-v2 .wl-status[data-state=pre],.watchlist-panel-v2 .wl-status[data-state=post]{background:var(--lv-notice-text)}
+.watchlist-panel-v2 tr:hover{background:var(--lv-hover)}
+.watchlist-panel-v2 .wl-section td{height:37px;padding-top:6px;font-size:11px;font-weight:400;line-height:16px;text-transform:uppercase;color:var(--lv-text-secondary);background:transparent;text-align:left}
+.watchlist-panel-v2 .wl-separators td{border-bottom:1px solid var(--lv-border-panel)}
+.watchlist-panel-v2 .wl-comfortable td{height:38px}
+.watchlist-panel-v2 .wl-detail{padding:10px 16px;line-height:1.6;color:var(--lv-text-tertiary)}
+.watchlist-panel-v2 .wl-detail h3{color:var(--lv-text-primary)}
+.watchlist-panel-v2 .wl-message{padding:5px 16px;color:var(--lv-notice-text)}
+.watchlist-panel-v2 .wl-flag{display:inline-block;border-radius:2px;width:6px;height:10px}
+.watchlist-panel-v2 .wl-badge{margin-left:4px;font-size:10px;color:var(--lv-notice-text)}
+/* A live row waiting for its first snapshot shows a quiet dash. */
+.watchlist-panel-v2 .wl-badge.wl-loading{color:var(--lv-text-disabled)}
+.wl-demo{display:inline-block;margin-left:6px;padding:0 4px;font-size:9px;line-height:14px;letter-spacing:.4px;color:var(--lv-text-secondary);border:1px solid var(--lv-border-hover);border-radius:3px;vertical-align:1px}
+.wl-modal-content{overflow:auto;flex:1;padding:16px}
+.wl-modal-content label{display:block;margin:8px 0}
+.wl-modal-content input,.wl-modal-content select{max-width:100%;margin:3px}
+.wl-modal-content .wl-choice{display:block;width:100%;padding:9px;text-align:left}
+.wl-add .wl-add-search{display:flex;flex-direction:column;gap:4px;margin:0 0 10px;color:var(--lv-text-secondary)}
+.wl-add .wl-add-search input{width:100%;margin:0;box-sizing:border-box}
+.wl-add .wl-add-results{display:flex;flex-direction:column;margin:0 -16px 10px;border-top:1px solid var(--lv-border)}
+.wl-add .wl-choice{display:flex;align-items:baseline;gap:10px;padding:8px 16px;border-radius:0;border-bottom:1px solid var(--lv-border);color:var(--lv-text-primary)}
+.wl-add .wl-choice:hover:not(:disabled){background:var(--lv-hover)}
+.wl-add .wl-choice:disabled{opacity:1;color:var(--lv-text-secondary);cursor:default}
+.wl-add .wl-choice-symbol{flex:none;min-width:64px;font-weight:600}
+.wl-add .wl-choice-name{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-add .wl-choice-meta{flex:none;font-size:11px;color:var(--lv-text-secondary)}
+.wl-add .wl-choice-state{flex:none;width:16px;text-align:center;color:var(--lv-text-secondary)}
+.wl-add .wl-choice:disabled .wl-choice-state{color:var(--lv-positive-text)}
+.wl-add>button:not(.wl-choice){margin:4px 4px 0 0}
+.wl-modal-content textarea{width:100%;min-height:120px;background:var(--lv-bg-input);color:inherit;border:1px solid var(--lv-input-border);border-radius:4px}
+.wl-note-preview{display:block;max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left}
+.wl-modal-content .wl-list-item{display:flex;gap:8px;align-items:center;margin:5px 0}
+.wl-modal-content .wl-list-item .wl-list-open{flex:1;text-align:left}
+.wl-modal-content h3{margin:12px 0 4px;font-size:12px}
+
+.watchlist-panel-v2 .wl-help{padding:0 12px 4px;font-size:11px;color:var(--lv-text-secondary)}
+.watchlist-panel-v2 .wl-help summary{cursor:pointer;width:max-content;list-style:none}
+.watchlist-panel-v2 .wl-help summary::-webkit-details-marker{display:none}
+.watchlist-panel-v2 .wl-help summary:hover{color:var(--lv-text-primary)}
+.watchlist-panel-v2 .wl-help .watchlist-note{margin:4px 0 0;padding:0;border:0;font-size:12px;line-height:1.45}
+/* Selected and current rows share one filled highlight; no focus-ring outline. */
+.watchlist-panel-v2 tr[data-wl-current],.watchlist-panel-v2 tr[aria-selected=true]{background:var(--lv-selected)}
+.watchlist-panel-v2 tr:focus-visible{outline:none;box-shadow:inset 2px 0 0 var(--lv-focus-ring)}
+.watchlist-panel-v2 .wl-flag-toggle{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;margin-right:4px;vertical-align:middle;background:none;border:0;border-radius:3px;color:var(--lv-text-secondary)}
+.watchlist-panel-v2 .wl-flag-toggle:hover,.watchlist-panel-v2 .wl-flag-toggle:focus-visible{background:var(--lv-hover-strong)}
+.watchlist-panel-v2 .wl-flag-outline{opacity:0}
+.watchlist-panel-v2 tr:hover .wl-flag-outline,.watchlist-panel-v2 .wl-flag-toggle:focus-visible .wl-flag-outline{opacity:.8}
+/* Menus: shared popup look (.lv-popup-menu, overlay.css) with a fixed check column and no inline explanations. */
+.wl-menu.lv-popup-menu{width:auto;min-width:240px;max-width:320px;max-height:70vh;overflow:auto;z-index:95;outline:none}
+.wl-menu [role=group]+[role=group]{border-top:1px solid var(--lv-divider);margin-top:4px;padding-top:4px}
+.wl-menu .wl-menu-label{padding:6px var(--lv-menu-pad-x) 2px;color:var(--lv-menu-text-muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-menu button{cursor:pointer}
+.wl-menu button .wl-menu-text{flex:1;min-width:0;display:flex;align-items:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wl-menu button .wl-menu-check{flex:0 0 18px;width:18px;color:var(--lv-menu-text);visibility:hidden}
+.wl-menu button .wl-menu-check[data-on]{visibility:visible}
+.wl-menu button.active,.wl-menu button:not(:disabled):hover{background:var(--lv-menu-hover)}
+.wl-menu button[role=menuitemradio][aria-checked=true]{background:transparent;color:inherit}
+.wl-menu button[role=menuitemradio][aria-checked=true].active,.wl-menu button[role=menuitemradio][aria-checked=true]:hover{background:var(--lv-menu-hover)}
+.wl-menu button:disabled{color:var(--lv-text-disabled);cursor:default}
+.wl-menu button.danger{color:var(--lv-negative-text)}
+.wl-menu button:disabled.danger{color:var(--lv-text-disabled)}
+/* Display settings: a two-column grid, label left and control right, with a Columns section. */
+.wl-settings{display:flex;flex-direction:column;gap:2px}
+.wl-settings label{display:grid;grid-template-columns:1fr auto;align-items:center;gap:12px;min-height:32px;margin:0}
+.wl-settings label:has(>input[type=checkbox]:first-child){grid-template-columns:auto 1fr}
+.wl-settings select{min-width:140px;margin:0}
+.wl-settings h3{margin:14px 0 4px;padding-top:10px;border-top:1px solid var(--lv-divider);font-size:12px;font-weight:600;color:var(--lv-text-secondary);text-transform:uppercase}
+.wl-settings label.wl-col-row:has(>input[type=checkbox]:first-child){grid-template-columns:auto 1fr 76px}
+.wl-settings input[type=number]{width:76px;margin:0;text-align:right}
+.wl-settings input[type=checkbox]{margin:0}
+.wl-settings>p{margin:12px 0 0;font-size:12px;line-height:1.45;color:var(--lv-text-secondary)}
+.watchlist-panel-v2 .wl-head{flex-wrap:nowrap;justify-content:space-between;gap:6px}
+.watchlist-panel-v2 .wl-head-list{min-width:0;max-width:100%}
+.watchlist-panel-v2 .wl-head-list .wl-list-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.watchlist-panel-v2 .wl-head-actions{display:inline-flex;align-items:center;gap:2px;flex:none}
+.wl-menu .lv-popup-shortcut{font-family:inherit}
+/* Last price tick flash (700 ms, LV up/down tokens). */
+.watchlist-panel-v2 td.wl-tick-up{animation:wl-tick-up 700ms ease-out}
+.watchlist-panel-v2 td.wl-tick-down{animation:wl-tick-down 700ms ease-out}
+@keyframes wl-tick-up{from{background:color-mix(in srgb,var(--lv-up) 32%,transparent)}to{background:transparent}}
+@keyframes wl-tick-down{from{background:color-mix(in srgb,var(--lv-down) 32%,transparent)}to{background:transparent}}
+@media (prefers-reduced-motion:reduce){.watchlist-panel-v2 td.wl-tick-up,.watchlist-panel-v2 td.wl-tick-down{animation:none}}
+/* Pointer reorder. The lifted rows follow the pointer; the others slide to open a gap. */
+.watchlist-panel-v2 .wl-table{position:relative}
+.watchlist-panel-v2 tbody tr{user-select:none}
+.watchlist-panel-v2 .wl-dragging,.watchlist-panel-v2 .wl-dragging *{cursor:grabbing!important}
+.watchlist-panel-v2 .wl-dragging tbody tr,.watchlist-panel-v2 .wl-drag-settling tbody tr{position:relative;transition:transform 140ms ease}
+.watchlist-panel-v2 .wl-dragging tbody tr.wl-row-lifted{z-index:2;transition:none;background:var(--lv-bg-raised);box-shadow:var(--lv-shadow,0 4px 12px rgba(0,0,0,.35));opacity:.96}
+.watchlist-panel-v2 .wl-dragging tbody tr:hover{background:transparent}
+.watchlist-panel-v2 .wl-dragging tbody tr.wl-row-lifted:hover{background:var(--lv-bg-raised)}
+.watchlist-panel-v2 .wl-drop-line{position:absolute;left:0;right:0;top:0;height:2px;background:var(--lv-accent);pointer-events:none;z-index:3;transition:transform 90ms ease}
+@media (prefers-reduced-motion:reduce){.watchlist-panel-v2 .wl-dragging tbody tr,.watchlist-panel-v2 .wl-drag-settling tbody tr,.watchlist-panel-v2 .wl-drop-line{transition:none}}
+/* In a narrow panel (default below 1150px, or dragged under 290px) the table fits the panel instead of scrolling
+   sideways: value columns take a quarter each and ellipsize, the Symbol column takes the rest. Wider panels keep the saved widths. */
+@container lv-watchlist (max-width:290px){.watchlist-panel-v2 table{width:100%;min-width:0}.watchlist-panel-v2 col:first-child{width:auto!important}.watchlist-panel-v2 col:not(:first-child){width:25%!important}.watchlist-panel-v2 td:first-child,.watchlist-panel-v2 th:first-child button{padding-left:10px}}
+/* Logo column monogram badge (LV palette color, dark initials). */
+.wl-monogram{display:inline-grid;place-items:center;width:18px;height:18px;margin-right:6px;border-radius:50%;font-size:8px;font-weight:700;line-height:1;letter-spacing:0;vertical-align:middle;flex:none}
+/* A small remove X at the row end, shown on hover or keyboard focus. */
+.watchlist-panel-v2 td.wl-remove-host{position:relative}
+.watchlist-panel-v2 .wl-row-remove{position:absolute;right:2px;top:50%;transform:translateY(-50%);display:none;align-items:center;justify-content:center;width:18px;height:18px;padding:0;border:0;border-radius:3px;background:var(--lv-bg-raised);color:var(--lv-text-secondary);font-size:14px;line-height:1;cursor:pointer}
+.watchlist-panel-v2 tr:hover .wl-row-remove,.watchlist-panel-v2 tr:focus-within .wl-row-remove{display:inline-flex}
+.watchlist-panel-v2 .wl-row-remove:hover,.watchlist-panel-v2 .wl-row-remove:focus-visible{background:var(--lv-hover-strong);color:var(--lv-text-primary)}
+/* The X has its own slot in the last cell's right padding, so it never covers the value (Chg% stays readable).
+   After a removal the X under the pointer is held (faded, inert) until the pointer moves to another row or leaves. */
+.watchlist-panel-v2 td.wl-remove-host{padding-right:26px}
+.watchlist-panel-v2 td.wl-remove-host .wl-row-remove{right:4px;background:transparent}
+.watchlist-panel-v2 td.wl-remove-host .wl-row-remove:hover,.watchlist-panel-v2 td.wl-remove-host .wl-row-remove:focus-visible{background:var(--lv-hover-strong)}
+.watchlist-panel-v2 .wl-table[data-wl-remove-hold] .wl-row-remove,.watchlist-panel-v2 .wl-table[data-wl-remove-hold] .wl-row-remove:hover{opacity:.35;cursor:default;background:transparent;color:var(--lv-text-secondary)}
+.watchlist-panel-v2 .wl-toast{display:flex;align-items:center;gap:8px;margin:4px 10px;padding:6px 6px 6px 12px;border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);background:var(--lv-bg-raised);color:var(--lv-text-primary);font-size:13px}
+.watchlist-panel-v2 .wl-toast button{height:24px;padding:0 8px;border:0;border-radius:3px;background:transparent;color:var(--lv-accent);font:inherit;font-weight:600;cursor:pointer}
+.watchlist-panel-v2 .wl-toast button:hover,.watchlist-panel-v2 .wl-toast button:focus-visible{background:var(--lv-hover-strong)}
+.watchlist-panel-v2 .wl-toast .wl-toast-close{margin-left:auto;color:var(--lv-text-secondary);font-weight:400;font-size:14px}

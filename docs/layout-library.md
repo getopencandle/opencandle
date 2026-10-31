@@ -1,0 +1,15 @@
+# Saved local layouts
+
+Use the layout name in the top toolbar, or press the period key while focus is outside an editor, to open the saved-layout library. An asterisk beside the name means the working chart arrangement differs from its last saved snapshot, or has not been saved yet. These controls are source-implemented and model-tested; native executable interaction remains unverified.
+
+Save and Ctrl+S save the current chart arrangement and workspace on this computer. The layout includes its charts, source references, indicators, script bindings, drawings and chart appearance. Global watchlists, imported datasets, alerts and virtual trading accounts belong to the workspace and remain current when another layout opens.
+
+Autosave starts enabled under OpenCandle's local policy. It saves after a1.2-second quiet period. With autosave disabled, the recovery workspace may still retain the current draft, but the named layout's saved snapshot changes only after an explicit Save. Opening another layout asks whether to save or discard a changed draft. A failed disk save leaves the draft available and shows the failure; retry Save after addressing the error. The app does not repeatedly retry an unchanged rejected save automatically.
+
+Create starts a fresh chart using the current source. Copy duplicates a chart arrangement with independent layout and chart identities. Rename preserves unsaved edits. Favorites move toward the top of search results. Deleting the active layout requires choosing another one to open first. If opening succeeds but deletion cannot be saved, the original saved entry remains and the replacement stays open. Chart Undo history is cleared when opening another layout; it does not undo layout-library operations.
+
+Export current layout saves a portable JSON file containing chart settings and declared source references. It does not contain market-history bars or global virtual accounts. Import first validates and previews the file, then adds it as another saved layout after confirmation. Required source datasets must already be available locally with matching declared provider, revision and adjustment basis. Matching declarations do not prove identical bar content. Import does not execute included script text during preview. Opening a confirmed imported layout may run its scripts in the restricted CandleScript runtime.
+
+OpenCandle allows128 saved layouts and names up to200 characters. The complete saved workspace must fit the32MiB storage limit. Portable layout export is bounded at20MiB; the local JSON picker accepts up to32MiB. A complete workspace export is available from Local storage when a separate layout file is too large. Exported files remain wherever you save them until you delete them yourself. No layout is uploaded to an OpenCandle server.
+
+If a save reaches disk but the chart cannot recover, the app reports that the layout was saved and the chart needs recovery. Reopen the workspace instead of assuming that the disk save was rolled back. Exact reference defaults, cloud synchronization, visual conformity and native restart workflows are not established by these model tests.

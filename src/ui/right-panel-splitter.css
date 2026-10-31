@@ -1,0 +1,5 @@
+/* The right panel's width splitter. It shares the panel's grid cell and straddles its left edge. */
+.workspace>.lv-right-panel-splitter{grid-column:3;grid-row:2;justify-self:start;align-self:stretch;width:8px;margin-left:-6px;z-index:5;cursor:col-resize;touch-action:none;background:transparent;outline:none}
+.workspace:has(>.lv-layout-tabs)>.lv-right-panel-splitter{grid-row:3}
+.workspace>.lv-right-panel-splitter:hover,.workspace>.lv-right-panel-splitter[data-dragging="true"],.workspace>.lv-right-panel-splitter:focus-visible{background:linear-gradient(to right,transparent 2px,var(--lv-focus-ring) 2px,var(--lv-focus-ring) 4px,transparent 4px)}
+.workspace.lv-panel-collapsed>.lv-right-panel-splitter{display:none}

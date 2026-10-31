@@ -1,0 +1,40 @@
+.fund-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:10px 20px 0;border-bottom:1px solid var(--lv-border)}.fund-tabs button{padding:8px 12px;border-radius:4px 4px 0 0}.fund-tabs button.active{box-shadow:inset 0 -2px var(--lv-accent)}
+.fund-link{align-items:center;justify-content:flex-start;color:var(--lv-text-secondary)}
+.fund-statement th[scope=row]{position:sticky;left:0;background:var(--lv-bg-surface);text-align:left;font-weight:400}.fund-statement th[scope=row] button{padding:6px 8px;text-align:left;width:100%}.fund-statement td{text-align:right}.fund-statement tr.selected th[scope=row]{box-shadow:inset 3px 0 var(--lv-accent)}
+.fund-statement td.fund-unavailable{color:var(--lv-text-secondary);font-style:italic}
+.fund-detail ul,.fund-unavailable-list ul{margin:6px 0 0;padding-left:18px}.fund-detail{overflow-wrap:anywhere}
+.fund-unavailable-list{margin:12px 20px;padding:12px;border:1px dashed var(--lv-border-hover);border-radius:6px;font-size:11px;color:var(--lv-text-secondary);line-height:1.6}
+.fund-graph{display:flex;flex-direction:column;gap:10px;padding:12px 20px 16px}
+.fund-graph-bar{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+.fund-graph-bar label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--lv-text-secondary,#a4b3c9)}
+.fund-graph-bar .fund-check{flex-direction:row;align-items:center;gap:6px;height:28px}
+.fund-chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fund-chip{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 4px 0 10px;border:1px solid var(--lv-border,#354056);border-radius:14px;background:var(--lv-bg-input,#1a2231);font-size:12px;color:var(--lv-text-primary,#e6ecf5)}
+.fund-chip button{padding:0 6px;font-size:16px;line-height:1;color:var(--lv-text-secondary,#a4b3c9);border-radius:10px}
+.fund-chip button:hover{color:var(--lv-text-primary,#e6ecf5);background:var(--lv-hover,#2a3447)}
+.fund-range{display:inline-flex;border:1px solid var(--lv-border,#354056);border-radius:6px;overflow:hidden}
+.fund-range button{padding:5px 12px;border-radius:0;font-size:12px}
+.fund-range button.active{background:var(--lv-accent);color:var(--lv-on-accent,#fff)}
+.fund-graph-frame{border:1px solid var(--lv-border,#354056);border-radius:6px;background:var(--lv-bg-raised,#1a2231);padding:6px}
+.fund-graph-svg{display:block;max-width:100%}
+.fund-legend{display:flex;flex-direction:column;gap:3px;margin:0;padding:0;list-style:none;font-size:12px;color:var(--lv-text-primary,#e6ecf5)}
+.fund-legend em{color:var(--lv-text-secondary,#a4b3c9)}
+.fund-swatch{display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:2px}
+.fund-readout{min-height:1.4em;margin:0}
+.fund-ratios{margin:12px 20px;font-size:12px}.fund-ratios table{margin-top:6px}.fund-ratios th[scope=row]{text-align:left;font-weight:400}
+.fund-ratios td.fund-unavailable{color:var(--lv-text-secondary);font-style:italic}.fund-input{display:block;color:var(--lv-text-secondary,#a4b3c9);font-size:11px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Empty-state card, load controls, advanced disclosure, compact source line. */
+.fund-empty{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding:18px 20px;border:1px dashed var(--lv-border-hover);border-radius:var(--lv-radius-plate,6px);background:var(--lv-bg-surface)}
+.fund-empty>strong{font-size:15px;color:var(--lv-text-primary)}.fund-empty>p{margin:0;color:var(--lv-text-secondary);font-size:13px}
+.fund-load{display:flex;flex-direction:column;gap:6px}.fund-load .button-row{align-items:center}
+.fund-advanced>summary,.fund-add>summary{cursor:pointer;font-size:12px;color:var(--lv-text-secondary);padding:4px 0}
+.fund-add{margin:4px 0 8px}
+.fund-check{display:inline-flex;align-items:center;gap:6px;font-size:12px;margin:6px 0}
+.lv-pol textarea.facts-json{display:block;width:100%;min-height:80px;margin:6px 0;font:12px var(--lv-font,system-ui)}
+.fund-source{display:flex;align-items:center;flex-wrap:wrap;gap:8px}.fund-source .synthetic-badge{margin-left:0}.fund-source>span{color:var(--lv-text-secondary)}
+.fund-policy{display:flex;align-items:center;gap:4px}
+.fund-quiet{background:none;border-color:transparent;color:var(--lv-text-secondary)}.fund-quiet:hover{color:var(--lv-text-primary)}
+.fund-metrics .fund-metric-group{margin:10px 0}.fund-metrics h4{margin:12px 0 6px;font-size:12px;color:var(--lv-text-secondary)}
+.fund-tag{margin-left:6px;padding:0 5px;border:1px solid var(--lv-border-hover);border-radius:8px;font-size:10px;color:var(--lv-text-secondary);white-space:nowrap}
+.fund-graph-order{display:inline-flex;gap:2px}.fund-graph-order button{padding:0 4px;font-size:12px;color:var(--lv-text-secondary)}

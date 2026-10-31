@@ -1,0 +1,61 @@
+/* Object tree and data window widget (right sidebar page); colors through the shared --lv-* tokens. */
+.lv-otw{display:flex;flex-direction:column;height:100%;min-height:0;width:100%;color:var(--lv-text-primary);background:var(--lv-bg-surface);font-size:14px}
+/* Panel switcher: 48px header, 268x34 switcher, 130x28 tabs. */
+.lv-otw-header{flex:0 0 48px;display:flex;align-items:center;justify-content:center;padding:0 16px;box-sizing:border-box}
+.lv-otw-switcher{display:flex;gap:2px;width:268px;max-width:100%;height:34px;padding:3px;box-sizing:border-box;border-radius:var(--lv-radius-plate);background:var(--lv-bg-raised)}
+.lv-otw-tab{flex:1 1 130px;height:28px;min-width:0;padding:0 8px;border:0;border-radius:4px;background:transparent;color:var(--lv-text-primary);font:inherit;font-size:14px;line-height:28px;cursor:pointer;white-space:nowrap}
+.lv-otw-tab:hover{background:var(--lv-hover)}
+.lv-otw-tab.is-active{background:var(--lv-bg-pill)}
+.lv-otw-tab:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:-2px}
+.lv-otw-body{flex:1 1 auto;min-height:0;overflow:auto}
+.lv-otw-body[hidden]{display:none}
+
+.lv-ot{position:relative;display:flex;flex-direction:column;min-height:100%;outline:none}
+/* Toolbar: 38x38 buttons, manage pushed right after a flexible gap. */
+.lv-ot-toolbar{display:flex;align-items:center;height:38px;padding:0 6px 0 9px;box-sizing:border-box}
+.lv-ot-toolbar-gap{flex:1 1 auto}
+.lv-ot-toolbar-slot{position:relative;display:inline-flex}
+.lv-ot-toolbar-button{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border:0;background:transparent;color:var(--lv-text-primary);position:relative;cursor:pointer}
+.lv-ot-toolbar-button::before{content:"";position:absolute;inset:2px;border-radius:var(--lv-radius-plate);background:transparent}
+.lv-ot-toolbar-button:hover:not(:disabled)::before{background:var(--lv-hover)}
+.lv-ot-toolbar-button>svg{position:relative}
+.lv-ot-toolbar-button:disabled{color:var(--lv-text-disabled);cursor:default}
+.lv-ot-toolbar-button:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:-2px}
+
+/* Tree layout: 38px rows, title after the icon column,
+   22x22 right-aligned buttons, selected #142E61, hover #2E2E2E. */
+.lv-ot-tree{display:flex;flex-direction:column;outline:none}
+.lv-ot-row{position:relative;display:flex;align-items:center;height:38px;min-height:38px;padding:0 8px 0 0;box-sizing:border-box;cursor:default;user-select:none}
+.lv-ot-row:hover{background:var(--lv-hover)}
+.lv-ot-row.is-selected{background:var(--lv-selected)}
+.lv-ot-row:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:-2px}
+.lv-ot-row[aria-level="2"]{padding-left:20px}
+.lv-ot-row.is-drop-before{box-shadow:inset 0 2px 0 var(--lv-accent)}
+.lv-ot-row.is-drop-after{box-shadow:inset 0 -2px 0 var(--lv-accent)}
+.lv-ot-indent,.lv-ot-expand{flex:0 0 22px;width:22px;height:38px}
+.lv-ot-expand{display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;color:var(--lv-text-secondary);cursor:pointer}
+.lv-ot-row[aria-expanded="true"]>.lv-ot-expand>svg{transform:rotate(90deg)}
+.lv-ot-icon{flex:0 0 28px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin:0 8px 0 0;color:var(--lv-text-primary)}
+.lv-ot-title{flex:1 1 auto;min-width:0;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:18px}
+/* A hidden source dims its row title and icon. */
+.lv-ot-row.is-hidden .lv-ot-title,.lv-ot-row.is-hidden .lv-ot-icon{color:var(--lv-text-disabled)}
+.lv-ot-rename{flex:1 1 auto;min-width:0;height:26px;padding:0 6px;border:1px solid var(--lv-focus-ring);border-radius:4px;background:var(--lv-bg-surface);color:var(--lv-text-primary);font:inherit;font-size:14px}
+.lv-ot-buttons{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;margin-left:auto}
+.lv-ot-row-button{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--lv-text-primary);opacity:0;cursor:pointer}
+.lv-ot-row:hover .lv-ot-row-button,.lv-ot-row.is-selected .lv-ot-row-button,.lv-ot-row:focus-within .lv-ot-row-button,.lv-ot-row-button.is-on{opacity:1}
+.lv-ot-row-button:hover:not(:disabled){background:var(--lv-hover-strong)}
+.lv-ot-row-button:disabled{color:var(--lv-text-disabled);cursor:default}
+.lv-ot-empty{margin:16px;color:var(--lv-text-secondary);font-size:13px}
+.lv-ot-error{display:block;margin:8px 16px;color:var(--lv-error-text,#f7525f);font-size:13px}
+
+/* Context and toolbar menus: popup menu style (32px items, 13px separators). */
+.lv-ot-menu,.lv-ot-toolbar-menu{position:fixed;z-index:50;min-width:220px;padding:6px 0;border-radius:6px;background:var(--lv-bg-raised);box-shadow:var(--lv-shadow);color:var(--lv-text-primary)}
+.lv-ot-toolbar-menu{position:absolute;top:38px;left:0}
+.lv-ot-menu-entry{position:relative}
+.lv-ot-submenu{position:absolute;left:100%;top:-6px}
+.lv-ot-menu-item{display:flex;align-items:center;gap:12px;width:100%;height:32px;padding:0 12px;border:0;background:transparent;color:inherit;font:inherit;font-size:14px;text-align:left;cursor:pointer;white-space:nowrap}
+.lv-ot-menu-item:hover:not(:disabled),.lv-ot-menu-item[aria-expanded="true"]{background:var(--lv-hover)}
+.lv-ot-menu-item:disabled{color:var(--lv-text-disabled);cursor:default}
+.lv-ot-menu-label{flex:1 1 auto}
+.lv-ot-menu-hotkey{color:var(--lv-text-secondary);font-size:13px}
+.lv-ot-menu-separator{height:1px;margin:6px 0;background:var(--lv-divider)}

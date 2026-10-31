@@ -1,0 +1,61 @@
+/* Overlay primitives: popup menus (.lv-popup-menu) and dialogs (.lv-modal, .settings-modal, .modal-shade).
+   One look for both. Loaded after styles.css and components.css. Values are LV Medium Dark; the LV Dark block in
+   styles.css overrides the shadows, backdrop and on-accent text (higher specificity, so load order does not matter). */
+:root{
+ --lv-menu-bg:var(--lv-bg-raised);--lv-menu-border:var(--lv-border);--lv-menu-hover:var(--lv-hover-strong);--lv-menu-active:var(--lv-hover-strong);
+ --lv-menu-text:var(--lv-text-primary);--lv-menu-text-muted:var(--lv-text-secondary);
+ --lv-menu-radius:6px;--lv-menu-shadow:0 4px 14px rgba(8,10,16,.4),0 1px 3px rgba(8,10,16,.28);
+ --lv-menu-row-h:32px;--lv-menu-pad-x:12px;
+ --lv-backdrop:rgba(10,12,18,.55);--lv-on-accent:#0d1a1f;
+ --lv-dialog-radius:8px;--lv-dialog-shadow:0 12px 32px rgba(8,10,16,.5),0 2px 6px rgba(8,10,16,.35);
+ --lv-overlay-ms:120ms;
+}
+
+/* ---- popup menu ---- */
+.lv-popup-menu{position:fixed;z-index:95;width:260px;padding:4px 0;display:flex;flex-direction:column;background:var(--lv-menu-bg);border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);box-shadow:var(--lv-menu-shadow);color:var(--lv-menu-text);
+ transition:opacity var(--lv-overlay-ms) ease-out,transform var(--lv-overlay-ms) ease-out;transform-origin:top left}
+.lv-popup-menu[hidden]{display:none!important}
+.lv-popup-menu [role=menuitem],.lv-popup-menu [role=menuitemradio],.lv-popup-menu [role=menuitemcheckbox]{display:flex;align-items:center;gap:8px;width:100%;height:var(--lv-menu-row-h);padding:0 var(--lv-menu-pad-x);border-radius:0;font-size:14px;line-height:18px;text-align:left;color:var(--lv-menu-text);background:transparent;flex-shrink:0}
+.lv-popup-menu [role=menuitem]:hover,.lv-popup-menu [role=menuitemradio]:hover,.lv-popup-menu [role=menuitemcheckbox]:hover,
+.lv-popup-menu [role=menuitem][data-active],.lv-popup-menu [role=menuitemradio][data-active],.lv-popup-menu [role=menuitemcheckbox][data-active]{background:var(--lv-menu-hover)}
+.lv-popup-menu [role=menuitem]:focus-visible,.lv-popup-menu [role=menuitemradio]:focus-visible,.lv-popup-menu [role=menuitemcheckbox]:focus-visible{background:var(--lv-menu-active);outline:none;box-shadow:inset 2px 0 0 var(--lv-focus-ring)}
+.lv-popup-menu [role=menuitemradio][aria-checked=true]{background:var(--lv-accent);color:var(--lv-on-accent)}
+.lv-popup-menu [role=menuitem]:disabled,.lv-popup-menu [role=menuitem][aria-disabled=true]{color:var(--lv-text-disabled);opacity:1;cursor:default;background:transparent}
+.lv-popup-menu [role=menuitem]>span:not(.lv-popup-icon-slot):not(.lv-popup-shortcut){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv-popup-menu [aria-haspopup]::after{content:"";width:6px;height:6px;margin-left:auto;border:solid var(--lv-menu-text-muted);border-width:1.5px 1.5px 0 0;transform:rotate(45deg);flex-shrink:0}
+.lv-popup-shortcut{margin-left:auto;color:var(--lv-menu-text-muted);font-size:12px;flex-shrink:0}
+.lv-popup-icon-slot{display:block;width:20px;height:20px;flex-shrink:0}
+.lv-popup-separator{height:1px;margin:4px 0;background:var(--lv-divider)}
+
+/* ---- dialog ---- */
+.modal-shade{background:var(--lv-backdrop);transition:opacity var(--lv-overlay-ms) ease-out}
+.lv-modal,.settings-modal{background:var(--lv-bg-raised);color:var(--lv-text-primary);border:1px solid var(--lv-border);border-radius:var(--lv-dialog-radius);box-shadow:var(--lv-dialog-shadow);display:flex;flex-direction:column;overflow:hidden;
+ transition:opacity var(--lv-overlay-ms) ease-out,transform var(--lv-overlay-ms) ease-out}
+.lv-modal{width:min(650px,94vw);max-height:90vh}
+.lv-modal.wide{width:min(1000px,94vw)}
+.settings-modal{width:min(850px,94vw);height:min(730px,90vh)}
+.lv-modal>header,.settings-modal>header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--lv-border)}
+.lv-modal h2,.settings-modal h2{font-size:18px;font-weight:600;margin:0}
+.lv-modal header button,.settings-modal>header button{font-size:24px;line-height:1;padding:2px 8px;color:var(--lv-text-secondary)}
+.lv-modal header button:hover,.settings-modal>header button:hover{color:var(--lv-text-primary);background:var(--lv-hover)}
+.lv-modal>form{display:flex;flex-direction:column;min-height:0}
+.lv-modal footer,.settings-modal footer{display:flex;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid var(--lv-border)}
+.lv-modal footer>span{flex:1}
+.settings-modal footer>span{flex:1;color:var(--lv-error-text);font-size:12px}
+.lv-modal button{padding:8px 12px}
+.lv-modal footer button,.settings-modal footer button{padding:8px 16px;border:1px solid var(--lv-border-hover)}
+
+/* ---- open animation: runs on mount, so it also works for conditionally rendered nodes ---- */
+@starting-style{
+ .lv-popup-menu{opacity:0;transform:scale(.98)}
+ .modal-shade{opacity:0}
+ .lv-modal,.settings-modal{opacity:0;transform:scale(.98)}
+}
+@keyframes lv-overlay-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
+@keyframes lv-overlay-fade{from{opacity:0}to{opacity:1}}
+.lv-popup-menu:not([hidden]){animation:lv-overlay-in var(--lv-overlay-ms) ease-out}
+.modal-shade{animation:lv-overlay-fade var(--lv-overlay-ms) ease-out}
+.modal-shade>.lv-modal,.modal-shade>.settings-modal{animation:lv-overlay-in var(--lv-overlay-ms) ease-out}
+@media (prefers-reduced-motion:reduce){
+ .lv-popup-menu,.modal-shade,.lv-modal,.settings-modal{animation:none!important;transition:none!important}
+}

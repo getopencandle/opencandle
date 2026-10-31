@@ -1,0 +1,75 @@
+/* Markets dialog. Shared modal, select and button styles come from overlay.css and select.css. */
+.lv-markets{--mk-up:var(--lv-positive-text);--mk-down:var(--lv-negative-text);--mk-line:var(--lv-border)}
+.lv-markets .mk-body{padding:12px 20px 16px;overflow:auto;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;height:min(640px,74vh)}
+.lv-markets .mk-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.lv-markets .mk-tabs{display:flex;gap:2px;border-bottom:1px solid var(--lv-border);flex-wrap:wrap}
+.lv-markets .mk-tabs button{padding:8px 14px;border:0;border-bottom:2px solid transparent;background:none;color:var(--lv-text-secondary);cursor:pointer;font:inherit}
+.lv-markets .mk-tabs button:hover{color:var(--lv-text-primary);background:var(--lv-hover)}
+.lv-markets .mk-tabs button[aria-selected=true]{color:var(--lv-text-primary);border-bottom-color:var(--lv-accent)}
+.lv-markets .mk-tabs button:focus-visible{outline:2px solid var(--lv-focus-ring,var(--lv-accent));outline-offset:-2px}
+.lv-markets .mk-scope{margin:0;color:var(--lv-text-secondary);font-size:12px;line-height:1.4;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.lv-markets .mk-scope strong{color:var(--lv-text-primary);font-weight:600}
+.lv-markets .mk-note{margin:0;padding:8px 10px;border-left:3px solid var(--lv-accent);background:var(--lv-bg-surface);color:var(--lv-text-secondary);font-size:12px}
+.lv-markets table{width:100%;border-collapse:collapse;font-size:13px}
+.lv-markets th{text-align:right;font-weight:500;color:var(--lv-text-secondary);padding:6px 8px;border-bottom:1px solid var(--lv-border);position:sticky;top:0;background:var(--lv-bg-raised)}
+.lv-markets td{text-align:right;padding:6px 8px;border-bottom:1px solid var(--lv-border);font-variant-numeric:tabular-nums}
+.lv-markets th:first-child,.lv-markets td:first-child{text-align:left}
+.lv-markets tbody tr:hover{background:var(--lv-hover)}
+.lv-markets td.sym{font-weight:600}
+.lv-markets td.sym small{display:block;font-weight:400;color:var(--lv-text-secondary);font-size:11px}
+.lv-markets .up{color:var(--mk-up)}.lv-markets .down{color:var(--mk-down)}
+.lv-markets td.act{white-space:nowrap}
+.lv-markets td.act button{padding:3px 8px;margin-left:4px;font-size:12px;border:1px solid var(--lv-border-hover);border-radius:4px;background:none;color:var(--lv-text-primary);cursor:pointer}
+.lv-markets td.act button:hover{background:var(--lv-hover-strong,var(--lv-hover))}
+.lv-markets .mk-empty{padding:28px 12px;text-align:center;color:var(--lv-text-secondary)}
+.lv-markets .mk-chart{width:100%;height:300px}
+.lv-markets .mk-chart text{fill:var(--lv-text-secondary);font-size:11px}
+.lv-markets .mk-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--lv-text-secondary)}
+.lv-markets .mk-legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.lv-markets .mk-gauge{display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+.lv-markets .mk-gauge svg{width:300px;height:170px;flex:none}
+.lv-markets .mk-gauge .big{font-size:22px;font-weight:600}
+.lv-markets .mk-gauge dl{display:grid;grid-template-columns:auto auto;gap:4px 16px;margin:8px 0 0;font-size:13px}
+.lv-markets .mk-gauge dt{color:var(--lv-text-secondary)}.lv-markets .mk-gauge dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.lv-markets .mk-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.lv-markets .mk-tile{border:1px solid var(--lv-border);border-radius:6px;padding:10px 12px;background:var(--lv-bg-surface)}
+.lv-markets .mk-tile b{display:block;font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.lv-markets .mk-tile span{color:var(--lv-text-secondary);font-size:12px}
+.lv-markets .mk-split{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--lv-bg-pill)}
+.lv-markets .mk-split i{display:block;height:100%}
+.lv-markets .mk-meter{height:8px;border-radius:4px;background:var(--lv-bg-pill);overflow:hidden;margin-top:6px}
+.lv-markets .mk-meter i{display:block;height:100%;background:var(--lv-accent)}
+/* Fixed dialog body height (no jump between tabs), scope chip, tile sub-counts, table widths. */
+.lv-markets .mk-chip{padding:1px 8px;border-radius:10px;background:var(--lv-bg-pill);color:var(--lv-text-secondary);font-size:11px;line-height:18px}
+.lv-markets .mk-scope .synthetic-badge{margin-left:0}
+.lv-markets .mk-scope .lv-info-end{margin-left:auto}.lv-markets .lv-info-end .lv-info-tip{left:auto;right:0}
+.lv-markets .mk-note{display:flex;align-items:center;gap:4px}
+.lv-markets .mk-tile span{display:block}.lv-markets .mk-tile small{display:block;color:var(--lv-text-secondary);font-size:11px;opacity:.8}
+.lv-markets td.sym{width:auto}.lv-markets td.act,.lv-markets th:last-child:empty{width:1%}
+.lv-markets table{table-layout:auto}
+/* Sortable headers, hotlist filters, seasonal options and readout, breadth tables, Macro maps and Yield curves. */
+.lv-markets .mk-sort{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:0}
+.lv-markets .mk-sort:hover{color:var(--lv-text-primary)}
+.lv-markets .mk-sort:focus-visible,.lv-markets .mk-legend-item:focus-visible,.lv-markets .mk-map g:focus-visible{outline:2px solid var(--lv-focus-ring,var(--lv-accent));outline-offset:1px}
+.lv-markets .mk-bar label{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--lv-text-secondary)}
+.lv-markets .mk-bar button,.lv-markets .mk-load button,.lv-markets .mk-export button{padding:4px 10px;font-size:12px;border:1px solid var(--lv-border-hover);border-radius:4px;background:none;color:var(--lv-text-primary);cursor:pointer}
+.lv-markets .mk-bar button:disabled,.lv-markets .mk-load button:disabled{opacity:.5;cursor:default}
+.lv-markets .mk-bar input[type=date]{background:var(--lv-bg-input);color:var(--lv-text-primary);border:1px solid var(--lv-input-border,var(--lv-border));border-radius:4px;padding:3px 6px;font:inherit;font-size:12px}
+.lv-markets .mk-chip button{border:0;background:none;color:var(--lv-text-secondary);cursor:pointer;padding:0 0 0 6px}
+.lv-markets .mk-checks{display:flex;flex-wrap:wrap;gap:4px 12px;border:1px solid var(--lv-border);border-radius:6px;padding:6px 10px;margin:0;font-size:12px;color:var(--lv-text-secondary)}
+.lv-markets .mk-checks label{display:inline-flex;align-items:center;gap:4px}
+.lv-markets .mk-legend-item{border:0;background:none;color:inherit;font:inherit;cursor:pointer;padding:0}
+.lv-markets .mk-legend-item[aria-pressed=false]{opacity:.45;text-decoration:line-through}
+.lv-markets .mk-readout{margin:0;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--lv-text-secondary);font-variant-numeric:tabular-nums}
+.lv-markets .mk-readout b{color:var(--lv-text-primary)}
+.lv-markets .mk-load{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;color:var(--lv-text-secondary)}
+.lv-markets .mk-load small,.lv-markets .mk-export small,.lv-markets .mk-bar small{color:var(--lv-notice-text,var(--lv-text-secondary))}
+.lv-markets .mk-export{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
+.lv-markets .mk-map{width:100%;max-height:220px}
+.lv-markets .mk-map g{cursor:pointer}
+.lv-markets .mk-map text{fill:var(--lv-text-primary);font-size:10px;font-weight:600;pointer-events:none}
+.lv-markets .mk-map text.v{font-weight:400;font-size:8px}
+.lv-markets .mk-legend i.sw{width:12px;height:12px;border-radius:2px}
+.lv-markets td.note{text-align:left;color:var(--lv-text-secondary);font-size:12px}
+.lv-markets tr.focus td{background:var(--lv-selected,var(--lv-hover))}
+.lv-markets .mk-extremes,.lv-markets .mk-perf,.lv-markets .mk-votes{margin-top:4px}

@@ -1,0 +1,17 @@
+/* Data window tab. Labels at x+16, values right aligned, 26px item pitch, 18px titles, 38px section
+   headers with the title at x+52 and a 22x22 Hide data button at the right edge. */
+.lv-dw{display:flex;flex-direction:column;color:var(--lv-text-primary);font-size:14px;padding-bottom:8px}
+.lv-dw-empty{margin:16px;color:var(--lv-text-secondary);font-size:13px}
+.lv-dw-row{display:flex;align-items:center;justify-content:space-between;gap:12px;height:26px;padding:0 16px;line-height:18px}
+.lv-dw-label{color:var(--lv-text-secondary);white-space:nowrap}
+.lv-dw-value{color:var(--lv-text-primary);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.lv-dw-date{padding:4px 0}
+.lv-dw-section{padding-bottom:4px}
+.lv-dw-section.is-active{background:var(--lv-hover)}
+.lv-dw-section-header{display:flex;align-items:center;height:38px;padding:0 16px;position:relative}
+.lv-dw-section-icon{flex:0 0 28px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:31px;margin-right:8px;color:var(--lv-text-primary)}
+.lv-dw-section-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.lv-dw-section.is-source-hidden .lv-dw-section-title{color:var(--lv-text-disabled)}
+.lv-dw-hide{flex:0 0 22px;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:0;border-radius:4px;background:transparent;color:var(--lv-text-primary);cursor:pointer}
+.lv-dw-hide:hover{background:var(--lv-hover-strong)}
+.lv-dw-hide:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:0}

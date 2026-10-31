@@ -1,0 +1,12 @@
+/* Price/time scale context menu: the shared menu look (tokens from ui/overlay.css). */
+.lv-scale-menu{position:fixed;z-index:1001;min-width:280px;box-sizing:border-box;padding:4px 0;background:var(--lv-menu-bg);color:var(--lv-menu-text);border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);box-shadow:var(--lv-menu-shadow);font:14px/18px -apple-system,BlinkMacSystemFont,"Trebuchet MS",Roboto,Ubuntu,sans-serif;user-select:none;overscroll-behavior:contain;transform-origin:top left;animation:lv-overlay-in var(--lv-overlay-ms) ease-out}
+.lv-scale-menu-sub{position:absolute;left:100%;top:-6px;margin-left:2px;overflow-y:auto}
+.lv-scale-menu-sub-host{position:relative}
+.lv-scale-menu-row{display:flex;align-items:center;gap:8px;height:var(--lv-menu-row-h);padding:0 var(--lv-menu-pad-x) 0 8px;cursor:pointer;outline:none;white-space:nowrap}
+.lv-scale-menu-row[data-active]{background:var(--lv-menu-hover)}
+.lv-scale-menu-row[aria-disabled=true]{opacity:.45;cursor:default;background:transparent}
+.lv-scale-menu-check{width:16px;text-align:center}
+.lv-scale-menu-side{margin-left:auto;padding-left:24px;color:var(--lv-menu-text-muted);font-variant-numeric:tabular-nums}
+.lv-scale-menu-sep{height:1px;margin:4px 0;background:var(--lv-menu-border)}
+.lv-scale-menu-status{padding:6px 12px;max-width:280px;white-space:normal;color:var(--lv-menu-text-muted)}
+@media (prefers-reduced-motion:reduce){.lv-scale-menu{animation:none}}

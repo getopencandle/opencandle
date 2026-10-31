@@ -1,0 +1,80 @@
+/* Bar Replay panel (LV layout). The control bar is centred under the chart.
+   The dock is a real row between the chart and the bottom toolbar, so the chart (and
+   its lowest pane and price axis labels) shrinks above it instead of being covered. It wraps instead of scrolling so its
+   menus (which open upward, over the chart) are not clipped; a drag still moves it as an overlay. */
+.lv-replay-dock{position:relative;display:flex;justify-content:center;flex-shrink:0;z-index:9;padding:3px 12px;border-top:1px solid var(--lv-border);background:var(--lv-bg-panel,var(--lv-bg-raised))}
+.lv-replay-panel.lv-replay-floating{position:relative;display:flex;flex-wrap:wrap;justify-content:center;gap:2px;align-items:center;width:max-content;max-width:100%;padding:2px 4px;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);font-size:13px;color:var(--lv-text-primary)}
+.lv-replay-group,.lv-replay-slot{position:relative;display:inline-flex;align-items:center;gap:2px}
+.lv-replay-divider{width:1px;height:20px;margin:0 4px;background:var(--lv-divider)}
+.lv-replay-panel button{white-space:nowrap}
+.lv-replay-panel .lv-replay-icon{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;padding:0 6px;color:var(--lv-text-primary)}
+.lv-replay-panel .lv-replay-icon svg{width:18px;height:18px}
+.lv-replay-panel .lv-replay-chevron{min-width:16px;padding:0 1px}
+.lv-replay-panel .lv-replay-chevron svg{width:14px;height:14px}
+.lv-replay-panel .lv-replay-speed{min-width:38px;font-variant-numeric:tabular-nums}
+.lv-replay-panel .lv-replay-icon:hover,.lv-replay-panel .lv-replay-icon[aria-expanded="true"]{background:var(--lv-hover-strong)}
+.lv-replay-panel .lv-replay-icon.active,.lv-replay-panel .lv-replay-icon[aria-pressed="true"]{background:var(--lv-toggle-active-bg);color:var(--lv-toggle-active-text)}
+.lv-replay-panel .lv-replay-icon:disabled{color:var(--lv-text-disabled);opacity:1}
+.lv-replay-panel button[aria-checked="true"]{background:var(--lv-selected)}
+.lv-replay-panel .lv-replay-interval{min-width:38px}
+.lv-replay-menu [aria-disabled="true"]{color:var(--lv-text-disabled);cursor:default}
+.lv-replay-menu [aria-disabled="true"]:hover{background:transparent}
+.lv-replay-continue{height:30px;padding:0 10px;background:var(--lv-accent)!important;color:var(--lv-on-accent)}
+.lv-replay-continue:hover{background:var(--lv-accent-hover)!important}
+.lv-replay-hint{padding:0 6px;color:var(--lv-text-secondary);white-space:nowrap}
+/* A fixed-width date slot (it also holds the start hint), so the bar keeps its size from start selection to play. */
+.lv-replay-clock{box-sizing:border-box;display:inline-block;width:22ch;padding:0 6px;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:center}
+.lv-replay-clock[data-replay-clock=hint]{color:var(--lv-text-secondary)}
+/* Numbers that change while stepping keep their width (tabular digits, reserved slots). */
+.lv-replay-trade .lv-replay-buy,.lv-replay-trade .lv-replay-sell{font-variant-numeric:tabular-nums}
+.lv-replay-account{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border:1px solid var(--lv-notice-border)!important;color:var(--lv-notice-text)}
+.lv-replay-account:disabled{opacity:1}
+.lv-replay-account-equity{display:inline-block;min-width:15ch;text-align:right;font-variant-numeric:tabular-nums;color:var(--lv-text-primary)}
+.lv-replay-scope{display:inline-flex;gap:2px}
+.lv-replay-scope button{height:30px;padding:0 8px}
+.lv-replay-refusal{margin:0;padding:0 6px;color:var(--lv-error-text)}
+.lv-replay-menu{position:absolute;bottom:calc(100% + 8px);left:0;z-index:10;display:flex;flex-direction:column;min-width:160px;width:max-content;padding:4px 0;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow)}
+.lv-replay-menu [role=menuitem],.lv-replay-menu [role=menuitemradio]{height:32px;padding:0 12px;text-align:left;border-radius:0}
+.lv-replay-menu [role=menuitemradio][aria-checked="true"]{background:var(--lv-selected)}
+.lv-replay-date{gap:8px;padding:10px 12px;min-width:240px}
+.lv-replay-date label{display:flex;flex-direction:column;gap:4px;color:var(--lv-text-secondary)}
+.lv-replay-date input{height:30px;padding:0 6px;background:var(--lv-bg-input);border:1px solid var(--lv-input-border);border-radius:var(--lv-radius-plate);color:var(--lv-text-primary)}
+.lv-replay-date input:focus{border-color:var(--lv-input-border-focus);outline:0}
+.lv-replay-date-error{color:var(--lv-error-text)}
+.lv-replay-date-actions{display:flex;justify-content:flex-end;gap:6px}
+.lv-replay-date-actions button{height:30px;padding:0 12px}
+.lv-replay-scissors{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed var(--lv-accent);pointer-events:none;z-index:4}
+.lv-replay-scissors.invalid{border-left-color:var(--lv-error-text)}
+.lv-replay-scissors-glyph{position:absolute;top:4px;left:-8px;font-size:14px;color:var(--lv-accent)}
+.lv-replay-scissors-label{position:absolute;bottom:4px;left:4px;padding:1px 4px;font-size:11px;white-space:nowrap;background:var(--lv-bg-raised);color:var(--lv-text-primary);border-radius:var(--lv-radius-plate)}
+/* Polish: shared popup-menu look, enter animation, drag grip. */
+.lv-replay-menu.lv-popup-menu{position:absolute;width:max-content;min-width:160px;z-index:10}
+.lv-replay-menu.lv-popup-menu [role=menuitem],.lv-replay-menu.lv-popup-menu [role=menuitemradio]{font-size:13px}
+.lv-replay-menu.lv-popup-menu [role=menuitemradio][aria-disabled="true"]{color:var(--lv-text-disabled)}
+.lv-replay-grip{align-self:stretch;width:10px;margin:0 2px 0 0;cursor:grab;touch-action:none;border-radius:3px;background:radial-gradient(circle,var(--lv-text-disabled) 1px,transparent 1.5px) 50% 0/6px 6px repeat-y}
+.lv-replay-grip:active{cursor:grabbing}
+.lv-replay-panel.lv-replay-floating{animation:lv-replay-in 140ms ease-out}
+/* The same 8px rise drawn with transform: animating margin-bottom resized the dock, and with it the chart
+ * (a full chart resize and repaint every frame for 140 ms). The chart now takes its final size once. */
+@keyframes lv-replay-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.lv-replay-panel.lv-replay-floating{animation:none}}
+/* Replay quick trading: Sell / quantity / Buy / Flatten and the open position (LV colors: candle up/down tokens). */
+.lv-replay-trade{display:inline-flex;align-items:center;gap:4px;padding:0 4px}
+.lv-replay-trade .lv-replay-buy,.lv-replay-trade .lv-replay-sell{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;min-width:52px;height:30px;padding:0 8px;line-height:1.05;font-weight:600;color:var(--lv-on-trade);border-radius:var(--lv-radius-plate)}
+.lv-replay-trade .lv-replay-buy{background:var(--lv-trade-buy)}
+.lv-replay-trade .lv-replay-sell{background:var(--lv-trade-sell)}
+.lv-replay-trade .lv-replay-buy:hover,.lv-replay-trade .lv-replay-sell:hover{filter:brightness(1.08)}
+.lv-replay-trade .lv-replay-buy:disabled,.lv-replay-trade .lv-replay-sell:disabled{opacity:.5}
+.lv-replay-trade-price{font-size:11px;font-weight:400;font-variant-numeric:tabular-nums}
+.lv-replay-qty{width:56px;height:30px;padding:0 6px;text-align:center;background:var(--lv-bg-input);border:1px solid var(--lv-input-border);border-radius:var(--lv-radius-plate);color:var(--lv-text-primary);font-variant-numeric:tabular-nums}
+.lv-replay-qty:focus{border-color:var(--lv-input-border-focus);outline:0}
+.lv-replay-qty[aria-invalid="true"]{border-color:var(--lv-error-text)}
+.lv-replay-position{display:inline-block;box-sizing:border-box;width:150px;padding:0 6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-variant-numeric:tabular-nums;color:var(--lv-text-secondary)}
+.lv-replay-position[data-flat]{color:var(--lv-text-disabled)}
+.lv-replay-position strong{margin-left:6px}
+.lv-replay-position[data-tone=up] strong{color:var(--lv-up)}
+.lv-replay-position[data-tone=down] strong{color:var(--lv-down)}
+.lv-replay-flatten{height:30px;padding:0 10px}
+/* Clipped to the pane stack; the date label is a time axis label centred on the line. */
+.lv-replay-scissors.lv-replay-scissors-clipped .lv-replay-scissors-label{bottom:auto;left:0;box-sizing:border-box;padding:0 6px;border-radius:2px;font-size:12px;font-variant-numeric:tabular-nums;background:var(--lv-accent);color:var(--lv-on-accent);z-index:1}
+.lv-replay-scissors.lv-replay-scissors-clipped.invalid .lv-replay-scissors-label{background:var(--lv-bg-raised);color:var(--lv-error-text);border:1px solid var(--lv-error-text)}

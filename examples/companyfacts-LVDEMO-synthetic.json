@@ -1,0 +1,80 @@
+{
+  "cik": 424242,
+  "entityName": "LV SYNTHETIC DEMO COMPANY",
+  "facts": {
+    "us-gaap": {
+      "Revenues": {
+        "label": "Synthetic total revenue",
+        "description": "Invented fixture value. Not an issuer filing or actual company result.",
+        "units": {
+          "USD": [
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 1000,
+              "accn": "0000424242-24-000001",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-20"
+            }
+          ]
+        }
+      },
+      "CostOfRevenue": {
+        "label": "Synthetic cost of revenue",
+        "description": "Invented fixture value. Not an issuer filing or actual company result.",
+        "units": {
+          "USD": [
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 600,
+              "accn": "0000424242-24-000001",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-20"
+            }
+          ]
+        }
+      },
+      "GrossProfit": {
+        "label": "Synthetic gross profit",
+        "description": "Invented fixture value. Not an issuer filing or actual company result.",
+        "units": {
+          "USD": [
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 400,
+              "accn": "0000424242-24-000001",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-20"
+            }
+          ]
+        }
+      },
+      "NetIncomeLoss": {
+        "label": "Synthetic net income",
+        "description": "Invented fixture value. Not an issuer filing or actual company result.",
+        "units": {
+          "USD": [
+            {
+              "start": "2023-01-01",
+              "end": "2023-12-31",
+              "val": 100,
+              "accn": "0000424242-24-000001",
+              "fy": 2023,
+              "fp": "FY",
+              "form": "10-K",
+              "filed": "2024-02-20"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

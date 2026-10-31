@@ -1,0 +1,48 @@
+/* The layout tab strip: 34px high, #1f1f1f
+   (--lv-bg-raised), above the header. Tab metrics inside the strip are our own choice. The strip takes the first row of the
+   workspace grid; header-relative popups add --lv-tabstrip-h (styles.css). */
+:root:has(.lv-layout-tabs){--lv-tabstrip-h:34px}
+.workspace:has(>.lv-layout-tabs){grid-template-rows:var(--lv-tabstrip-h) var(--lv-header-h) minmax(0,1fr)}
+.workspace:has(>.lv-layout-tabs)>.topbar{grid-row:2}
+.workspace:has(>.lv-layout-tabs)>.drawing-toolbar,.workspace:has(>.lv-layout-tabs)>.chart-workspace,.workspace:has(>.lv-layout-tabs)>.right-panel,.workspace:has(>.lv-layout-tabs)>.lv-right-rail{grid-row:3}
+.lv-layout-tabs{grid-column:1/-1;grid-row:1;display:flex;align-items:stretch;gap:2px;height:var(--lv-tabstrip-h);padding:0 4px;background:var(--lv-bg-raised);overflow:hidden;position:relative}
+.lv-layout-tabs-list{display:flex;align-items:stretch;gap:2px;min-width:0;overflow:auto hidden;scrollbar-width:none}
+.lv-layout-tab{position:relative;display:flex;align-items:center;flex:none;min-width:150px;max-width:300px;margin-top:4px;border-radius:6px 6px 0 0;color:var(--lv-text-secondary)}
+.lv-layout-tab:hover{background:var(--lv-hover)}
+.lv-layout-tab[data-active=true]{background:var(--lv-bg-surface);color:var(--lv-text-primary)}
+.lv-layout-tab[data-drop-target=true]{box-shadow:inset 2px 0 0 var(--lv-accent)}
+.lv-layout-tab-button{flex:1;min-width:0;height:100%;display:flex;align-items:center;gap:6px;padding:0 4px 0 10px;border-radius:6px 6px 0 0;color:inherit;font-size:13px;white-space:nowrap;overflow:hidden;text-align:left}
+.lv-layout-tab-button:hover{background:transparent}
+.lv-layout-tab-symbol{font-weight:600}
+.lv-layout-tab-sep{color:var(--lv-text-hint)}
+.lv-layout-tab-name{flex:0 1000 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.lv-layout-tab-dirty{color:var(--lv-text-secondary)}
+.lv-layout-tab-close{flex:none;width:22px;height:22px;margin-right:4px;padding:0;border-radius:4px;color:var(--lv-text-secondary);font-size:16px;line-height:1}
+.lv-layout-tab-close:hover{background:var(--lv-hover-strong);color:var(--lv-text-primary)}
+.lv-layout-tab-rename{flex:1;min-width:0;height:24px;margin:0 4px;padding:2px 6px;font-size:13px}
+.lv-layout-tab-new{flex:none;align-self:center;width:28px;height:28px;padding:0;color:var(--lv-text-secondary);font-size:20px;line-height:1}
+.lv-layout-tab-new:hover{background:var(--lv-hover);color:var(--lv-text-primary)}
+.lv-layout-tabs-prompt{display:flex;align-items:center;gap:6px;margin-left:auto;padding:0 6px;font-size:13px;white-space:nowrap}
+.lv-layout-tabs-prompt button{height:26px;padding:0 10px;background:var(--lv-bg-pill)}
+.lv-layout-tabs-prompt button:hover{background:var(--lv-bg-pill-hover)}
+/* Open layout in new window, beside the close button. */
+.lv-layout-tab-window{flex:none;width:22px;height:22px;margin-right:2px;padding:0;border-radius:4px;color:var(--lv-text-secondary);font-size:13px;line-height:1}
+.lv-layout-tab-window:hover{background:var(--lv-hover-strong);color:var(--lv-text-primary)}
+/* The active tab reserves the dirty marker's width while clean. */
+.lv-layout-tab-dirty[data-clean]::before{content:'*';visibility:hidden}
+/* The active tab reads "GME  -5.04%"; the layout name stays in the tooltip and for screen readers. */
+.lv-layout-tab-price{font-variant-numeric:tabular-nums;color:var(--lv-text-primary)}
+.lv-layout-tab-change{font-variant-numeric:tabular-nums;color:var(--lv-text-secondary)}
+.lv-layout-tab-change[data-tone=up]{color:var(--lv-positive-text)}
+.lv-layout-tab-change[data-tone=down]{color:var(--lv-negative-text)}
+.lv-layout-tab-name.lv-visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* The Wick mode button at the right end of the main window's tab strip. */
+.lv-layout-tab-wick{flex:none;align-self:center;display:flex;align-items:center;justify-content:center;width:28px;height:28px;margin-left:auto;padding:0;color:var(--lv-text-secondary)}
+.lv-layout-tab-wick:hover{background:var(--lv-hover);color:var(--lv-text-primary)}
+/* Every tab shows its symbol, price and change in full: tabs are as wide as their text (150 to 300 px) and never shrink, so one
+   tab's fixed width cannot squeeze the others. Past the strip's width the row scrolls (wheel, or arrow keys on a tab). Only the
+   layout name gives way with an ellipsis (the symbol too, past 300 px); the tooltip has the full text. */
+.lv-layout-tab-price,.lv-layout-tab-change{flex:none;white-space:nowrap}
+.lv-layout-tab-symbol{flex:0 1 auto;min-width:3ch;overflow:hidden;text-overflow:ellipsis}
+/* Settings > General: each preference checkbox is its own row. */
+.lv-app-preferences .lv-live-toggle{display:flex;align-items:center;gap:6px}

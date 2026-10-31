@@ -1,0 +1,19 @@
+.lv-cell-series-heading{right:auto!important;pointer-events:none;z-index:7;max-width:calc(100% - 12px);height:48px;visibility:hidden}
+.lv-cell-series-heading [data-status-part=title],.lv-cell-series-heading [data-status-part=interval],.lv-cell-series-heading button{pointer-events:auto}
+.lv-cell-series-heading .lv-series-control-message{font-size:11px;color:var(--lv-text-secondary)}
+/* In a narrow chart (a 2- or 4-chart cell) the symbol title keeps priority over the values. The placement hook
+   marks the heading with data-lv-heading-room from the plot width: the title row keeps its content width (up to the heading
+   width), the values row shrinks and clips instead, and O, H and L drop out first (the close keeps its value without the C label, and the change stays), then the change.
+   The two-row wrap of a narrow workspace (styles.css, 860px) is unchanged. */
+@container lv-chart (min-width:861px){
+ .chart-heading:is([data-lv-heading-room=narrow],[data-lv-heading-room=tiny])>div:first-child{flex-shrink:0;max-width:100%}
+ .chart-heading:is([data-lv-heading-room=narrow],[data-lv-heading-room=tiny])>.ohlc{flex-shrink:1;min-width:0;overflow:hidden}
+ .chart-heading:is([data-lv-heading-room=narrow],[data-lv-heading-room=tiny])>.ohlc>:is([data-value=O],[data-value=H],[data-value=L]){display:none}
+ .chart-heading[data-lv-heading-room=tiny]>.ohlc>[data-status-part=barChange]{display:none}
+ .chart-heading:is([data-lv-heading-room=narrow],[data-lv-heading-room=tiny]){column-gap:8px}
+ .chart-heading:is([data-lv-heading-room=narrow],[data-lv-heading-room=tiny])>.ohlc>[data-value=C]{font-size:0}
+ .chart-heading:is([data-lv-heading-room=narrow],[data-lv-heading-room=tiny])>.ohlc>[data-value=C]>b{font-size:13px}
+}
+/* In a grid of several charts the Vela attribution mark (its NOTICE allows restyling or repositioning, never hiding)
+   is drawn at 60% from its own bottom-left corner, so a short indicator pane keeps its legend and values readable. */
+.lv-multichart [data-lv-cell-id]:not(:only-child) .vela-attribution{transform:scale(.6);transform-origin:left bottom}

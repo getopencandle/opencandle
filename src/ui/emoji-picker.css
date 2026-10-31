@@ -1,0 +1,16 @@
+/* Emojis tab of the Icons flyout (EmojiPicker.tsx). Colors follow the shared --lv-menu-* tokens. */
+.lv-emoji-picker{display:flex;flex-direction:column;width:max-content;max-width:100%;overflow:hidden}
+.lv-emoji-categories{display:flex;gap:0;padding:0 4px 4px;border-bottom:1px solid var(--lv-menu-border)}
+.lv-emoji-category{display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:20px;line-height:1;background:transparent;border:0;border-radius:4px;color:inherit;cursor:pointer}
+.lv-emoji-category[aria-pressed=true]{background:var(--lv-menu-active)}
+.lv-emoji-category:hover,.lv-emoji-cell:hover{background:var(--lv-menu-hover)}
+.lv-emoji-scroll{overflow:auto;padding:0 4px 4px}
+.lv-emoji-title{margin:8px 4px 4px;font-size:10px;font-weight:normal;color:var(--lv-menu-text-muted);text-transform:uppercase;letter-spacing:.5px}
+.lv-emoji-row{display:flex}
+.lv-emoji-cell{display:inline-flex;align-items:center;justify-content:center;padding:0;font-size:22px;line-height:1;background:transparent;border:0;border-radius:4px;cursor:pointer}
+.lv-emoji-cell:focus-visible,.lv-emoji-category:focus-visible{outline:1px solid var(--lv-focus-ring);outline-offset:-1px}
+/* Emojis / Stickers tabs of the Icons flyout (DrawingToolbar.tsx) and the Stickers grid (StickerPicker.tsx). */
+.lv-icon-tabs{display:flex;gap:2px;padding:0 4px 4px}
+.lv-icon-tabs button{padding:4px 8px;background:transparent;border:0;border-radius:4px;color:inherit;cursor:pointer}
+.lv-icon-tabs button[aria-selected=true]{background:var(--lv-menu-active)}
+.lv-sticker-picker .lv-emoji-cell[aria-pressed=true]{background:var(--lv-menu-active)}

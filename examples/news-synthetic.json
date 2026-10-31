@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "kind": "synthetic",
+  "label": "LV synthetic news import exercise, not actual news",
+  "items": [
+    {
+      "id": "synthetic-gme-workflow",
+      "title": "SYNTHETIC TEST: GME import and filtering exercise",
+      "summary": "This is an original software test record. It makes no claim about GameStop, its business, or any market event. Use it to exercise the instrument and provider filters and the plain-text reader.",
+      "provider": "LV synthetic test fixture",
+      "publishedAt": "2024-01-02T14:30:00Z",
+      "sourceUrl": null,
+      "instruments": ["GME"],
+      "markets": ["stocks"],
+      "formats": ["Test record"]
+    },
+    {
+      "id": "synthetic-spy-workflow",
+      "title": "SYNTHETIC TEST: SPY import and filtering exercise",
+      "summary": "This is an original software test record, not a report about SPY or the market. Its classifications are inputs for the local filter exercise.",
+      "provider": "LV synthetic test fixture",
+      "publishedAt": "2024-01-02T15:30:00Z",
+      "sourceUrl": null,
+      "instruments": ["SPY"],
+      "markets": ["ETFs"],
+      "formats": ["Test record"]
+    }
+  ]
+}

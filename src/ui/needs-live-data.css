@@ -1,0 +1,28 @@
+/* The needs-live-data card (centered on an empty chart) and the example data banner. Theme tokens only. */
+.lv-needs-live{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;z-index:6;pointer-events:none}
+.lv-needs-live-card{pointer-events:auto;max-width:440px;width:100%;box-sizing:border-box;padding:24px 24px 20px;border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate,6px);background:var(--lv-bg-raised);color:var(--lv-text-primary);box-shadow:var(--lv-shadow);text-align:center}
+.lv-needs-live-icon{color:var(--lv-accent);margin-bottom:6px}
+.lv-needs-live-card h2{margin:0 0 8px;font-size:17px;font-weight:600;line-height:1.35}
+.lv-needs-live-card p{margin:0 0 8px;font-size:13px;line-height:1.45;color:var(--lv-text-secondary)}
+.lv-needs-live-card p.lv-needs-live-quiet{font-size:12px}
+.lv-needs-live-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px}
+.lv-needs-live-actions button{min-height:30px;padding:0 14px;font-size:13px;border-radius:4px;border:1px solid var(--lv-border);background:var(--lv-bg-input);color:var(--lv-text-primary);cursor:pointer}
+.lv-needs-live-actions button:hover{border-color:var(--lv-border-hover)}
+/* The banner is a strip of its own between the chart and the range bar (in the workspace's column flow), so it
+   never covers candles, an indicator pane or the Script editor. */
+.lv-example-banner{position:static;flex:none;order:0;display:flex;align-items:center;justify-content:center;gap:10px;min-width:0;box-sizing:border-box;padding:3px 12px;border-top:1px solid var(--lv-accent);background:var(--lv-bg-raised);color:var(--lv-text-primary);font-size:12px}
+.lv-example-banner strong{color:var(--lv-accent);letter-spacing:1px;font-size:11px}
+.lv-example-banner span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lv-example-banner button{flex:none;min-height:24px;padding:0 10px;font-size:12px;border-radius:4px;border:1px solid var(--lv-border);background:var(--lv-bg-input);color:var(--lv-text-primary);cursor:pointer}
+.lv-example-banner button:hover{border-color:var(--lv-border-hover)}
+/* One card per chart cell in multi-chart layouts; smaller cells get a compact or tiny card. */
+.lv-needs-live-layer{position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden}
+.lv-needs-live-layer>.lv-needs-live{padding:8px;box-sizing:border-box}
+.lv-needs-live-compact .lv-needs-live-card,.lv-needs-live-tiny .lv-needs-live-card{max-width:300px;padding:12px 12px 10px}
+.lv-needs-live-compact .lv-needs-live-card h2{font-size:13px;margin:0 0 4px}
+.lv-needs-live-compact .lv-needs-live-actions{margin-top:8px;gap:6px}
+.lv-needs-live-compact .lv-needs-live-actions button{min-height:24px;padding:0 10px;font-size:12px}
+.lv-needs-live-tiny .lv-needs-live-card{padding:6px 8px;box-shadow:none}
+.lv-needs-live-tiny .lv-needs-live-card h2{font-size:11px;font-weight:500;margin:0;line-height:1.3}
+.lv-needs-live-tiny .lv-needs-live-actions{margin-top:5px;gap:4px}
+.lv-needs-live-tiny .lv-needs-live-actions button{min-height:20px;padding:0 6px;font-size:11px}

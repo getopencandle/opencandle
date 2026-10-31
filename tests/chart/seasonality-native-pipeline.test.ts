@@ -1,0 +1,55 @@
+import {afterEach,expect,it,vi} from 'vitest';
+import {createRequire} from 'node:module';
+import path from 'node:path';
+import os from 'node:os';
+import {ownedNativePipelineFixture} from '../fixtures/seasonality-native-pipeline';
+import {publishedSource,flushMtf,type Request} from '../fixtures/qualified-nyse-mtf-source';
+import * as clone from '../../src/chart/profile-input-clone';
+import * as builtin from '../../src/chart/builtin-presentation-proof';
+import * as provider from '../../src/domain/alpaca-live';
+
+const requireActual=createRequire(path.join(process.cwd(),'electron/alpaca-stub.cjs'));
+const {AlpacaMarketData}=requireActual('./public-alpaca.cjs'),{alpacaStubTransport}=requireActual('./alpaca-stub.cjs');
+const NOW=Date.parse('2026-10-20T16:00:00Z')/1000;
+const FULL={startYear:2016,endYear:2026,meanRow:true,deviationRow:true,positiveFrequencyRow:true,projectionGeometry:true};
+type NativeFixture=Awaited<ReturnType<typeof ownedNativePipelineFixture>>;
+type Reservation=NonNullable<ReturnType<builtin.BuiltinPresentationControl['reserveSource']>>;
+const closes:Array<()=>Promise<void>>=[];
+afterEach(async()=>{const errors:unknown[]=[];for(const close of closes.splice(0).reverse())try{await close();}catch(error){errors.push(error);}vi.restoreAllMocks();vi.unstubAllGlobals();if(errors.length)throw new AggregateError(errors,'SYNTHETIC actual native-pipeline cleanup failed.');});
+
+async function actual(held=false){
+ let now=NOW,releaseD!:()=>void,started!:(request:Request)=>void,hold=held,disposed=false;
+ const gate=new Promise<void>(resolve=>{releaseD=resolve;}),firstD=new Promise<Request>(resolve=>{started=resolve;}),replies=new Set<Promise<unknown>>();
+ const requests:Array<{timeframe:string;rows:number}>=[],comparisons:Array<{rows:number;matched:boolean}>=[],reservations:Reservation[]=[],groups:provider.AlpacaSeasonalityPreparationGroup[]=[];
+ let p:Awaited<ReturnType<typeof publishedSource>>|undefined,f:NativeFixture|undefined,market:InstanceType<typeof AlpacaMarketData>|undefined;
+ const dispose=async()=>{if(disposed)return;disposed=true;releaseD();const errors:unknown[]=[];for(const close of [()=>f?.dispose(),()=>p?.dispose(),()=>market?.close()])try{close();}catch(error){errors.push(error);}await Promise.allSettled([...replies]);await flushMtf();if(errors.length)throw new AggregateError(errors,'Actual local CJS/native pipeline did not close.');};closes.push(dispose);
+ const external=()=>{throw Error('No external network/socket in SYNTHETIC actual native-pipeline exercise.');};vi.stubGlobal('fetch',external);vi.stubGlobal('WebSocket',external);
+ const transport=alpacaStubTransport({env:{LV_ALPACA_STUB:'synthetic',LV_EXE_HARNESS:'alpaca-stub',LV_ALPACA_CLOCK:'regular',LV_ALPACA_SCENARIO:'nyse-seasonality-v1'},packaged:false,profile:path.join(os.tmpdir(),'lv-synthetic-native-pipeline'),tmpdir:os.tmpdir(),elapsedNow:()=>(now-NOW)*1000});expect(transport.mode).toBe('synthetic');
+ market=new AlpacaMarketData({keys:transport.keys,fetchImpl:transport.fetch,WebSocketImpl:transport.WebSocket,marketNow:()=>now*1000,restMinIntervalMs:0,restTimeoutMs:30000,emit:()=>{}});
+ // Forwarding observation ONLY. Full comparator invocation and all row work
+ // remain inside the actual admitted closed source calculation.
+ const originalCompare=clone.seasonalityLiveNativeInputMatches;vi.spyOn(clone,'seasonalityLiveNativeInputMatches').mockImplementation((...args:Parameters<typeof originalCompare>)=>{const matched=originalCompare(...args);comparisons.push({rows:args[2],matched});return matched;});
+ const originalPort=builtin.createBuiltinPresentationPort,observePort:typeof originalPort=(chart,publication,bars,build)=>originalPort(chart,publication,bars,control=>{const reserve=control.reserveSource.bind(control);vi.spyOn(control,'reserveSource').mockImplementation((...args:Parameters<typeof reserve>)=>{const result=reserve(...args);if(result&&args[3].operations>15000000)reservations.push(result);return result;});return build(control);});vi.spyOn(builtin,'createBuiltinPresentationPort').mockImplementation(observePort);
+ const originalGroup=provider.createAlpacaSeasonalityPreparationGroup;vi.spyOn(provider,'createAlpacaSeasonalityPreparationGroup').mockImplementation((...args:Parameters<typeof originalGroup>)=>{const result=originalGroup(...args);groups.push(result);return result;});
+ const actualMarket=market;
+ p=await publishedSource({resolution:'1m',now,plan:'free',reply:sent=>{const pending=(async()=>{const stop=sent.timeframe==='1Day'&&hold;if(stop){hold=false;started(sent);}const result=await actualMarket.bars(sent);if(result.ok)requests.push({timeframe:sent.timeframe,rows:result.value.bars.length});if(stop)await gate;return result;})();replies.add(pending);void pending.then(()=>replies.delete(pending),()=>replies.delete(pending));return pending;}});
+ const producer=p;await vi.waitFor(()=>{expect(producer.raw().bars).toHaveLength(300);expect(producer.raw().provenance.state).not.toBe('loading');},{timeout:5000,interval:10});f=await ownedNativePipelineFixture({dataset:producer.raw()});
+ const fixture=f,initialRaw=fixture.raw();
+ async function tick(){now=NOW+1;producer.setNow(now);producer.emit({schemaVersion:1,kind:'batch',bars:[],trades:[{symbol:'GME',time:now,price:28.125,high:28.125,low:28.125,size:1}],receivedAt:''});await flushMtf();expect(producer.raw().bars).toHaveLength(301);return fixture.apply(producer.raw());}
+ function facts(){const basis=fixture.host.capture(),frame=basis?fixture.host.accepted(basis.basis,true):null;return{routes:{...fixture.routes},rawIdentityPreserved:fixture.raw()===initialRaw,rawRows:fixture.raw().length,basisRows:basis?.rows??null,basisPhase:basis?.phase??null,nativeRows:frame?.native.length??null,nativeTimes:frame?.nativeTimes?.length??null,comparisons:[...comparisons],requests:[...requests],reservations:reservations.length,groups:groups.length,paid:provider.alpacaSeasonalityDailyUsage(producer.provider)};}
+ return{f:fixture,p:producer,firstD,releaseD,tick,facts,comparisons,reservations,groups,dispose};
+}
+async function ready(h:Awaited<ReturnType<typeof actual>>,id:string){let result=h.f.port.captureReadout!(id);await vi.waitFor(()=>{result=h.f.port.captureReadout!(id);expect(result.state,JSON.stringify({pipeline:h.facts(),study:h.f.port.list().find(row=>row.id===id)})).toBe('ready');},{timeout:10000,interval:20});if(result.state!=='ready')throw Error('Actual native pipeline has no accepted readout.');return result;}
+function values(h:Awaited<ReturnType<typeof actual>>,result:Awaited<ReturnType<typeof ready>>){return result.readAt(h.f.raw().at(-1)!.time).plots.map(row=>row.value);}
+
+it('genuine11year C retains exact clone/source/native ownership through actual adapter grow and ORIGINAL SDK applyBar',async()=>{
+ const h=await actual(),id=h.f.port.add('seasonality',FULL),initial=await ready(h,id);expect(values(h,initial)).toEqual([28.125,12.5,0,10]);expect(h.comparisons.some(row=>row.rows===300&&row.matched)).toBe(true);
+ expect((await h.tick()).ok).toBe(true);await flushMtf();const facts=h.facts();expect(facts.routes.reloads).toBe(0);expect(facts.routes.grows).toBeGreaterThan(0);expect(facts.rawRows).toBe(301);expect(facts.basisRows).toBe(301);expect(facts.nativeRows).toBe(301);expect(facts.nativeTimes).toBe(301);
+ const current=await ready(h,id);expect(h.comparisons.some(row=>row.rows===301&&row.matched)).toBe(true);expect(values(h,current)).toEqual([28.125,12.5,0,10]);
+});
+
+it('genuine held D followed by actual SDK setMarket stop/restart/start can freshly settle SAME C with current source/native context',async()=>{
+ const h=await actual(true),id=h.f.port.add('seasonality',FULL);expect((await h.firstD).timeframe).toBe('1Day');const native=h.f.port.list().find(row=>row.id===id)!.rendererId,record=h.f.records.get(native),model=record.native.instance,oldContext=model.ctx,stop=vi.spyOn(model,'stop'),start=vi.spyOn(model,'start');
+ expect(h.reservations).toHaveLength(1);expect(h.groups).toHaveLength(1);expect(provider.alpacaSeasonalityPreparationSettled(h.groups[0])).toBe(false);await h.f.reloadCurrent();await flushMtf();expect(h.f.routes.reloads).toBe(1);expect(stop).toHaveBeenCalled();expect(start).toHaveBeenCalled();expect(record.native.instance).toBe(model);expect(model.ctx).not.toBe(oldContext);expect(model.removed).toBe(false);
+ h.releaseD();const current=await ready(h,id);expect(h.facts().basisRows).toBe(300);expect(h.facts().nativeRows).toBe(300);expect(values(h,current)).toEqual([28.125,12.5,0,10]);
+});

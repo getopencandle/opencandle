@@ -1,0 +1,82 @@
+import {readFileSync,writeFileSync,realpathSync,lstatSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {resolve,dirname,sep} from 'node:path';
+const project=resolve(dirname(fileURLToPath(import.meta.url)),'../..'),dependency=resolve(project,'node_modules/@luxalgo/vela');
+const runtimeTargets=['dist/chunk-UNUVPQFW.js','dist/index.cjs','dist/vela.global.js','dist/widget.cjs','dist/workspace.cjs'];
+const targets=[...runtimeTargets,'dist/index.d.ts','dist/index.d.cts','dist/contributions-BY3zSYiZ.d.ts','dist/contributions-DOm40g5-.d.cts'];
+const nativeIO={readFileSync,writeFileSync,realpathSync,lstatSync};
+// LV-VELA-COMPAT-5 steps (scale buttons, scale placement, time format), appended after the COMPAT-4 paint hook in every runtime input.
+export const compat5StepIds=Object.freeze(['scale-buttons-size','scale-buttons-labels','scale-placement-scene','scale-placement-autoscale','scale-placement-invert','scale-placement-legend','scale-placement-set-pane','scale-placement-api','scale-placement-remove','scale-placement-width','scale-placement-layout','scale-placement-attribution','scale-placement-chrome-hook','scale-placement-chrome-paint','time-format-stamp','time-format-crosshair','time-format-external','time-format-api']);
+// LV-VELA-COMPAT-6 steps (LV-VELA-CURSOR-KIND-1), appended after the COMPAT-5 steps in every runtime input.
+export const compat6StepIds=Object.freeze(['cursor-kind-pointer','cursor-kind-region','cursor-kind-deps','cursor-kind-lines','cursor-kind-api']);
+// LV-VELA-COMPAT-7 steps (LV-VELA-NAV-1: pan and zoom-out bounds, time-only reset, handle cursor), appended after the COMPAT-6 steps in every runtime input.
+export const compat7StepIds=Object.freeze(['nav-clamp','nav-reset-time','nav-handle-cursor']);
+// LV-VELA-COMPAT-8 steps (LV-VELA-SCALE-LEFT-1: the main price scale may move to the left scale gutter and back), appended after the COMPAT-7 steps in every runtime input.
+export const compat8StepIds=Object.freeze(['scale-left-buttons-hit','scale-left-buttons-place','scale-left-region','scale-left-chrome-paint','scale-left-left-columns','scale-left-chrome-methods','scale-left-crosshair-clear','scale-left-crosshair-chip','scale-left-external-chip','scale-left-crosshair-methods','scale-left-ensure-pane','scale-left-api','scale-left-left-width','scale-left-left-cursor','scale-left-holder','scale-left-right-width','scale-left-input-deps','scale-left-buttons-deps','scale-left-pane-bounds']);
+// LV-VELA-COMPAT-9 steps (LV-VELA-FORWARD-1: indicator plot and fill points past the last loaded bar are painted and autoscaled), appended after the COMPAT-8 steps in every runtime input.
+export const compat9StepIds=Object.freeze(['forward-helper','forward-autoscale-series','forward-autoscale-range','forward-gl-range','forward-gl-fill','forward-gl-series','forward-canvas-range','forward-canvas-fill','forward-canvas-series']);
+// LV-VELA-COMPAT-10 steps (LV-VELA-SCALE-GROUPS-1: several indicators on one pane may share one extra price scale), appended after the COMPAT-9 steps in every runtime input.
+export const compat10StepIds=Object.freeze(['scale-groups-scene','scale-groups-left-columns','scale-groups-slot','scale-groups-scale-for','scale-groups-autoscale','scale-groups-invert','scale-groups-set-pane','scale-groups-set-pane-record','scale-groups-api','scale-groups-remove']);
+// LV-VELA-COMPAT-11 steps (LV-VELA-RENDER-LEFTOVERS-1: scale-group slot handover, raw bars of a bar-transform chart, layer bar colors, native barColors, hovered drawing id), appended after the COMPAT-10 steps in every runtime input.
+export const compat11StepIds=Object.freeze(['leftovers-scene','leftovers-handoff-set-pane','leftovers-handoff-set-pane-adopt','leftovers-handoff-remove','leftovers-handoff-remove-adopt','leftovers-real-bars-series','leftovers-real-bars-transform','leftovers-layer-args','leftovers-native-bar-colors','leftovers-value-patch-bar-colors','leftovers-apply-patch-bar-colors','leftovers-hover-api']);
+export const patchPlan=JSON.parse(readFileSync(new URL('./vela-compat-patch-plan.json',import.meta.url),'utf8'));
+const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+const samePath=(a,b)=>process.platform==='win32'?a.toLowerCase()===b.toLowerCase():a===b;
+export function validatePatchPlan(plan){
+ if(plan?.schemaVersion!==11||plan.id!=='LV-VELA-COMPAT-11'||plan.package!=='@luxalgo/vela'||plan.version!=='0.8.4'||plan.license!=='Apache-2.0'||JSON.stringify(plan.components)!==JSON.stringify(['LV-VELA-MAGNET-1','LV-VELA-DRAWING-IDS-1','LV-VELA-PAINT-CLIP-1','LV-VELA-DRAWING-PAINT-HOOK-1','LV-VELA-SCALE-BUTTONS-1','LV-VELA-SCALE-PLACEMENT-1','LV-VELA-TIME-FORMAT-1','LV-VELA-CURSOR-KIND-1','LV-VELA-NAV-1','LV-VELA-SCALE-LEFT-1','LV-VELA-FORWARD-1','LV-VELA-SCALE-GROUPS-1','LV-VELA-RENDER-LEFTOVERS-1'])||!Array.isArray(plan.files)||plan.files.length!==targets.length)throw new Error('Unapproved cumulative Vela patch plan');
+ const paths=plan.files.map(row=>row.path);if(new Set(paths).size!==targets.length||targets.some(path=>!paths.includes(path)))throw new Error('Vela patch must name exactly five runtime and four declaration inputs');
+ for(const value of [plan.licenseSha256,plan.noticeSha256,plan.packageJsonSha256,...plan.files.flatMap(row=>[row.beforeSha256,row.compat2Sha256,row.compat3Sha256,row.compat4Sha256,row.compat5Sha256,row.compat6Sha256,row.compat7Sha256,row.compat8Sha256,row.compat9Sha256,row.compat10Sha256,row.afterSha256,...runtimeTargets.includes(row.path)?[row.magnetSha256]:[]])])if(typeof value!=='string'||!/^[a-f0-9]{64}$/.test(value))throw new Error('Invalid pinned cumulative Vela hash');
+ for(const row of plan.files){
+  const expected=runtimeTargets.includes(row.path)?['magnet','store-reservation-allocator','store-reservation-state','store-safe-loaded-suffix','controller-reservation','facade-reservation','paint-clip-cleanup','drawing-paint-hook',...compat5StepIds,...compat6StepIds,...compat7StepIds,...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]:row.path.startsWith('dist/index.')?['store-declaration']:['DrawingController-declaration','DrawingsControl-declaration'];
+  if(!Array.isArray(row.transformations)||JSON.stringify(row.transformations.map(step=>step.id))!==JSON.stringify(expected))throw new Error('Unapproved cumulative Vela transformations');
+  for(const step of row.transformations)if(typeof step.before!=='string'||!step.before.length||typeof step.after!=='string'||!step.after.length||step.before===step.after)throw new Error('Invalid cumulative Vela source transformation');
+  if(runtimeTargets.includes(row.path)&&(!row.transformations[0].after.includes('/*! LarryVision LV-VELA-MAGNET-1')||!row.transformations[1].after.includes('/*! LarryVision LV-VELA-DRAWING-IDS-1')||!row.transformations.find(step=>step.id==='paint-clip-cleanup').after.includes('/*! LarryVision LV-VELA-PAINT-CLIP-1')||!row.transformations.find(step=>step.id==='drawing-paint-hook').after.includes('/*! LarryVision LV-VELA-DRAWING-PAINT-HOOK-1')||!row.transformations.find(step=>step.id==='scale-buttons-size').after.includes('/*! LarryVision LV-VELA-SCALE-BUTTONS-1')||!row.transformations.find(step=>step.id==='scale-placement-scene').after.includes('/*! LarryVision LV-VELA-SCALE-PLACEMENT-1')||!row.transformations.find(step=>step.id==='time-format-stamp').after.includes('/*! LarryVision LV-VELA-TIME-FORMAT-1')||!row.transformations.find(step=>step.id==='cursor-kind-api').after.includes('/*! LarryVision LV-VELA-CURSOR-KIND-1')||!row.transformations.find(step=>step.id==='nav-clamp').after.includes('/*! LarryVision LV-VELA-NAV-1')||!row.transformations.find(step=>step.id==='scale-left-api').after.includes('/*! LarryVision LV-VELA-SCALE-LEFT-1')||!row.transformations.find(step=>step.id==='forward-helper').after.includes('/*! LarryVision LV-VELA-FORWARD-1')||!row.transformations.find(step=>step.id==='scale-groups-scene').after.includes('/*! LarryVision LV-VELA-SCALE-GROUPS-1')||!row.transformations.find(step=>step.id==='leftovers-scene').after.includes('/*! LarryVision LV-VELA-RENDER-LEFTOVERS-1')))throw new Error('Missing retained cumulative Vela notices');
+ }
+ return plan;
+}
+export function prepareCandidate(original,row){
+ const actual=hash(original);if(actual===row.afterSha256)return Buffer.from(original);
+ if(actual!==row.beforeSha256&&actual!==row.magnetSha256&&actual!==row.compat2Sha256&&actual!==row.compat3Sha256&&actual!==row.compat4Sha256&&actual!==row.compat5Sha256&&actual!==row.compat6Sha256&&actual!==row.compat7Sha256&&actual!==row.compat8Sha256&&actual!==row.compat9Sha256&&actual!==row.compat10Sha256)throw new Error('Unapproved candidate input hash: '+row.path);
+ // Prior cumulative states already carry every earlier step: COMPAT-2 lacks pane cleanup, the paint hook and the COMPAT-5 and COMPAT-6 steps, COMPAT-3 lacks the paint hook and the COMPAT-5 and COMPAT-6 steps, COMPAT-4 lacks the COMPAT-5 and COMPAT-6 steps, COMPAT-5 lacks the COMPAT-6 and COMPAT-7 steps, COMPAT-6 lacks the COMPAT-7 steps; COMPAT-7 lacks the COMPAT-8 steps; every earlier state also lacks the COMPAT-9 steps, and COMPAT-8 lacks only those; every earlier state also lacks the COMPAT-10 steps, and COMPAT-9 lacks only those; every earlier state also lacks the COMPAT-11 steps, and COMPAT-10 lacks only those.
+ const pending=actual===row.compat10Sha256?[...compat11StepIds]:actual===row.compat9Sha256?[...compat10StepIds,...compat11StepIds]:actual===row.compat8Sha256?[...compat9StepIds,...compat10StepIds,...compat11StepIds]:actual===row.compat7Sha256?[...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]:actual===row.compat6Sha256?[...compat7StepIds,...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]:actual===row.compat5Sha256?[...compat6StepIds,...compat7StepIds,...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]:actual===row.compat4Sha256?[...compat5StepIds,...compat6StepIds,...compat7StepIds,...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]:actual===row.compat3Sha256?['drawing-paint-hook',...compat5StepIds,...compat6StepIds,...compat7StepIds,...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]:actual===row.compat2Sha256?['paint-clip-cleanup','drawing-paint-hook',...compat5StepIds,...compat6StepIds,...compat7StepIds,...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]:null;
+ let text=original.toString('utf8');for(const step of row.transformations){if(pending&&!pending.includes(step.id)||step.id==='magnet'&&actual===row.magnetSha256)continue;if(text.split(step.before).length!==2)throw new Error('Expected one pinned source anchor: '+row.path+' '+step.id);text=text.replace(step.before,step.after);}
+ const output=Buffer.from(text);if(hash(output)!==row.afterSha256)throw new Error('Proposed cumulative output mismatch: '+row.path);return output;
+}
+export function restoreMagnetCandidate(original,row){
+ if(hash(original)===row.magnetSha256||!row.magnetSha256&&hash(original)===row.beforeSha256)return Buffer.from(original);
+ if(hash(original)!==row.afterSha256)throw new Error('Unapproved cumulative candidate for normalization');
+ let text=original.toString('utf8');for(const step of [...row.transformations].reverse()){if(step.id==='magnet')continue;if(text.split(step.after).length!==2)throw new Error('Ambiguous cumulative reversal');text=text.replace(step.after,step.before);}
+ const bytes=Buffer.from(text);if(hash(bytes)!==(row.magnetSha256??row.beforeSha256))throw new Error('Cumulative normalization mismatch');return bytes;
+}
+function boundedPath(file,io){
+ for(const directory of [project,resolve(project,'node_modules'),resolve(project,'node_modules/@luxalgo'),dependency,resolve(dependency,'dist')]){
+  const stat=io.lstatSync(directory);if(stat.isSymbolicLink()||!stat.isDirectory()||!samePath(io.realpathSync(directory),directory))throw new Error('Vela patch ancestor is not an approved regular directory');
+ }
+ const path=resolve(dependency,file);if(!path.startsWith(dependency+sep)||!samePath(io.realpathSync(path),path))throw new Error('Patch target outside pinned dependency');
+ const stat=io.lstatSync(path);if(stat.isSymbolicLink()||!stat.isFile()||stat.size>16*1024*1024)throw new Error('Vela patch target must be a bounded regular file');return path;
+}
+export function inspectPatch(io=nativeIO,plan=patchPlan){
+ validatePatchPlan(plan);
+ for(const [file,wanted]of [['LICENSE',plan.licenseSha256],['NOTICE',plan.noticeSha256],['package.json',plan.packageJsonSha256]])if(hash(io.readFileSync(boundedPath(file,io)))!==wanted)throw new Error('Pinned Vela input mismatch: '+file);
+ const pkg=JSON.parse(io.readFileSync(boundedPath('package.json',io),'utf8'));if(pkg.name!==plan.package||pkg.version!==plan.version||pkg.license!==plan.license)throw new Error('Unapproved Vela version or license');
+ return plan.files.map(row=>{const path=boundedPath(row.path,io),original=io.readFileSync(path),actual=hash(original);if(![row.beforeSha256,row.magnetSha256,row.compat2Sha256,row.compat3Sha256,row.compat4Sha256,row.compat5Sha256,row.compat6Sha256,row.compat7Sha256,row.compat8Sha256,row.compat9Sha256,row.compat10Sha256,row.afterSha256].includes(actual))throw new Error('Unapproved patch target hash: '+row.path);return{...row,targetPath:path,original,state:actual===row.afterSha256?'patched':actual===row.compat10Sha256?'compat10':actual===row.compat9Sha256?'compat9':actual===row.compat8Sha256?'compat8':actual===row.compat7Sha256?'compat7':actual===row.compat6Sha256?'compat6':actual===row.compat5Sha256?'compat5':actual===row.compat4Sha256?'compat4':actual===row.compat3Sha256?'compat3':actual===row.compat2Sha256?'compat2':actual===row.magnetSha256?'magnet':'original'};});
+}
+// Host-only IO injection allows transaction tests without modifying installed package files.
+export function runPatch(mode='--check',io=nativeIO){
+ if(!['--check','--verify','--apply'].includes(mode))throw new Error('Use --check, --verify or explicitly authorized --apply');let rows=inspectPatch(io);
+ if(mode==='--verify'&&rows.some(row=>row.state!=='patched'))throw new Error('Cumulative Vela compatibility patch has not been applied');
+ if(mode==='--apply'){
+  const prepared=rows.filter(row=>row.state!=='patched').map(row=>({...row,output:prepareCandidate(row.original,row)}));
+  const attempted=[];
+  try{
+   for(const row of prepared){const path=boundedPath(row.path,io);if(hash(io.readFileSync(path))!==hash(row.original))throw new Error('Vela target changed before write');attempted.push(row);io.writeFileSync(path,row.output);if(hash(io.readFileSync(path))!==row.afterSha256)throw new Error('Vela output verification failed');}
+   rows=inspectPatch(io);if(rows.some(row=>row.state!=='patched'))throw new Error('Final Vela patch verification failed');
+  }catch(error){
+   const failures=[];for(const row of attempted.reverse()){try{const path=boundedPath(row.path,io);io.writeFileSync(path,row.original);if(hash(io.readFileSync(path))!==hash(row.original))throw new Error('Restored Vela bytes differ');}catch(rollback){failures.push(rollback);}}
+   if(failures.length)throw new AggregateError([error,...failures],'Vela patch failed and rollback was incomplete; inspect every approved input before building');throw error;
+  }
+ }
+ return {patchId:patchPlan.id,version:patchPlan.version,mode,files:rows.map(({targetPath,original,...row})=>row)};
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){if(process.argv.length>3)throw new Error('Unexpected patch arguments');const result=runPatch(process.argv[2]);console.log(JSON.stringify({...result,files:result.files.map(({path,state,beforeSha256,magnetSha256,compat2Sha256,compat3Sha256,compat4Sha256,compat5Sha256,compat6Sha256,compat7Sha256,compat8Sha256,compat9Sha256,compat10Sha256,afterSha256})=>({path,state,beforeSha256,...magnetSha256?{magnetSha256}:{},compat2Sha256,compat3Sha256,compat4Sha256,compat5Sha256,compat6Sha256,compat7Sha256,compat8Sha256,compat9Sha256,compat10Sha256,afterSha256}))},null,2));}

@@ -1,0 +1,64 @@
+/* Drawing toolbar, flyouts and the All drawing tools dialog. Colors come from the shared --lv-menu-* tokens (overlay.css). */
+:root{--lv-drawing-star:#d8b25a;--lv-drawing-hint:#c79a63;--lv-drawing-notice-bg:var(--lv-notice-bg);--lv-drawing-notice-border:var(--lv-notice-border);--lv-drawing-notice-text:#e1c9a0;--lv-drawing-flyout-z:90}
+.lv-drawing-groups{display:flex;flex-direction:column;align-items:center;gap:5px}
+.lv-drawing-group{display:flex;align-items:center;position:relative}
+.drawing-toolbar .lv-drawing-group>button:first-child{width:34px}
+.drawing-toolbar .lv-drawing-arrow{width:11px;height:36px;padding:0;font-size:11px;color:var(--lv-menu-text-muted)}
+.drawing-toolbar .lv-drawing-arrow[aria-expanded=true]{color:var(--lv-accent);background:var(--lv-menu-active)}
+/* Flyout: one source of truth (the styles.css re-declaration of .workspace .lv-drawing-flyout is superseded here and listed for deletion).
+   z-index sits above the status toast (80). */
+.lv-drawing-flyout,.workspace .lv-drawing-flyout{position:fixed;left:52px;top:calc(50px + var(--lv-tabstrip-h,0px));z-index:var(--lv-drawing-flyout-z);width:max-content;min-width:260px;max-width:min(380px,calc(100vw - 72px));max-height:80vh;overflow:auto;padding:4px 0;background:var(--lv-menu-bg);border:1px solid var(--lv-menu-border);border-radius:var(--lv-menu-radius);box-shadow:var(--lv-menu-shadow);color:var(--lv-menu-text);text-align:left;animation:lv-overlay-in var(--lv-overlay-ms,120ms) ease-out}
+.lv-drawing-flyout-title,.workspace .lv-drawing-flyout-title{display:block;padding:6px var(--lv-menu-pad-x) 4px;font-size:11px;color:var(--lv-menu-text-muted);letter-spacing:.4px;text-transform:uppercase}
+.lv-drawing-section,.workspace .lv-drawing-flyout .lv-drawing-section{display:block;padding:8px var(--lv-menu-pad-x) 3px;font-size:10px;color:var(--lv-menu-text-muted);text-transform:uppercase;letter-spacing:.5px}
+.lv-drawing-item{display:flex;align-items:center;min-height:var(--lv-menu-row-h)}
+.lv-drawing-item:hover{background:var(--lv-menu-hover)}
+.workspace .drawing-toolbar .lv-drawing-flyout .lv-drawing-item>button[role=menuitemradio],.lv-drawing-item>button[role=menuitemradio]{min-height:0;flex:1;min-width:0;width:auto;height:var(--lv-menu-row-h);display:flex;align-items:center;justify-content:flex-start;gap:8px;padding:0 4px 0 var(--lv-menu-pad-x);font-size:13px;line-height:18px;text-align:left;border-radius:0;background:transparent;color:var(--lv-menu-text)}
+.workspace .drawing-toolbar .lv-drawing-flyout .lv-drawing-item>button[role=menuitemradio]:focus-visible{background:var(--lv-menu-active);outline:none;box-shadow:inset 2px 0 0 var(--lv-focus-ring)}
+.workspace .drawing-toolbar .lv-drawing-flyout .lv-drawing-item>button[aria-checked=true]{color:var(--lv-accent);background:var(--lv-menu-active)}
+.workspace .drawing-toolbar .lv-drawing-flyout .lv-drawing-item.unavailable>button[role=menuitemradio]{color:var(--lv-text-disabled);cursor:help}
+.workspace .drawing-toolbar .lv-drawing-item small,.lv-drawing-item small{font-size:9px;color:var(--lv-drawing-hint);letter-spacing:.3px}
+/* Favorite star: a fixed 28px column, shown on row hover or focus and always when set. */
+.workspace .drawing-toolbar .lv-drawing-flyout .lv-drawing-star,.drawing-toolbar .lv-drawing-star,.lv-drawing-star{flex:none;width:28px;height:28px;margin-right:6px;padding:0;font-size:14px;color:var(--lv-drawing-star);background:transparent}
+.lv-drawing-item .lv-drawing-star{opacity:0;transition:opacity .1s}
+.lv-drawing-item:hover .lv-drawing-star,.lv-drawing-item:focus-within .lv-drawing-star,.lv-drawing-item .lv-drawing-star[aria-checked=true]{opacity:1}
+.lv-drawing-notice{margin:6px 8px 2px;padding:8px;border:1px solid var(--lv-drawing-notice-border);border-radius:4px;background:var(--lv-drawing-notice-bg);font-size:11px;line-height:1.5;color:var(--lv-drawing-notice-text);display:flex;flex-direction:column;gap:6px}
+.drawing-toolbar .lv-drawing-notice button{width:auto;height:auto;font-size:11px;padding:5px 8px;border:1px solid var(--lv-drawing-notice-border);align-self:flex-start}
+.lv-drawing-favorites{display:flex;flex-direction:column;align-items:center;gap:3px;border-top:1px solid var(--lv-menu-border);padding-top:5px}
+.drawing-toolbar .lv-drawing-favorites button{font-size:11px;font-weight:700}
+.lv-drawing-tools-search{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.lv-drawing-tools-search input{flex:1}
+/* All drawing tools dialog: a flat list, hover-only stars. */
+.lv-drawing-tools .tool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0 8px}
+/* The All tools dialog shows each tool's icon, in a 2 to 3 column grid. */
+.lv-drawing-tools .tool-grid .lv-drawing-tools-icon{display:inline-flex;flex:none;align-items:center;justify-content:center;width:28px;height:28px;font-style:normal;color:var(--lv-icon,currentColor)}
+.lv-drawing-tools .tool-grid .lv-drawing-tools-icon svg{width:28px;height:28px}
+.lv-drawing-tools .tool-grid .lv-drawing-tools-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv-drawing-tools .lv-drawing-tools-cell{display:flex;align-items:center;min-width:0}
+.lv-drawing-tools .tool-grid button{display:flex;align-items:center;gap:8px;width:100%;min-height:var(--lv-menu-row-h);padding:0 var(--lv-menu-pad-x);border:0;border-radius:0;background:transparent;text-align:left}
+.lv-drawing-tools .tool-grid button:hover,.lv-drawing-tools .lv-drawing-tools-cell:hover{background:var(--lv-menu-hover)}
+.lv-drawing-tools .tool-grid button[aria-disabled=true]{color:var(--lv-text-disabled);cursor:help}
+.lv-drawing-tools .tool-grid button small{display:block;font-size:9px;color:var(--lv-drawing-hint)}
+.lv-drawing-tools .tool-grid button.active{color:var(--lv-accent);background:var(--lv-menu-active)}
+.lv-drawing-tools .lv-drawing-tools-cell .lv-drawing-star{width:32px;margin-right:0;opacity:0;transition:opacity .1s}
+.lv-drawing-tools .lv-drawing-tools-cell:hover .lv-drawing-star,.lv-drawing-tools .lv-drawing-tools-cell:focus-within .lv-drawing-star,.lv-drawing-tools .lv-drawing-star[aria-pressed=true]{opacity:1}
+.lv-drawing-tools h4{margin:10px 0 6px;font-size:11px;color:var(--lv-menu-text-muted);text-transform:uppercase;letter-spacing:.5px}
+.lv-drawing-notice>div[role=status]{white-space:normal}
+.lv-drawing-item>button[role=menuitemcheckbox]:focus-visible,.lv-drawing-notice>button:focus-visible{outline:2px solid var(--lv-focus-ring);outline-offset:-2px}
+@media(max-width:1150px){.drawing-toolbar .lv-drawing-group>button:first-child{width:31px}.drawing-toolbar .lv-drawing-arrow{width:10px}}
+@media(prefers-reduced-motion:reduce){.lv-drawing-flyout,.workspace .lv-drawing-flyout{animation:none}.lv-drawing-item .lv-drawing-star{transition:none}}
+/* Untitled flyout sections (catalog label ''): the first renders nothing, later ones are a divider. */
+.lv-drawing-section:empty{padding:0;margin:4px 0;height:1px;background:var(--lv-menu-border)}
+.lv-drawing-flyout>div[role=group]:first-of-type>.lv-drawing-section:empty{display:none}
+/* Reference shortcut text on a flyout row (rendered once the toolbar shows leafShortcut()). */
+.lv-drawing-hotkey{margin-left:auto;padding-left:12px;font-size:12px;color:var(--lv-menu-text-muted);white-space:nowrap}
+/* Flyout row icon slot (LV icon registry; empty until an icon id is registered). */
+.lv-drawing-item-icon{display:inline-flex;flex:none;align-items:center;justify-content:center;width:28px;height:28px;margin:0 0 0 -4px;font-style:normal}
+.lv-drawing-item>button[role=menuitemradio]>span:not(.lv-drawing-hotkey){flex:1}
+.drawing-toolbar .lv-drawing-group>button:first-child svg{width:28px;height:28px}
+/* All drawing tools dialog: a tool button with its favorite star. */
+.lv-drawing-tools .lv-drawing-tools-cell{display:flex;align-items:stretch}
+.lv-drawing-tools .lv-drawing-tools-cell>button:first-child{flex:1}
+/* Favorites strip entry whose saved tool is not available in this build (inert, removable). */
+.lv-drawing-favorites button.unavailable{color:var(--lv-text-disabled);text-decoration:line-through}
+/* One floating drawing bar: the renderer's own selection popup is never shown (the LV bar replaces it). */
+.vela-dpop{display:none !important}

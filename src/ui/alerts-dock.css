@@ -1,0 +1,56 @@
+/* Alerts dock (right sidebar): tab bar, alert rows with hover-only actions, centered empty state. */
+.lv-alerts-dock{display:flex;flex-direction:column;min-height:0;overflow:auto;font-size:13px;color:var(--lv-text-primary)}
+.lv-alerts-dock-tabs{display:flex;align-items:stretch;height:40px;padding:0 8px;border-bottom:1px solid var(--lv-border-panel);flex:0 0 auto}
+.lv-alerts-dock-tabs [role=tab]{position:relative;padding:0 10px;height:40px;border:0;border-radius:0;background:transparent;color:var(--lv-text-secondary);font:inherit;font-size:14px;cursor:pointer;white-space:nowrap}
+.lv-alerts-dock-tabs [role=tab]:hover{color:var(--lv-text-primary)}
+.lv-alerts-dock-tabs [role=tab][aria-selected=true]{color:var(--lv-text-primary)}
+.lv-alerts-dock-tabs [role=tab][aria-selected=true]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;background:var(--lv-accent)}
+.lv-alerts-dock-tabs .lv-alerts-dock-create{margin:auto 0 auto auto;width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:20px;line-height:1;color:var(--lv-text-primary);border-radius:var(--lv-radius-plate)}
+.lv-alerts-dock-tabs .lv-alerts-dock-create:hover{background:var(--lv-hover)}
+.lv-alerts-dock-tabs .lv-alerts-dock-create::after{display:none}
+.lv-alerts-dock-unread{color:var(--lv-accent);font-size:11px}
+.lv-alerts-dock-filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 10px}
+.lv-alerts-dock-filters input[type=search]{flex:1 1 140px;min-width:0}
+.lv-alerts-dock-filters select{max-width:9.5em}
+.lv-alerts-dock-filters button{height:26px;padding:0 8px;font-size:12px}
+.lv-alerts-dock-more{padding:0 10px 4px;color:var(--lv-text-secondary);font-size:12px}
+.lv-alerts-dock-more>summary{cursor:pointer;width:max-content;padding:2px 0}
+.lv-alerts-dock-more>.lv-alerts-dock-filters{padding:6px 0 0}
+.lv-alerts-dock-confirm{margin:6px 10px;padding:8px;border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate)}
+.lv-alerts-dock-confirm button{margin-right:6px}
+.lv-alerts-dock-list,.lv-alerts-dock-log{list-style:none;margin:0;padding:0}
+.lv-alerts-dock-list>li{position:relative;display:grid;grid-template-columns:auto 1fr auto;column-gap:8px;align-items:baseline;padding:8px 12px 8px 10px;border-bottom:1px solid var(--lv-border-panel)}
+.lv-alerts-dock-list>li:hover,.lv-alerts-dock-log>li:hover{background:var(--lv-hover)}
+.lv-alerts-dock-list>li[aria-selected=true]{background:var(--lv-selected)}
+.lv-alerts-dock-list>li>input[type=checkbox]{grid-column:1;grid-row:1;align-self:center;margin:0}
+.lv-alerts-dock-list>li>strong{grid-column:2;grid-row:1;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lv-alerts-dock-list>li>span{grid-column:3;grid-row:1;color:var(--lv-text-secondary);font-size:12px}
+.lv-alerts-dock-list>li>div:not(.lv-alerts-dock-actions),.lv-alerts-dock-list>li>small{grid-column:2/-1;display:block;color:var(--lv-text-secondary);font-size:12px;line-height:17px}
+.lv-alerts-dock-list>li>div:not(.lv-alerts-dock-actions){color:var(--lv-text-primary)}
+.lv-alerts-dock-status{display:inline-flex;align-items:center;gap:5px;color:var(--lv-text-secondary)}
+.lv-alerts-dock-status::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--lv-text-disabled)}
+.lv-alerts-dock-status[data-status=Active]::before{background:var(--lv-positive-text)}
+.lv-alerts-dock-status[data-status=Paused]::before{background:var(--lv-notice-text)}
+.lv-alerts-dock-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:2px;margin-top:4px}
+.lv-alerts-dock-list .lv-alerts-dock-actions button,.lv-alerts-dock-log .lv-alerts-dock-actions button{height:24px;padding:0 8px;border:0;background:transparent;color:var(--lv-text-secondary);font-size:12px;border-radius:var(--lv-radius-plate)}
+.lv-alerts-dock-list .lv-alerts-dock-actions button:hover:not(:disabled),.lv-alerts-dock-log .lv-alerts-dock-actions button:hover:not(:disabled){background:var(--lv-hover-strong);color:var(--lv-text-primary)}
+@media(hover:hover){
+.lv-alerts-dock-list>li:not(:hover):not(:focus-within):not([aria-selected=true])>.lv-alerts-dock-actions,.lv-alerts-dock-log>li:not(:hover):not(:focus-within)>.lv-alerts-dock-actions{display:none}
+}
+.lv-alerts-dock-log li[data-unread=true] strong::before{content:"";display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:var(--lv-accent);vertical-align:middle}
+.lv-alerts-dock-log li[data-unread=true]{font-weight:600}
+.lv-alerts-dock-log>li>div:not(.lv-alerts-dock-actions){color:var(--lv-text-secondary);font-weight:400}
+.lv-alerts-dock-log>li>time{color:var(--lv-text-secondary);font-size:12px}
+.lv-alerts-dock-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:40px 24px;text-align:center;color:var(--lv-text-secondary)}
+.lv-alerts-dock-empty svg{width:48px;height:48px;color:var(--lv-text-disabled)}
+.lv-alerts-dock-empty p{margin:0;font-size:14px;line-height:20px}
+.lv-alerts-dock-empty button{height:32px;padding:0 16px;border-radius:var(--lv-radius-plate);background:var(--lv-accent);color:var(--lv-on-accent);border:0;font-size:14px;cursor:pointer}
+.lv-alerts-dock>.help{padding:6px 12px;margin:0}
+.lv-alerts-dock-log>li{padding:8px 12px 8px 14px;border-bottom:1px solid var(--lv-border-panel)}
+.lv-alerts-dock-log>li>span:not(.lv-alerts-dock-unread){color:var(--lv-text-secondary);font-size:12px;margin:0 4px}
+.lv-alerts-dock-log>li>div:not(.lv-alerts-dock-actions){margin-top:2px}
+/* Quick expiration choices in the alert dialog (global rule; the dialog has no stylesheet of its own). */
+.alert-expiry-presets{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 4px}
+.alert-expiry-presets button{height:24px;padding:0 8px;font-size:12px;border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);background:transparent;color:var(--lv-text-secondary)}
+.alert-expiry-presets button:hover{background:var(--lv-hover-strong);color:var(--lv-text-primary)}
+.alert-webhook input{width:100%}

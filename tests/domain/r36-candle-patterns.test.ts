@@ -85,7 +85,10 @@ describe(' candlestick pattern entries (SYNTHETIC)',()=>{
  });
  it.each(CASES.map(row=>[row[0],row[1],row[2],row[3]] as const))('%s fires on the last pattern bar only (%s): %s',(kind,plot,pattern,why)=>{
   const bars=withFiller(pattern);
-  expect(signal(kind,bars,plot,catalogDefinition(kind)!.inputs.some(input=>input.key==='trendRule')?NO_TREND:{}),why).toEqual([bars.length-1]);
+  // 0.8.1 (Nison): tweezers need matching lows (highs), not opposite colours, so with No detection every pair of the
+  // identical filler bars (1..19) is a tweezer too; the pattern's first bar does not match the filler.
+  const filler=kind==='cdltweezerbottom'||kind==='cdltweezertop'?Array.from({length:19},(_,i)=>i+1):[];
+  expect(signal(kind,bars,plot,catalogDefinition(kind)!.inputs.some(input=>input.key==='trendRule')?NO_TREND:{}),why).toEqual([...filler,bars.length-1]);
  });
  it('the filler alone, and a near miss, give no signal',()=>{
   expect(signal('cdlengulfingbull',withFiller([]),'bullish',NO_TREND)).toEqual([]);

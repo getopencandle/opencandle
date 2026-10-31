@@ -111,7 +111,7 @@ export function selectorView(source:SelectorSource,selection:SelectorSelection):
    // (the captured candlestick rows are alphabetical). No column header row: the section titles take its place.
    const rows=indicators('patterns'),chart=rows.filter(row=>CHART_PATTERN_INDICATOR_IDS.includes(row.id)).sort((a,b)=>CHART_PATTERN_INDICATOR_IDS.indexOf(a.id)-CHART_PATTERN_INDICATOR_IDS.indexOf(b.id)),candles=rows.filter(row=>!CHART_PATTERN_INDICATOR_IDS.includes(row.id)).sort(alphabetical);
    if(!rows.length)return{item,tab,columnHeaders:[],entries:[],empty:{kind:'empty',text:EMPTY.patterns}};
-   const pick=(list:typeof rows,section:string)=>list.filter(row=>matches(row.label+' '+row.acronym+' '+row.id,query)).map(({id,label,kind})=>({id,label,kind,section}));
+   const pick=(list:typeof rows,section:string)=>list.filter(row=>matches(row.label+' '+row.acronym+' '+row.id+' '+catalogKeywords(row.id),query)).map(({id,label,kind})=>({id,label,kind,section}));
    const entries=[...pick(chart,PATTERN_SECTIONS[0].label),...pick(candles,PATTERN_SECTIONS[1].label)];
    return{item,tab,columnHeaders:[],entries,empty:entries.length?null:{kind:'no-match'}};
   }

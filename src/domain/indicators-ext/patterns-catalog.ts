@@ -1,7 +1,7 @@
 import type {NumericSeries} from '../types';
 import type {CatalogDefinition,CatalogInput,CatalogPlot,CatalogContext} from '../indicator-catalog';
 import {CANDLE_FAMILIES,CANDLE_THRESHOLDS,CandleMetrics,PATTERN_TYPES,TREND_RULES,candleFamily,detectCandleFamily,trendStates,type CandleHit,type PatternType,type TrendRule} from './patterns-candles';
-import {CHART_PATTERNS,detectChartPatterns,type ChartPatternId} from './patterns-chart';
+import {BREAKOUT_PATTERNS,CHART_PATTERNS,detectChartPatterns,type ChartPatternId} from './patterns-chart';
 
 /**
  * The Indicators dialog Patterns tab.
@@ -43,6 +43,8 @@ const PLOTS:Record<PatternDirectionPlot,CatalogPlot>={
  bearish:{id:'bearish',label:'Bearish',color:'#f23645',width:1},
  neutral:{id:'neutral',label:'Neutral',color:'#787b86',width:1},
 };
+/** Bars before the SMA200 of the 'SMA50, SMA200' trend rule has a value (index 199 is its first). */
+const TREND_WARMUP=200;
 const TREND_INPUT:CatalogInput={key:'trendRule',title:'Detect trend based on',type:'string',defval:'SMA50',options:TREND_RULES};
 const typeInput=(defval:PatternType):CatalogInput=>({key:'patternType',title:'Pattern type',type:'string',defval,options:PATTERN_TYPES});
 
@@ -138,7 +140,9 @@ function candleEntry([id,name,familyId,direction,acronym]:readonly [string,strin
  const family=candleFamily(familyId),plots=directionsOf(familyId),trend=family.role!=='none',typed=plots.includes('bullish')&&plots.includes('bearish');
  const inputs:CatalogInput[]=[...(trend?[TREND_INPUT]:[]),...(typed?[typeInput(direction==='bullish'?'Bullish':'Bearish')]:[])];
  const captured=CAPTURED_NAMES.has(name);
- return {id:id as never,name,acronym,overlay:true,pattern:'candlestick',inputs,plots:plots.map(plot=>PLOTS[plot]),
+ // Kicking was trend-gated before 0.8.1; a stored trendRule is accepted and ignored.
+ const retired=familyId==='kicking'?{retiredInputs:[TREND_INPUT]}:{};
+ return {id:id as never,name,acronym,overlay:true,pattern:'candlestick',inputs,...retired,plots:plots.map(plot=>PLOTS[plot]),
   provenance:[{url:FACT,facts:captured?`Entry "${name}" in the Candlestick patterns section.`:'The Candlestick patterns section exists; this entry was not in the rendered rows.'},{url:LV+'candlestick-'+family.id,facts:family.definition+' Trend role: '+family.role+'.'}],
   unknownDefaults:[...(captured?[]:[UNCAPTURED]),RULE_UNKNOWN],
   policies:[captured?CAPTURED_POLICY:UNCAPTURED,`OpenCandle-defined rule: ${family.definition}`,...(trend?['A reversal pattern needs the opposite trend and a continuation pattern the same trend, read on the bar before the pattern\'s first bar; "No detection" accepts every bar.']:[]),...(typed?['Pattern type chooses which direction of this pattern family is reported.']:[]),PATTERN_MARKS_POLICY],
@@ -147,7 +151,9 @@ function candleEntry([id,name,familyId,direction,acronym]:readonly [string,strin
    const states=trendStates(ctx.bars,rule,ctx.tk.sma);
    return candleOutput(ctx,detectCandleFamily(k,family,states,{bullish:type!=='Bearish',bearish:type!=='Bullish'},rule==='No detection'),plots);
   },
-  warmup:()=>CANDLE_THRESHOLDS.averageBodyLength+family.size,work:count=>count*(trend?40:20)};
+  // A trend-gated side needs the trend on the bar before the pattern: SMA50, SMA50 > SMA200 for the second rule. The warm-up
+  // callback sees numeric inputs only, so a trend family counts the longest rule (SMA200) whatever rule is chosen.
+  warmup:()=>Math.max(CANDLE_THRESHOLDS.averageBodyLength,trend?TREND_WARMUP:0)+family.size,work:count=>count*(trend?40:20)};
 }
 
 const ALL_CANDLES:CatalogDefinition={id:'cdlall' as never,name:'All candlestick patterns',acronym:'All CDL',overlay:true,pattern:'candlestick',
@@ -161,33 +167,42 @@ const ALL_CANDLES:CatalogDefinition={id:'cdlall' as never,name:'All candlestick 
   const hits=CANDLE_FAMILIES.flatMap(family=>detectCandleFamily(k,family,states,types,rule==='No detection')).filter(hit=>hit.direction!=='neutral'||type==='Both');
   return candleOutput(ctx,hits,['bullish','bearish','neutral']);
  },
- warmup:()=>200,work:count=>count*12*CANDLE_FAMILIES.length};
+ warmup:()=>TREND_WARMUP+Math.max(...CANDLE_FAMILIES.map(family=>family.size)),work:count=>count*12*CANDLE_FAMILIES.length};
 
 const CHART_INPUTS:readonly CatalogInput[]=[{key:'pivotLength',title:'Pivot length',type:'int',defval:5,min:2,max:50,step:1},{key:'tolerance',title:'Tolerance %',type:'float',defval:2,min:0.1,max:50,step:0.1}];
+/** Added in 0.8.1: new instances wait for the breakout close; saved instances without the key keep the old last-pivot report. */
+const BREAKOUT_INPUT:CatalogInput={key:'breakout',title:'Require breakout confirmation',type:'bool',defval:true,legacyOmit:true,legacyDefval:false};
+const BREAKOUT_INPUTS:readonly CatalogInput[]=[...CHART_INPUTS,BREAKOUT_INPUT];
 function chartOutput(ctx:CatalogContext,ids:readonly ChartPatternId[],plots:readonly PatternDirectionPlot[]):Record<string,NumericSeries>{
  const n=ctx.bars.length,signals:Record<string,number[]>={};for(const plot of plots)signals[plot]=zeros(n);
- const hits=detectChartPatterns(ctx.bars,ids,ctx.num('pivotLength'),ctx.num('tolerance')).slice(-PATTERN_MARK_LIMIT);
+ // Signals come from every hit (alerts, legend and data window read them, and an earlier bar never changes as bars are
+ // added); only the drawn markers and lines are bounded to the newest PATTERN_MARK_LIMIT.
+ const breakout=ids.some(id=>BREAKOUT_PATTERNS.has(id))&&ctx.bool('breakout');
+ const hits=detectChartPatterns(ctx.bars,ids,ctx.num('pivotLength'),ctx.num('tolerance'),{breakout});
  const grouped=new Map<string,{index:number;plot:PatternDirectionPlot;names:string[]}>(),lines:PatternLine[]=[];
  for(const hit of hits){
   signals[hit.direction][hit.confirmedAt]=1;const at=hit.pivots.at(-1)!.index,key=at+':'+hit.direction;let row=grouped.get(key);
   if(!row){row={index:at,plot:hit.direction,names:[]};grouped.set(key,row);}if(!row.names.includes(hit.name))row.names.push(hit.name);
   for(const line of hit.lines)lines.push({plot:hit.direction,from:line.from,to:line.to});
  }
- ctx.marks?.({markers:[...grouped.values()].sort((a,b)=>a.index-b.index).map(row=>({index:row.index,plot:row.plot,text:row.names.join('\n'),tooltip:row.names.join(', ')})),lines:lines.slice(-PATTERN_MARK_LIMIT)});
+ ctx.marks?.({markers:[...grouped.values()].sort((a,b)=>a.index-b.index).slice(-PATTERN_MARK_LIMIT).map(row=>({index:row.index,plot:row.plot,text:row.names.join('\n'),tooltip:row.names.join(', ')})),lines:lines.slice(-PATTERN_MARK_LIMIT)});
  return signals;
 }
-const CHART_POLICY='OpenCandle-defined detection from confirmed pivots (patterns-chart.ts): a pattern is reported on the bar that confirms its last pivot, never earlier, and is not repainted. The marker is drawn on that last pivot. Tolerance is the percent within which two levels are equal.';
+const CHART_POLICY='OpenCandle-defined detection from confirmed pivots (patterns-chart.ts): a pattern is reported on the bar that confirms its last pivot (or, with breakout confirmation, on its later breakout bar), never earlier, and is not repainted. The marker is drawn on that last pivot. Tolerance is the percent within which two levels are equal.';
+const BREAKOUT_POLICY="Require breakout confirmation (on for new instances; off for instances saved before it existed): double and triple tops and bottoms and head and shoulders are reported only on the first close through the valley, peak or neckline (Bulkowski's confirmation), within as many bars after the last pivot as the pattern spans, and only when no earlier close went past the pattern's extreme. The signal is on that breakout bar. Off: the shape is reported unconfirmed, on the bar that confirms its last pivot. Other chart patterns are always reported on their last pivot, unconfirmed.";
+/** Common alternative names (search only; the fuller keyword content is a later task). */
+const CHART_KEYWORDS:Partial<Record<ChartPatternId,readonly string[]>>={doubletop:['M pattern'],doublebottom:['W pattern'],headshoulders:['H&S','reversal'],invheadshoulders:['inverse H&S','reversal']};
 function chartEntry([id,name,pattern,acronym]:readonly [string,string,ChartPatternId,string]):CatalogDefinition{
- const info=CHART_PATTERNS.find(row=>row.id===pattern)!;
- return {id:id as never,name,acronym,overlay:true,pattern:'chart',inputs:CHART_INPUTS,plots:[PLOTS[info.direction]],
+ const info=CHART_PATTERNS.find(row=>row.id===pattern)!,breakout=BREAKOUT_PATTERNS.has(pattern),keywords=CHART_KEYWORDS[pattern];
+ return {id:id as never,name,acronym,overlay:true,pattern:'chart',...(keywords?{keywords}:{}),inputs:breakout?BREAKOUT_INPUTS:CHART_INPUTS,plots:[PLOTS[info.direction]],
   provenance:[{url:FACT,facts:`Entry "${name}" in the Chart patterns section.`},{url:LV+'chart-'+pattern,facts:info.rule}],
-  unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,`OpenCandle-defined rule: ${info.rule}`,PATTERN_MARKS_POLICY],
+  unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,...(breakout?[BREAKOUT_POLICY]:[]),`OpenCandle-defined rule: ${info.rule}`,PATTERN_MARKS_POLICY],
   calculate(ctx){return chartOutput(ctx,[pattern],[info.direction]);},
   warmup:value=>2*value('pivotLength')+1,work:(count,value)=>count*(value('pivotLength')*4+40)};
 }
-const ALL_CHART:CatalogDefinition={id:'chpall' as never,name:'All chart patterns',acronym:'All CP',overlay:true,pattern:'chart',inputs:CHART_INPUTS,plots:[PLOTS.bullish,PLOTS.bearish,PLOTS.neutral],
+const ALL_CHART:CatalogDefinition={id:'chpall' as never,name:'All chart patterns',acronym:'All CP',overlay:true,pattern:'chart',inputs:BREAKOUT_INPUTS,plots:[PLOTS.bullish,PLOTS.bearish,PLOTS.neutral],
  provenance:[{url:FACT,facts:'Entry "All chart patterns" in the Chart patterns section.'},{url:LV+'chart-all',facts:'Runs every OpenCandle chart pattern detector on one zigzag.'}],
- unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,PATTERN_MARKS_POLICY],
+ unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,BREAKOUT_POLICY,PATTERN_MARKS_POLICY],
  calculate(ctx){return chartOutput(ctx,CHART_PATTERNS.map(row=>row.id),['bullish','bearish','neutral']);},
  warmup:value=>2*value('pivotLength')+1,work:(count,value)=>count*(value('pivotLength')*4+40*CHART_PATTERNS.length)};
 

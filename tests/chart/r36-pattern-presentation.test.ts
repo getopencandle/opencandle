@@ -46,8 +46,12 @@ describe(' pattern markers on the chart (SYNTHETIC)',()=>{
   const path=closes.map((close,i)=>({time:D0+i*86400,open:close,high:close+0.5,low:close-0.5,close,volume:1}));
   const row=settings('chpdoubletop'),{output}=renderIndicatorPresentation(row,calculateIndicator(row.kind,path,row.inputs),path,{resolution:'1D'});
   expect(output.labels!.map(label=>[label.text,label.x,label.yloc])).toEqual([['Double top',path[24].time*1000,'abovebar']]);
-  // Zigzag A-B and B-C, then the neckline at the low 109.5 from B to the confirmation bar 29.
-  expect(output.lines!.map(line=>[line.x1/1000,line.y1,line.x2/1000,line.y2])).toEqual([[path[8].time,120.5,path[16].time,109.5],[path[16].time,109.5,path[24].time,120.8],[path[16].time,109.5,path[29].time,109.5]]);
+  // Zigzag A-B and B-C, then the neckline at the low 109.5 from B to the breakout bar 30 (0.8.1: new instances require
+  // breakout confirmation; the first close below 109.5 is bar 30, close 108.825).
+  expect(output.lines!.map(line=>[line.x1/1000,line.y1,line.x2/1000,line.y2])).toEqual([[path[8].time,120.5,path[16].time,109.5],[path[16].time,109.5,path[24].time,120.8],[path[16].time,109.5,path[30].time,109.5]]);
+  // Without confirmation (instances saved before 0.8.1) the neckline ends on the bar confirming the last pivot, 29.
+  const legacy=renderIndicatorPresentation(row,calculateIndicator(row.kind,path,{...row.inputs,breakout:false}),path,{resolution:'1D'}).output;
+  expect(legacy.lines!.at(-1)!.x2/1000).toBe(path[29].time);
  });
 });
 

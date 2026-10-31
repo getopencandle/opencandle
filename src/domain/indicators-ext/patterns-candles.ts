@@ -35,7 +35,7 @@ export const CANDLE_THRESHOLDS=Object.freeze({
 
 export type CandleDirection='bullish'|'bearish'|'neutral';
 /** reversal: bullish needs a prior downtrend, bearish a prior uptrend. continuation: bullish needs an uptrend, bearish a
- *  downtrend. none: the trend rule does not apply (neutral families). Role per family. */
+ *  downtrend. none: the trend rule does not apply (neutral families, and Kicking, which Nison treats as trend-free). Role per family. */
 export type CandleTrendRole='reversal'|'continuation'|'none';
 export type TrendRule='SMA50'|'SMA50, SMA200'|'No detection';
 export const TREND_RULES:readonly TrendRule[]=Object.freeze(['SMA50','SMA50, SMA200','No detection']);
@@ -107,9 +107,11 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
  {id:'haramicross',size:2,role:'reversal',definition:'A long first body, then a doji whose body lies inside it. The first body\'s color gives the direction (black = bullish).',
   bullish:side('HC','Bullish harami cross',(k,i)=>k.black(i-1)&&k.long(i-1)&&k.doji(i)&&insideBody(k,i,i-1)),
   bearish:side('HC','Bearish harami cross',(k,i)=>k.white(i-1)&&k.long(i-1)&&k.doji(i)&&insideBody(k,i,i-1))},
- {id:'piercing',size:2,role:'reversal',definition:'Piercing: a long black body, then a white body opening below its close and closing above its midpoint but below its open. Dark cloud cover mirrors it.',
-  bullish:side('PL','Piercing',(k,i)=>k.black(i-1)&&k.long(i-1)&&k.white(i)&&k.o[i]<k.c[i-1]&&k.c[i]>k.mid(i-1)&&k.c[i]<k.o[i-1]),
-  bearish:side('DC','Dark cloud cover',(k,i)=>k.white(i-1)&&k.long(i-1)&&k.black(i)&&k.o[i]>k.c[i-1]&&k.c[i]<k.mid(i-1)&&k.c[i]>k.o[i-1])},
+ // Nison (Japanese Candlestick Charting Techniques, "Dark-cloud cover" and "Piercing pattern"): the second session opens
+ // above the prior session's HIGH (dark cloud) or below its LOW (piercing), not merely beyond its close.
+ {id:'piercing',size:2,role:'reversal',definition:'Piercing: a long black body, then a white body opening below its low and closing above its midpoint but below its open. Dark cloud cover mirrors it (opening above the prior high).',
+  bullish:side('PL','Piercing',(k,i)=>k.black(i-1)&&k.long(i-1)&&k.white(i)&&k.o[i]<k.l[i-1]&&k.c[i]>k.mid(i-1)&&k.c[i]<k.o[i-1]),
+  bearish:side('DC','Dark cloud cover',(k,i)=>k.white(i-1)&&k.long(i-1)&&k.black(i)&&k.o[i]>k.h[i-1]&&k.c[i]<k.mid(i-1)&&k.c[i]>k.o[i-1])},
  {id:'dojistar',size:2,role:'reversal',definition:'A long body, then a doji whose body gaps beyond its close (below after black = bullish, above after white = bearish).',
   bullish:side('DS','Bullish doji star',(k,i)=>k.black(i-1)&&k.long(i-1)&&k.doji(i)&&k.top(i)<k.c[i-1]),
   bearish:side('DS','Bearish doji star',(k,i)=>k.white(i-1)&&k.long(i-1)&&k.doji(i)&&k.bottom(i)>k.c[i-1])},
@@ -125,9 +127,12 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
  {id:'soldiers',size:3,role:'reversal',definition:'Three long white bodies, each closing higher, each opening inside the prior body, each with an upper shadow at most nearExtreme of its range. Three black crows mirror it.',
   bullish:side('3WS','Three white soldiers',(k,i)=>[i-2,i-1,i].every(j=>soldier(k,j))&&k.c[i-1]>k.c[i-2]&&k.c[i]>k.c[i-1]&&k.o[i-1]>k.o[i-2]&&k.o[i-1]<=k.c[i-2]&&k.o[i]>k.o[i-1]&&k.o[i]<=k.c[i-1]),
   bearish:side('3BC','Three black crows',(k,i)=>[i-2,i-1,i].every(j=>crow(k,j))&&k.c[i-1]<k.c[i-2]&&k.c[i]<k.c[i-1]&&k.o[i-1]<k.o[i-2]&&k.o[i-1]>=k.c[i-2]&&k.o[i]<k.o[i-1]&&k.o[i]>=k.c[i-1])},
- {id:'tweezer',size:2,role:'reversal',definition:'Tweezer bottom: black then white with lows equal within matchTolerance of the larger range. Tweezer top: white then black with equal highs.',
-  bullish:side('TB','Tweezer bottom',(k,i)=>k.black(i-1)&&k.white(i)&&Math.abs(k.l[i]-k.l[i-1])<=T.matchTolerance*Math.max(k.range[i],k.range[i-1])),
-  bearish:side('TT','Tweezer top',(k,i)=>k.white(i-1)&&k.black(i)&&Math.abs(k.h[i]-k.h[i-1])<=T.matchTolerance*Math.max(k.range[i],k.range[i-1]))},
+ // Nison ("Tweezers tops and bottoms"): matching highs or lows of two or more lines, made of real bodies, shadows or
+ // doji; colour is not part of the definition, so no colour is required here. The trend rule supplies the "after a rally /
+ // decline" context.
+ {id:'tweezer',size:2,role:'reversal',definition:'Tweezer bottom: two bars whose lows are equal within matchTolerance of the larger range. Tweezer top: two bars with equal highs. Colour is not required.',
+  bullish:side('TB','Tweezer bottom',(k,i)=>Math.abs(k.l[i]-k.l[i-1])<=T.matchTolerance*Math.max(k.range[i],k.range[i-1])),
+  bearish:side('TT','Tweezer top',(k,i)=>Math.abs(k.h[i]-k.h[i-1])<=T.matchTolerance*Math.max(k.range[i],k.range[i-1]))},
  {id:'marubozu',size:1,role:'continuation',definition:'A long body whose shadows are each at most marubozuShadow of the range (white = bullish, black = bearish).',
   bullish:side('MW','Marubozu white',(k,i)=>k.white(i)&&k.marubozu(i)),
   bearish:side('MB','Marubozu black',(k,i)=>k.black(i)&&k.marubozu(i))},
@@ -135,7 +140,9 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
   neutral:side('STW','Spinning top white',(k,i)=>k.white(i)&&!k.doji(i)&&k.upper[i]>k.body[i]&&k.lower[i]>k.body[i])},
  {id:'spinblack',size:1,role:'none',definition:'Spinning top black: a black non-doji body smaller than each of its shadows.',
   neutral:side('STB','Spinning top black',(k,i)=>k.black(i)&&!k.doji(i)&&k.upper[i]>k.body[i]&&k.lower[i]>k.body[i])},
- {id:'kicking',size:2,role:'reversal',definition:'Two marubozu of opposite color with a gap between their ranges: black then gap-up white = bullish; white then gap-down black = bearish.',
+ // Nison (Beyond Candlesticks, "Kicker"): the gap between opposite marubozu is decisive whatever the prior trend, so the
+ // family is not trend-gated (role none). Saved instances may still carry the old trendRule input (retired, ignored).
+ {id:'kicking',size:2,role:'none',definition:'Two marubozu of opposite color with a gap between their ranges: black then gap-up white = bullish; white then gap-down black = bearish. The prior trend is not required.',
   bullish:side('K','Bullish kicking',(k,i)=>k.black(i-1)&&k.marubozu(i-1)&&k.white(i)&&k.marubozu(i)&&k.l[i]>k.h[i-1]),
   bearish:side('K','Bearish kicking',(k,i)=>k.white(i-1)&&k.marubozu(i-1)&&k.black(i)&&k.marubozu(i)&&k.h[i]<k.l[i-1])},
  {id:'threemethods',size:5,role:'continuation',definition:'Rising three methods: a long white bar, three bars with smaller bodies inside its range, then a long white bar closing above the first close. Falling three methods mirrors it.',

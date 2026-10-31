@@ -3,7 +3,7 @@ import {CellScriptSettings,chartSurfaceProps} from './CellStudyLegend';
 import {ScriptTablesPanel} from './ScriptTablesPanel';
 import {createCellStudyIntentQueue,assertCellStudyIntent,builtinStudyFingerprint,scriptStudyFingerprint,type CellStudyIntent} from './cell-study-intents';
 import {confirmAnalysisPublication} from './analysis-capture-confirmation';
-import {chartHeaderChange} from './data-window-model';
+import {chartHeaderChange,formatIndicatorValue} from './data-window-model';
 import {createHeldKeyGate,heldKeyCommand,type HeldKeyCommand} from './held-key-gate';
 import {HELD_KEY_STALE} from './held-key-gate';
 import {DRAWING_EDIT_WRITE_WAIT,DRAWING_EDIT_STALE,DRAWING_SETTINGS_CLOSED,DRAWING_FAVORITES_STALE,missingDrawingTargets,type DrawingEditTargets} from './drawing-edit-queue';
@@ -2569,7 +2569,11 @@ export function App(){
   // NumericSeries holds nulls for warm-up bars; legendValueParts reads them as empty (Number.isFinite), so the port is re-typed here.
   const legendPort=chart?{values:(id:string)=>({series:(chart.indicators.peekValues?.(id)??chart.indicators.values(id)).series.map(series=>({id:series.id,values:series.values as unknown as ArrayLike<number>}))})}:null;
   // Live plot values at the inspected bar (null reads the last bar); displayed.index indexes the calculation bars.
-  const values=legendPort&&statusLine.indicators.values?hoverSlot(()=>hoverReadout().validInspection?.displayed.index??null,()=>{const {validInspection}=hoverReadout();return legendValuesView(indicatorLegendValues(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0)));}):null;
+  // Read exactly as the data window does (buildDataWindow): the value drawn at a bar is values[bar - offset], and the text
+  // is formatIndicatorValue with the instance precision and the symbol tick size.
+  const values=legendPort&&statusLine.indicators.values?hoverSlot(()=>hoverReadout().validInspection?.displayed.index??null,()=>{const {validInspection}=hoverReadout(),at=validInspection?.displayed.index??null,offset=Number.isSafeInteger(row.offset)?row.offset as number:0,precision=row.presentation?.precision??'auto',tickSize=dataset.instrument.tickSize;
+   const index=offset===0?at:(at??Math.max(0,...(()=>{try{return legendPort.values(row.id).series.map(series=>series.values.length);}catch{return [0];}})())-1)-offset;
+   return legendValuesView(indicatorLegendValues(legendPort,row,index,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),value=>formatIndicatorValue(value,row.kind,precision,tickSize)));}):null;
   const orderRows=menuOpen?indicatorViews.map(item=>({id:item.id,paneId:item.paneId})):[];
   const placement=menuOpen?scaleOf(row):null,moveTo:LegendSubmenuItem[]=menuOpen?indicatorMoveChoices(chart??{},row.rendererId,indicatorViews).map(choice=>({id:choice.id,label:choice.label,...(choice.disabled?{disabled:true,title:choice.disabled}:{})})):[];
   return <div key={row.id} className="lv-legend-row" data-legend-row={row.id} data-hidden={row.visible?undefined:'true'} style={{background:statusBackground??'transparent'}} {...legendRowMenuProps(()=>setLegendMenu({id:row.id,open:null}))}>

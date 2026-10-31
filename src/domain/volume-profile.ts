@@ -94,7 +94,9 @@ function sources(bars:readonly Bar[],from:number,to:number,ltf:LowerTimeframeBar
    while(k<list.length&&list[k].time<end){const row=list[k];if(![row.high,row.low,row.open,row.close,row.volume].every(finite)||row.volume<0||row.high<row.low){ok=false;break;}inside.push(row);k++;}
    if(ok&&inside.length){out.push(inside);lower++;j=k;continue;}
   }
-  out.push([bar]);
+  // A chart bar without a finite high-low range has no price to put its volume at; it is skipped (one bad bar
+  // must not null the whole profile through Math.min(low, NaN)).
+  out.push(finite(bar.high)&&finite(bar.low)&&bar.high>=bar.low?[bar]:[]);
  }
  return {rows:out,lower};
 }

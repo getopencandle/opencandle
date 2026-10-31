@@ -149,13 +149,47 @@ function test(id:ChartPatternId,p:readonly Pivot[],tol:number,at:number,bars:rea
  return hit(q,[extended(h1,h2,at),extended(l1,l2,at)]);
 }
 
-/** Every hit of the chosen patterns, in confirmation order. tolerancePercent is a percent (2 = 2%). */
-export function detectChartPatterns(bars:readonly Bar[],ids:readonly ChartPatternId[],pivotLength:number,tolerancePercent:number):ChartPatternHit[]{
+/** Patterns with a breakout level (Bulkowski: a top is confirmed by a close below the valley or neckline, a bottom by a close
+ *  above the peak or neckline). The other shapes are reported unconfirmed (on their last pivot) in both modes. */
+export const BREAKOUT_PATTERNS:ReadonlySet<ChartPatternId>=new Set<ChartPatternId>(['doubletop','doublebottom','tripletop','triplebottom','headshoulders','invheadshoulders']);
+export interface ChartPatternOptions {/** Report breakout patterns on their confirming close instead of on the last pivot. Default false. */breakout?:boolean}
+/** The breakout rule of a found breakout pattern: the level a close must cross at bar k, the extreme a close must not pass
+ *  first (the pattern's highest high for a top, lowest low for a bottom: past it the shape is void) and the window. */
+function breakoutRule(hit:ChartPatternHit):{top:boolean;level:(k:number)=>number;invalid:number;window:number}{
+ const p=hit.pivots,top=hit.direction==='bearish',window=p[p.length-1].index-p[0].index;
+ const extreme=top?Math.max(...p.filter(row=>row.kind==='high').map(row=>row.price)):Math.min(...p.filter(row=>row.kind==='low').map(row=>row.price));
+ if(hit.id==='doubletop'||hit.id==='doublebottom'){const level=p[1].price;return {top,level:()=>level,invalid:extreme,window};}
+ if(hit.id==='tripletop'||hit.id==='triplebottom'){const level=top?Math.min(p[1].price,p[3].price):Math.max(p[1].price,p[3].price);return {top,level:()=>level,invalid:extreme,window};}
+ // Head and shoulders: the neckline through the two troughs (peaks), continued.
+ const [a,b]=[p[1],p[3]],slope=b.index===a.index?0:(b.price-a.price)/(b.index-a.index);
+ return {top,level:k=>b.price+slope*(k-b.index),invalid:extreme,window};
+}
+/** The breakout bar of a breakout pattern, or null: the first bar after the last pivot whose close crosses the level, within
+ *  `window` bars (the pattern's own width, an OpenCandle choice) and before any close past the pattern's extreme. Reported
+ *  no earlier than the bar the pattern became known (`confirmedAt`). Reads only bars up to the bar it returns. */
+function breakoutBar(bars:readonly Bar[],hit:ChartPatternHit):number|null{
+ const rule=breakoutRule(hit),last=hit.pivots[hit.pivots.length-1].index,end=Math.min(bars.length-1,last+rule.window);
+ for(let k=last+1;k<=end;k++){
+  const close=bars[k].close;if(!finite(close))continue;
+  if(rule.top?close>rule.invalid:close<rule.invalid)return null;
+  if(rule.top?close<rule.level(k):close>rule.level(k))return Math.max(k,hit.confirmedAt);
+ }
+ return null;
+}
+/** Every hit of the chosen patterns, in reporting-bar order. tolerancePercent is a percent (2 = 2%). With
+ *  options.breakout a breakout pattern is reported on its breakout bar (confirmedAt) or not at all. */
+export function detectChartPatterns(bars:readonly Bar[],ids:readonly ChartPatternId[],pivotLength:number,tolerancePercent:number,options:ChartPatternOptions={}):ChartPatternHit[]{
  const tol=tolerancePercent/100,out:ChartPatternHit[]=[],seen:Pivot[]=[];
  for(const event of zigzagEvents(bars,pivotLength)){
   const pivot:Pivot={index:event.index,price:event.price,kind:event.kind};
   if(event.replaces)seen[seen.length-1]=pivot;else seen.push(pivot);
-  for(const id of ids){const found=test(id,seen,tol,event.confirmedAt,bars);if(found)out.push(found);}
+  for(const id of ids){
+   const found=test(id,seen,tol,event.confirmedAt,bars);if(!found)continue;
+   if(!options.breakout||!BREAKOUT_PATTERNS.has(id)){out.push(found);continue;}
+   const at=breakoutBar(bars,found);if(at===null)continue;
+   out.push(test(id,found.pivots,tol,at,bars)!);
+  }
  }
- return out;
+ // Breakouts can arrive after later pivots; a stable sort keeps the pivot order within one bar.
+ return options.breakout?out.map((hit,order)=>({hit,order})).sort((a,b)=>a.hit.confirmedAt-b.hit.confirmedAt||a.order-b.order).map(row=>row.hit):out;
 }

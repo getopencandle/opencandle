@@ -45,7 +45,16 @@ function syntheticDataset(bars:readonly Bar[],resolution:string):BarDataset{
 /** Build the higher-timeframe bars and the per-bucket confirmation index. Refuses (never falls back to chart bars). */
 /** The chart's session calendar. 'us-equity' (US stocks, ETFs and indexes quoted in New York) builds the higher
  *  timeframe on New York trading sessions; absent, null or 'utc' keeps the UTC calendar policy unchanged. */
-export interface HigherTimeframeOptions {readonly calendar?:'us-equity'|'utc'|null}
+export interface HigherTimeframeOptions {readonly calendar?:'us-equity'|'utc'|null;
+ /** Chart rows known to be closed (rows 0..completeRows-1). A live or replay forming last bar is not closed even when its
+  *  nominal period reaches the bucket end, so a bucket whose last row is at or after completeRows stays developing.
+  *  Absent = every loaded row is closed (historical data). Follows planNyseDailyTimeframe's completeRows. */
+ readonly completeRows?:number}
+/** A bucket confirms on its own last row only when that row is closed; otherwise on the first row of a later bucket. */
+function confirmations(buckets:readonly HigherTimeframeBucket[],reaches:(row:HigherTimeframeBucket)=>boolean,completeRows:number):(number|null)[]{
+ return buckets.map((row,index)=>row.last<completeRows&&reaches(row)?row.last:index+1<buckets.length?buckets[index+1].first:null);
+}
+function closedRows(options:HigherTimeframeOptions,length:number):number{const value=options.completeRows;return value===undefined?length:Number.isSafeInteger(value)&&value>=0?Math.min(value,length):0;}
 export function planHigherTimeframe(bars:readonly Bar[],chartResolution:string|null,target:string,options:HigherTimeframeOptions={}):HigherTimeframeResult{
  let chart:IntervalSpec,spec:IntervalSpec;
  try{spec=parseInterval(target);}catch(error){return {ok:false,code:'RESAMPLE_UNAVAILABLE',message:'Indicator timeframe '+target+' is not a valid interval: '+(error instanceof Error?error.message:String(error))};}
@@ -56,11 +65,11 @@ export function planHigherTimeframe(bars:readonly Bar[],chartResolution:string|n
  if(chart.id===spec.id)return {ok:false,code:'SAME_TIMEFRAME',message:'The indicator timeframe equals the chart interval.'};
  if(nominal(spec)<nominal(chart))return {ok:false,code:'LOWER_TIMEFRAME',message:'Indicator timeframe '+spec.id+' is lower than the chart interval '+chart.id+'. Lower timeframes need intrabar data that is not loaded; the indicator is not calculated on the chart bars instead.'};
  if(!bars.length)return {ok:false,code:'NO_BARS',message:'No chart bars are loaded for the indicator timeframe.'};
- if(options.calendar==='us-equity'){const session=planSessionTimeframe(bars,chart,spec);if(session)return session;}
+ if(options.calendar==='us-equity'){const session=planSessionTimeframe(bars,chart,spec,closedRows(options,bars.length));if(session)return session;}
  let derived;try{derived=aggregateInterval(syntheticDataset(bars,chart.id),spec.id,DEFAULT_AGGREGATION_POLICY);}catch(error){return {ok:false,code:'RESAMPLE_UNAVAILABLE',message:'Indicator timeframe '+spec.id+' cannot be built from the '+chart.id+' chart bars: '+(error instanceof Error?error.message:String(error))};}
  const buckets=derived.derivation!.buckets.map(row=>({start:row.start,end:row.end,first:row.sourceFirstIndex,last:row.sourceLastIndex}));
  const output=derived.dataset.bars.map((bar,index)=>{const row=buckets[index];let missing=false;for(let i=row.first;i<=row.last;i++)if(!Number.isFinite(bars[i].volume)){missing=true;break;}return missing?{...bar,volume:NaN}:bar;});
- const confirmedAt=buckets.map((row,index)=>chartBarEnd(bars[row.last].time,chart)>=row.end?row.last:index+1<buckets.length?buckets[index+1].first:null);
+ const confirmedAt=confirmations(buckets,row=>chartBarEnd(bars[row.last].time,chart)>=row.end,closedRows(options,bars.length));
  return {ok:true,plan:{chartInterval:chart.id,target:spec.id,bars:output,buckets,confirmedAt,developing:confirmedAt.at(-1)===null,policies:[...INDICATOR_TIMEFRAME_POLICIES]}};
 }
 export const SESSION_TIMEFRAME_POLICIES=[
@@ -78,7 +87,7 @@ function lastTradingDate(first:string,last:string):string{for(let date=last,n=0;
  * Days, weeks and months group New York trading dates (calendar-label chart bars use the date at their midday, as the pivot
  * calendar does); minute targets use the session-anchored buckets of the interval menu.
  */
-function planSessionTimeframe(bars:readonly Bar[],chart:IntervalSpec,spec:IntervalSpec):HigherTimeframeResult|null{
+function planSessionTimeframe(bars:readonly Bar[],chart:IntervalSpec,spec:IntervalSpec,completeRows:number):HigherTimeframeResult|null{
  const intraday=chart.seconds!==null;
  if(!intraday&&!(chart.unit==='day'&&chart.multiplier===1))return null;
  if(spec.unit==='second'||spec.unit==='day'&&spec.multiplier!==1)return null;
@@ -111,7 +120,7 @@ function planSessionTimeframe(bars:readonly Bar[],chart:IntervalSpec,spec:Interv
   if(!current||row.key!==current.key){current={key:row.key};output.push({time:bar.time,open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume});buckets.push({start:row.start,end:Math.max(row.end,ends[i]),first:i,last:i});continue;}
   const out=output[output.length-1],bucket=buckets[buckets.length-1];out.high=Math.max(out.high,bar.high);out.low=Math.min(out.low,bar.low);out.close=bar.close;out.volume=Number.isFinite(out.volume)&&Number.isFinite(volume)?out.volume+volume:NaN;bucket.last=i;bucket.end=Math.max(bucket.end,ends[i]);
  }
- const confirmedAt=buckets.map((row,index)=>ends[row.last]>=row.end?row.last:index+1<buckets.length?buckets[index+1].first:null);
+ const confirmedAt=confirmations(buckets,row=>ends[row.last]>=row.end,completeRows);
  return {ok:true,plan:{chartInterval:chart.id,target:spec.id,bars:output,buckets,confirmedAt,developing:confirmedAt.at(-1)===null,policies:[...SESSION_TIMEFRAME_POLICIES]}};
 }
 /**

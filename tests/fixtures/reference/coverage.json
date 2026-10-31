@@ -1,0 +1,1784 @@
+{
+ "note": "Coverage of the indicator guardrails (tests/reference). Regenerate rows by hand when a kind is added; tests/reference/coverage.test.ts keeps it in step with the catalog and expected.json.",
+ "counts": {
+  "hand-tested": 28,
+  "reference-tested": 92,
+  "untested": 91
+ },
+ "rows": [
+  {
+   "id": "volume",
+   "status": "hand-tested",
+   "cases": [
+    "volume-20"
+   ],
+   "timing": "2a-2f",
+   "source": "Volume and its 20-bar SMA"
+  },
+  {
+   "id": "sma",
+   "status": "reference-tested",
+   "cases": [
+    "sma-9"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked SMA"
+  },
+  {
+   "id": "ema",
+   "status": "reference-tested",
+   "cases": [
+    "ema-9"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "The EMA built-in documents an SMA seed, as TA-Lib."
+   ],
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked EMA (SMA seed)"
+  },
+  {
+   "id": "rsi",
+   "status": "reference-tested",
+   "cases": [
+    "rsi-14"
+   ],
+   "timing": "2a-2f",
+   "source": "J. Welles Wilder, New Concepts in Technical Trading Systems (1978); TA-Lib 0.6 (ta-lib.org), cross-checked RSI"
+  },
+  {
+   "id": "macd",
+   "status": "reference-tested",
+   "cases": [
+    "macd-12-26-9"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib MACD seeds the fast EMA at the slow EMA start (bar 25), so its early fast-EMA values differ; values converge. Each EMA here starts on its own first full window (SMA seed), the convention OpenCandle documents."
+   ],
+   "source": "Gerald Appel: MACD = EMA12 - EMA26, signal EMA9 of MACD; https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/macd-moving-average-convergence-divergence-oscillator"
+  },
+  {
+   "id": "bb",
+   "status": "reference-tested",
+   "cases": [
+    "bb-20-2"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked BBANDS (population deviation)"
+  },
+  {
+   "id": "vwap",
+   "status": "reference-tested",
+   "cases": [
+    "vwap-us-session-ny",
+    "vwap-crypto-session-utc"
+   ],
+   "session": "vwap-us-session-ny, vwap-crypto-session-utc (2e)",
+   "timing": "2a-2f"
+  },
+  {
+   "id": "stochastic",
+   "status": "reference-tested",
+   "cases": [
+    "stoch-14-3-3",
+    "stoch-14-1-3"
+   ],
+   "timing": "2a-2f",
+   "source": "George Lane; TA-Lib 0.6 (ta-lib.org), cross-checked STOCH (SMA slowing)"
+  },
+  {
+   "id": "atr",
+   "status": "reference-tested",
+   "cases": [
+    "atr-14"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib ATR skips the first bar (no prior close) and starts one bar later; values converge. OpenCandle documents first TR = high - low."
+   ],
+   "source": "Wilder (1978) ATR; first true range = high - low"
+  },
+  {
+   "id": "obv",
+   "status": "reference-tested",
+   "cases": [
+    "obv"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib OBV starts at volume[0]; OpenCandle documents a start at 0. The series differ by that constant only."
+   ],
+   "source": "Joseph Granville (1963); https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/on-balance-volume-obv"
+  },
+  {
+   "id": "cci",
+   "status": "reference-tested",
+   "cases": [
+    "cci-20",
+    "cci-20-ma"
+   ],
+   "timing": "2a-2f",
+   "source": "Donald Lambert (1980); TA-Lib 0.6 (ta-lib.org), cross-checked CCI"
+  },
+  {
+   "id": "stochrsi",
+   "status": "reference-tested",
+   "cases": [
+    "stochrsi"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib STOCHRSI uses an unsmoothed fast %K; OpenCandle documents %K = SMA(100 x ratio, 3)."
+   ],
+   "source": "Chande & Kroll (1994) StochRSI, smoothed %K/%D as documented"
+  },
+  {
+   "id": "willr",
+   "status": "reference-tested",
+   "cases": [
+    "willr-14"
+   ],
+   "timing": "2a-2f",
+   "source": "Larry Williams; TA-Lib 0.6 (ta-lib.org), cross-checked WILLR"
+  },
+  {
+   "id": "mfi",
+   "status": "reference-tested",
+   "cases": [
+    "mfi-14"
+   ],
+   "timing": "2a-2f",
+   "source": "Quong & Soudack; TA-Lib 0.6 (ta-lib.org), cross-checked MFI"
+  },
+  {
+   "id": "cmf",
+   "status": "reference-tested",
+   "cases": [
+    "cmf-20"
+   ],
+   "timing": "2a-2f",
+   "source": "Marc Chaikin; https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/chaikin-money-flow-cmf"
+  },
+  {
+   "id": "mom",
+   "status": "reference-tested",
+   "cases": [
+    "mom-10"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked MOM"
+  },
+  {
+   "id": "roc",
+   "status": "reference-tested",
+   "cases": [
+    "roc-9"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked ROC"
+  },
+  {
+   "id": "ao",
+   "status": "reference-tested",
+   "cases": [
+    "ao"
+   ],
+   "timing": "2a-2f",
+   "source": "Bill Williams, Trading Chaos: AO = SMA(median, 5) - SMA(median, 34)"
+  },
+  {
+   "id": "aroon",
+   "status": "reference-tested",
+   "cases": [
+    "aroon-14"
+   ],
+   "timing": "2a-2f",
+   "source": "Tushar Chande (1995); TA-Lib 0.6 (ta-lib.org), cross-checked AROON"
+  },
+  {
+   "id": "dmi",
+   "status": "reference-tested",
+   "cases": [
+    "dmi-14-14"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib PLUS_DI/ADX seed the Wilder sum with period-1 readings, so early values differ and converge; OpenCandle documents an RMA seeded with the mean of the first window."
+   ],
+   "source": "Wilder (1978) DMI/ADX"
+  },
+  {
+   "id": "adx",
+   "status": "reference-tested",
+   "cases": [
+    "adx-14-14"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib PLUS_DI/ADX seed the Wilder sum with period-1 readings, so early values differ and converge; OpenCandle documents an RMA seeded with the mean of the first window."
+   ],
+   "source": "Wilder (1978) ADX"
+  },
+  {
+   "id": "psar",
+   "status": "reference-tested",
+   "cases": [
+    "psar"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib SAR initializes direction from the first two bars' directional movement; OpenCandle documents the first-two-closes rule. Values agree after the first reversal."
+   ],
+   "source": "Wilder (1978) Parabolic SAR, initialization as documented by OpenCandle"
+  },
+  {
+   "id": "supertrend",
+   "status": "reference-tested",
+   "cases": [
+    "supertrend"
+   ],
+   "timing": "2a-2f",
+   "source": "Olivier Seban, Supertrend (ATR 10, factor 3), final-band rules as documented"
+  },
+  {
+   "id": "kc",
+   "status": "reference-tested",
+   "cases": [
+    "kc"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "SMA-seeded EMA (ChartSchool)."
+   ],
+   "source": "Linda Raschke / https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/keltner-channels: EMA(20) +/- 2 x ATR(10)"
+  },
+  {
+   "id": "dc",
+   "status": "reference-tested",
+   "cases": [
+    "dc"
+   ],
+   "timing": "2a-2f",
+   "source": "Richard Donchian"
+  },
+  {
+   "id": "env",
+   "status": "hand-tested",
+   "cases": [
+    "env"
+   ],
+   "timing": "2a-2f",
+   "source": "Moving average envelope, SMA 20 +/- 10 percent"
+  },
+  {
+   "id": "lsma",
+   "status": "reference-tested",
+   "cases": [
+    "lsma-25"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked LINEARREG"
+  },
+  {
+   "id": "wma",
+   "status": "reference-tested",
+   "cases": [
+    "wma-9"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked WMA"
+  },
+  {
+   "id": "hma",
+   "status": "reference-tested",
+   "cases": [
+    "hma-9"
+   ],
+   "timing": "2a-2f",
+   "source": "Alan Hull (2005): WMA(2 WMA(n/2) - WMA(n), sqrt n), n/2 and sqrt floored"
+  },
+  {
+   "id": "smma",
+   "status": "reference-tested",
+   "cases": [
+    "smma-7"
+   ],
+   "timing": "2a-2f",
+   "source": "Wilder smoothing (SMMA), SMA seed"
+  },
+  {
+   "id": "ichimoku",
+   "status": "reference-tested",
+   "cases": [
+    "ichimoku"
+   ],
+   "timing": "2a exemption checked; 2b-2f",
+   "disagreements": [
+    "Some sources shift by 26 bars; OpenCandle documents Displacement - 1 (inclusive counting)."
+   ],
+   "source": "Goichi Hosoda, Ichimoku Kinko Hyo (9, 26, 52, displacement 26 counted inclusively = 25 bars)"
+  },
+  {
+   "id": "pivots",
+   "status": "hand-tested",
+   "cases": [],
+   "session": "2e: P from the prior regular session (NY) / UTC day",
+   "timing": "2a-2f"
+  },
+  {
+   "id": "vwma",
+   "status": "reference-tested",
+   "cases": [
+    "vwma-20"
+   ],
+   "timing": "2a-2f",
+   "source": "Buff Dormeier (2011)"
+  },
+  {
+   "id": "hv",
+   "status": "reference-tested",
+   "cases": [
+    "hv-10"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TradingView HV uses the population deviation and sqrt(365); OpenCandle documents Hull (sample, 252)."
+   ],
+   "source": "John C. Hull: sample deviation of log returns x sqrt(252)"
+  },
+  {
+   "id": "uo",
+   "status": "reference-tested",
+   "cases": [
+    "uo"
+   ],
+   "timing": "2a-2f",
+   "source": "Larry Williams (1985); TA-Lib 0.6 (ta-lib.org), cross-checked ULTOSC"
+  },
+  {
+   "id": "trix",
+   "status": "reference-tested",
+   "cases": [
+    "trix-18"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "SMA-seeded EMAs (TA-Lib). TradingView TRIX uses log prices x 10000 (comparison point only)."
+   ],
+   "source": "Jack Hutson (1983): 1-bar percent ROC of a triple EMA; TA-Lib 0.6 (ta-lib.org), cross-checked TRIX (tail)"
+  },
+  {
+   "id": "cmo",
+   "status": "reference-tested",
+   "cases": [
+    "cmo-9"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TA-Lib CMO applies Wilder smoothing to the sums; OpenCandle follows the author (plain sums)."
+   ],
+   "source": "Tushar Chande, The New Technical Trader (1994): sums of up/down changes"
+  },
+  {
+   "id": "stddev",
+   "status": "reference-tested",
+   "cases": [
+    "stddev-20"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked STDDEV (population)"
+  },
+  {
+   "id": "lrc",
+   "status": "hand-tested",
+   "cases": [
+    "lrc"
+   ],
+   "timing": "2a exemption checked; 2b-2f",
+   "source": "OLS line of the last 100 closes +/- 2 population deviations of the residuals (latest window only)"
+  },
+  {
+   "id": "alma",
+   "status": "reference-tested",
+   "cases": [
+    "alma-9"
+   ],
+   "timing": "2a-2f",
+   "source": "Arnaud Legoux & Dimitrios Douzis-Loukas: Gaussian weights, m = offset (n-1), s = n / sigma"
+  },
+  {
+   "id": "dema",
+   "status": "reference-tested",
+   "cases": [
+    "dema-9"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "SMA-seeded EMAs (TA-Lib, StockCharts); OpenCandle 0.8.0 used a first-value seed."
+   ],
+   "source": "Patrick Mulloy (1994); TA-Lib 0.6 (ta-lib.org), cross-checked DEMA (tail)"
+  },
+  {
+   "id": "tema",
+   "status": "reference-tested",
+   "cases": [
+    "tema-9"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "SMA-seeded EMAs (TA-Lib, StockCharts); OpenCandle 0.8.0 used a first-value seed."
+   ],
+   "source": "Patrick Mulloy (1994); TA-Lib 0.6 (ta-lib.org), cross-checked TEMA (tail)"
+  },
+  {
+   "id": "zigzag",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a exemption checked; 2b-2f",
+   "reason": "OpenCandle percent-reversal zig zag with Depth rule and a live last leg; no outside numeric reference. Repaint exemption checked (2a)."
+  },
+  {
+   "id": "efi",
+   "status": "reference-tested",
+   "cases": [
+    "efi-13"
+   ],
+   "timing": "2a-2f",
+   "source": "Alexander Elder: EMA13 of (close - prior close) x volume"
+  },
+  {
+   "id": "vrvp",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a exemption checked; 2b-2f",
+   "reason": "Volume profile: OpenCandle-defined volume distribution (documented in VOLUME_PROFILE_POLICIES); timing guardrails only."
+  },
+  {
+   "id": "pvp",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Volume profile: OpenCandle-defined distribution; timing guardrails only (finding R2)."
+  },
+  {
+   "id": "svp",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Volume profile: OpenCandle-defined distribution; timing guardrails only (finding R2)."
+  },
+  {
+   "id": "svphd",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a exemption checked; 2b-2f",
+   "reason": "Volume profile (viewport): OpenCandle-defined distribution; timing guardrails only."
+  },
+  {
+   "id": "aavp",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a exemption checked; 2b-2f",
+   "reason": "Anchored volume profile: OpenCandle-defined distribution; repaint exemption checked (2a)."
+  },
+  {
+   "id": "rvat",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Relative volume at time: needs several sessions with the same minute-of-day; timing guardrails on daily and intraday series only."
+  },
+  {
+   "id": "maribbon",
+   "status": "reference-tested",
+   "cases": [
+    "maribbon"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked SMA"
+  },
+  {
+   "id": "bbpb",
+   "status": "reference-tested",
+   "cases": [
+    "bbpb"
+   ],
+   "timing": "2a-2f",
+   "source": "John Bollinger, Bollinger on Bollinger Bands (2001): %b"
+  },
+  {
+   "id": "bbw",
+   "status": "reference-tested",
+   "cases": [
+    "bbw"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "Some charting packages scale BandWidth by 100; OpenCandle documents the unscaled ratio."
+   ],
+   "source": "John Bollinger: BandWidth = (upper - lower) / middle"
+  },
+  {
+   "id": "autofib",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a exemption checked; 2b-2f",
+   "reason": "Levels of the latest completed zig zag leg (OpenCandle kernel); no outside numeric reference. Repaint exemption checked (2a)."
+  },
+  {
+   "id": "adr",
+   "status": "hand-tested",
+   "cases": [
+    "adr-14"
+   ],
+   "timing": "2a-2f",
+   "source": "SMA of high - low"
+  },
+  {
+   "id": "chop",
+   "status": "reference-tested",
+   "cases": [
+    "chop-14"
+   ],
+   "timing": "2a-2f",
+   "source": "E. W. Dreiss, Choppiness index"
+  },
+  {
+   "id": "coppock",
+   "status": "reference-tested",
+   "cases": [
+    "coppock"
+   ],
+   "timing": "2a-2f",
+   "source": "Edwin Coppock (1962)"
+  },
+  {
+   "id": "crsi",
+   "status": "reference-tested",
+   "cases": [
+    "crsi"
+   ],
+   "timing": "2a-2f",
+   "source": "Connors Research, ConnorsRSI (2012)"
+  },
+  {
+   "id": "dpo",
+   "status": "reference-tested",
+   "cases": [
+    "dpo-21"
+   ],
+   "timing": "2a-2f",
+   "source": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/detrended-price-oscillator-dpo (not centered)"
+  },
+  {
+   "id": "eom",
+   "status": "reference-tested",
+   "cases": [
+    "eom-14"
+   ],
+   "timing": "2a-2f",
+   "source": "Richard Arms, Ease of movement (box ratio = (V/10000)/(H-L)), SMA 14"
+  },
+  {
+   "id": "fisher",
+   "status": "reference-tested",
+   "cases": [
+    "fisher-9"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "OpenCandle documents \"limited to +/-0.999\"; the author sets any value beyond 0.99 to 0.999."
+   ],
+   "source": "John Ehlers, Using the Fisher Transform (Stocks & Commodities, Nov 2002): values beyond +/-0.99 are set to +/-0.999"
+  },
+  {
+   "id": "klinger",
+   "status": "hand-tested",
+   "cases": [
+    "klinger"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "TradingView computes KVO from signed volume only (sv = +/-volume by hlc3 change); OpenCandle documents the MetaStock volume-force form."
+   ],
+   "source": "Stephen Klinger, volume force in the MetaStock form (as documented), EMA 34/55, signal EMA 13"
+  },
+  {
+   "id": "kst",
+   "status": "reference-tested",
+   "cases": [
+    "kst"
+   ],
+   "timing": "2a-2f",
+   "source": "Martin Pring, Know Sure Thing (daily: ROC 10/15/20/30, SMA 10/10/10/15, signal 9)"
+  },
+  {
+   "id": "mass",
+   "status": "reference-tested",
+   "cases": [
+    "mass"
+   ],
+   "timing": "2a-2f",
+   "source": "Donald Dorsey, Mass index (EMA 9, sum 25)"
+  },
+  {
+   "id": "mcginley",
+   "status": "reference-tested",
+   "cases": [
+    "mcginley-14"
+   ],
+   "timing": "2a-2f",
+   "source": "John McGinley, McGinley dynamic"
+  },
+  {
+   "id": "netvol",
+   "status": "hand-tested",
+   "cases": [
+    "netvol"
+   ],
+   "timing": "2a-2f",
+   "source": "Signed volume by close change"
+  },
+  {
+   "id": "ppo",
+   "status": "reference-tested",
+   "cases": [
+    "ppo"
+   ],
+   "timing": "2a-2f",
+   "source": "Gerald Appel; https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/price-oscillators-ppo"
+  },
+  {
+   "id": "rvgi",
+   "status": "reference-tested",
+   "cases": [
+    "rvgi-10"
+   ],
+   "timing": "2a-2f",
+   "source": "John Ehlers, Relative vigor index"
+  },
+  {
+   "id": "rvi",
+   "status": "reference-tested",
+   "cases": [
+    "rvi"
+   ],
+   "timing": "2a-2f",
+   "source": "Donald Dorsey (1993), Relative volatility index, Wilder smoothing 14"
+  },
+  {
+   "id": "smiergodic",
+   "status": "reference-tested",
+   "cases": [
+    "smiergodic"
+   ],
+   "timing": "2a-2f",
+   "source": "William Blau, SMI ergodic (TSI 20/5, signal 5)"
+  },
+  {
+   "id": "tsi",
+   "status": "reference-tested",
+   "cases": [
+    "tsi"
+   ],
+   "timing": "2a-2f",
+   "source": "William Blau, Momentum, Direction and Divergence (1995)"
+  },
+  {
+   "id": "vo",
+   "status": "hand-tested",
+   "cases": [
+    "vo"
+   ],
+   "timing": "2a-2f",
+   "source": "Volume oscillator = (EMA5 - EMA10) / EMA10 x 100"
+  },
+  {
+   "id": "vortex",
+   "status": "reference-tested",
+   "cases": [
+    "vortex-14"
+   ],
+   "timing": "2a-2f",
+   "source": "Botes & Siepman (2010), Vortex indicator"
+  },
+  {
+   "id": "alligator",
+   "status": "reference-tested",
+   "cases": [
+    "alligator"
+   ],
+   "timing": "2a-2f",
+   "source": "Bill Williams, Trading Chaos: SMMA of median price, shifted forward"
+  },
+  {
+   "id": "fractals",
+   "status": "reference-tested",
+   "cases": [
+    "fractals"
+   ],
+   "timing": "2a exemption checked; 2b-2f",
+   "source": "Bill Williams fractals (2 bars each side, strict)"
+  },
+  {
+   "id": "woodiescci",
+   "status": "hand-tested",
+   "cases": [
+    "woodiescci"
+   ],
+   "timing": "2a-2f",
+   "source": "Ken Wood: CCI 14 and turbo CCI 6 of the typical price (Lambert CCI)"
+  },
+  {
+   "id": "ad",
+   "status": "reference-tested",
+   "cases": [
+    "ad"
+   ],
+   "timing": "2a-2f",
+   "source": "Marc Chaikin; TA-Lib 0.6 (ta-lib.org), cross-checked AD"
+  },
+  {
+   "id": "chaikinosc",
+   "status": "reference-tested",
+   "cases": [
+    "chaikinosc"
+   ],
+   "timing": "2a-2f",
+   "source": "Marc Chaikin; TA-Lib 0.6 (ta-lib.org), cross-checked ADOSC (first-value EMA seed)"
+  },
+  {
+   "id": "pvt",
+   "status": "hand-tested",
+   "cases": [
+    "pvt"
+   ],
+   "timing": "2a-2f",
+   "source": "Price volume trend, starting on the second bar"
+  },
+  {
+   "id": "bop",
+   "status": "reference-tested",
+   "cases": [
+    "bop"
+   ],
+   "timing": "2a-2f",
+   "source": "Igor Livshin; TA-Lib 0.6 (ta-lib.org), cross-checked BOP"
+  },
+  {
+   "id": "bbpower",
+   "status": "reference-tested",
+   "cases": [
+    "bbpower"
+   ],
+   "timing": "2a-2f",
+   "disagreements": [
+    "OpenCandle power = bull + bear (the combined histogram)."
+   ],
+   "source": "Alexander Elder, Elder-ray (EMA 13)"
+  },
+  {
+   "id": "correlation",
+   "status": "reference-tested",
+   "cases": [
+    "correlation"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked CORREL (Pearson)"
+  },
+  {
+   "id": "relstrength",
+   "status": "hand-tested",
+   "cases": [
+    "relstrength"
+   ],
+   "timing": "2a-2f",
+   "source": "Comparative relative strength and its SMA 20"
+  },
+  {
+   "id": "spread",
+   "status": "hand-tested",
+   "cases": [
+    "spread"
+   ],
+   "timing": "2a-2f",
+   "source": "Chart close - 1 x second symbol close"
+  },
+  {
+   "id": "macross",
+   "status": "reference-tested",
+   "cases": [
+    "macross"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked SMA"
+  },
+  {
+   "id": "volstop",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Stateful OpenCandle trend/stop rule (Wilder Volatility System has no single published bar-by-bar form); timing guardrails only."
+  },
+  {
+   "id": "chopzone",
+   "status": "hand-tested",
+   "cases": [
+    "chopzone"
+   ],
+   "timing": "2a-2f",
+   "source": "Chop zone slope = 100 x EMA change / (highest high - lowest low over 30)"
+  },
+  {
+   "id": "chpall",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpbearflag",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpbullflag",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpcuphandle",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpinvcuphandle",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpdoublebottom",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpdoubletop",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpheadshoulders",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpinvheadshoulders",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpbearpennant",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpbullpennant",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chprectangle",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chptriangle",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chptriplebottom",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chptripletop",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chpfallingwedge",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "chprisingwedge",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlall",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlabandonedbabybear",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlabandonedbabybull",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdldarkcloud",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdldoji",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdldojistarbear",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdldojistarbull",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdldowntasuki",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdldragonfly",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlengulfingbear",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlengulfingbull",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdleveningdojistar",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdleveningstar",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlfallingthree",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlfallingwindow",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlgravestone",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlhammer",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlhangingman",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlharamibear",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlharamibull",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlharamicrossbear",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlharamicrossbull",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlinvertedhammer",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlkickingbear",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlkickingbull",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdllonglowershadow",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdllonguppershadow",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlmarubozublack",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlmarubozuwhite",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlmorningdojistar",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlmorningstar",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlonneck",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlpiercing",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlrisingthree",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlrisingwindow",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlshootingstar",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlspinningtopblack",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlspinningtopwhite",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlthreeblackcrows",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdlthreewhitesoldiers",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdltristarbear",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdltristarbull",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdltweezerbottom",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdltweezertop",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "cdluptasuki",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Candlestick pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "w52hl",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Needs a daily-history lookup on intraday charts; timing guardrails on daily bars only."
+  },
+  {
+   "id": "pivotshl",
+   "status": "hand-tested",
+   "cases": [
+    "pivotshl"
+   ],
+   "timing": "2a exemption checked; 2b-2f",
+   "source": "Swing high/low with 10 bars each side (strict), placed on the pivot bar"
+  },
+  {
+   "id": "chandelier",
+   "status": "hand-tested",
+   "cases": [
+    "chandelier"
+   ],
+   "timing": "2a-2f",
+   "source": "Chuck LeBeau chandelier exit (22, 3 ATR, use close), ratchet and direction rules as documented"
+  },
+  {
+   "id": "kama",
+   "status": "reference-tested",
+   "cases": [
+    "kama"
+   ],
+   "timing": "2a-2f",
+   "source": "Perry Kaufman, Smarter Trading (1995); TA-Lib 0.6 (ta-lib.org), cross-checked KAMA"
+  },
+  {
+   "id": "pricechannel",
+   "status": "reference-tested",
+   "cases": [
+    "pricechannel"
+   ],
+   "timing": "2a-2f",
+   "source": "Price channel excluding the current bar"
+  },
+  {
+   "id": "lrslope",
+   "status": "reference-tested",
+   "cases": [
+    "lrslope"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked LINEARREG_SLOPE"
+  },
+  {
+   "id": "median",
+   "status": "hand-tested",
+   "cases": [
+    "median"
+   ],
+   "timing": "2a-2f",
+   "source": "Rolling median, its EMA and ATR bands (as documented)"
+  },
+  {
+   "id": "chandekroll",
+   "status": "reference-tested",
+   "cases": [
+    "chandekroll"
+   ],
+   "timing": "2a-2f",
+   "source": "Chande & Kroll, The New Technical Trader (1994)"
+  },
+  {
+   "id": "ulcer",
+   "status": "reference-tested",
+   "cases": [
+    "ulcer"
+   ],
+   "timing": "2a-2f",
+   "source": "Peter Martin (1987) Ulcer index"
+  },
+  {
+   "id": "bbtrend",
+   "status": "reference-tested",
+   "cases": [
+    "bbtrend"
+   ],
+   "timing": "2a-2f",
+   "source": "John Bollinger, BBTrend"
+  },
+  {
+   "id": "guppy",
+   "status": "reference-tested",
+   "cases": [
+    "guppy"
+   ],
+   "timing": "2a-2f",
+   "source": "Daryl Guppy GMMA"
+  },
+  {
+   "id": "sebands",
+   "status": "reference-tested",
+   "cases": [
+    "sebands"
+   ],
+   "timing": "2a-2f",
+   "source": "Jon Andersen (1996), Standard error bands"
+  },
+  {
+   "id": "aroonosc",
+   "status": "reference-tested",
+   "cases": [
+    "aroonosc-14"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked AROONOSC"
+  },
+  {
+   "id": "techrating",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Composite of 26 votes (OpenCandle simplified rating); timing guardrails only."
+  },
+  {
+   "id": "updownvolume",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Needs actual intrabar history; timing guardrails with synthetic 6h intrabars only."
+  },
+  {
+   "id": "volumedelta",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Needs actual intrabar history; timing guardrails with synthetic 6h intrabars only."
+  },
+  {
+   "id": "cvd",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Needs actual intrabar history; timing guardrails with synthetic 6h intrabars only."
+  },
+  {
+   "id": "visibleavg",
+   "status": "hand-tested",
+   "cases": [
+    "visibleavg"
+   ],
+   "timing": "2a exemption checked; 2b-2f",
+   "source": "Mean close of the visible bars (visible range = every loaded bar)"
+  },
+  {
+   "id": "smi",
+   "status": "reference-tested",
+   "cases": [
+    "smi"
+   ],
+   "timing": "2a-2f",
+   "source": "William Blau, Stochastic momentum index"
+  },
+  {
+   "id": "rci",
+   "status": "reference-tested",
+   "cases": [
+    "rci-12"
+   ],
+   "timing": "2a-2f",
+   "source": "Spearman rank correlation x 100 (tie-averaged ranks)"
+  },
+  {
+   "id": "trendstrength",
+   "status": "reference-tested",
+   "cases": [
+    "trendstrength"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked CORREL(close, bar index)"
+  },
+  {
+   "id": "twap",
+   "status": "hand-tested",
+   "cases": [
+    "twap-daily"
+   ],
+   "session": "2e: mean ohlc4 over the NY date / UTC day",
+   "timing": "2a-2f",
+   "source": "TWAP anchor 1D on daily bars: one bar per period, so TWAP = ohlc4"
+  },
+  {
+   "id": "asi",
+   "status": "hand-tested",
+   "cases": [
+    "asi"
+   ],
+   "timing": "2a-2f",
+   "source": "J. Welles Wilder (1978) swing index, limit move 10, running total"
+  },
+  {
+   "id": "accelosc",
+   "status": "reference-tested",
+   "cases": [
+    "accelosc"
+   ],
+   "timing": "2a-2f",
+   "source": "Bill Williams, Accelerator oscillator"
+  },
+  {
+   "id": "chaikinvol",
+   "status": "reference-tested",
+   "cases": [
+    "chaikinvol"
+   ],
+   "timing": "2a-2f",
+   "source": "Marc Chaikin volatility"
+  },
+  {
+   "id": "seq913",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "hullsuite",
+   "status": "reference-tested",
+   "cases": [
+    "hullsuite"
+   ],
+   "timing": "2a-2f",
+   "source": "Alan Hull HMA(55): WMA(2 WMA(27) - WMA(55), round(sqrt 55) = 7); band against the value two bars earlier"
+  },
+  {
+   "id": "kdj",
+   "status": "reference-tested",
+   "cases": [
+    "kdj"
+   ],
+   "timing": "2a-2f",
+   "source": "KDJ, K and D start at 50"
+  },
+  {
+   "id": "rciribbon",
+   "status": "hand-tested",
+   "cases": [
+    "rciribbon"
+   ],
+   "timing": "2a-2f",
+   "source": "Three RCIs (10, 30, 50) of the close"
+  },
+  {
+   "id": "vol24h",
+   "status": "hand-tested",
+   "cases": [
+    "vol24h"
+   ],
+   "timing": "2a-2f",
+   "source": "Trailing 24-hour volume; on daily bars the window holds only the current bar"
+  },
+  {
+   "id": "machannel",
+   "status": "hand-tested",
+   "cases": [
+    "machannel"
+   ],
+   "timing": "2a-2f",
+   "source": "SMA(high, 20) / SMA(low, 20)"
+  },
+  {
+   "id": "stderror",
+   "status": "hand-tested",
+   "cases": [
+    "stderror"
+   ],
+   "timing": "2a-2f",
+   "source": "Standard error of the estimate, n - 2"
+  },
+  {
+   "id": "mahamming",
+   "status": "reference-tested",
+   "cases": [
+    "mahamming"
+   ],
+   "timing": "2a-2f",
+   "source": "Hamming window w(k) = 0.54 - 0.46 cos(2 pi k / (N - 1))"
+  },
+  {
+   "id": "majority",
+   "status": "hand-tested",
+   "cases": [
+    "majority"
+   ],
+   "timing": "2a-2f",
+   "source": "Percent of up closes over 14 bars"
+  },
+  {
+   "id": "volzt",
+   "status": "reference-tested",
+   "cases": [
+    "volzt"
+   ],
+   "timing": "2a-2f",
+   "source": "Zero-mean close-to-close volatility"
+  },
+  {
+   "id": "typprice",
+   "status": "reference-tested",
+   "cases": [
+    "typprice"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked TYPPRICE"
+  },
+  {
+   "id": "avgprice",
+   "status": "reference-tested",
+   "cases": [
+    "avgprice"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked AVGPRICE"
+  },
+  {
+   "id": "medprice",
+   "status": "reference-tested",
+   "cases": [
+    "medprice"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked MEDPRICE"
+  },
+  {
+   "id": "gaps",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "bbars",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "moonphases",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "rbintrapivots",
+   "status": "hand-tested",
+   "cases": [],
+   "session": "2e: P from the prior NY trading date / UTC day",
+   "timing": "2a-2f"
+  },
+  {
+   "id": "rbknoxville",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "rbmissedpivots",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "rbreversal",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "rbzivpivots",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Developing floor pivots of the current period; timing guardrails only."
+  },
+  {
+   "id": "autofibext",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a exemption checked; 2b-2f",
+   "reason": "Three latest zig zag pivots (OpenCandle kernel); no outside numeric reference. Repaint exemption checked (2a)."
+  },
+  {
+   "id": "autopitchfork",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a exemption checked; 2b-2f",
+   "reason": "Three latest zig zag pivots (OpenCandle kernel); no outside numeric reference. Repaint exemption checked (2a)."
+  },
+  {
+   "id": "volcc",
+   "status": "reference-tested",
+   "cases": [
+    "volcc"
+   ],
+   "timing": "2a-2f",
+   "source": "Close-to-close estimator (sample)"
+  },
+  {
+   "id": "volohlc",
+   "status": "reference-tested",
+   "cases": [
+    "volohlc"
+   ],
+   "timing": "2a-2f",
+   "source": "Garman & Klass (1980)"
+  },
+  {
+   "id": "volindex",
+   "status": "reference-tested",
+   "cases": [
+    "volindex"
+   ],
+   "timing": "2a-2f",
+   "source": "Larry Williams, The VIX Fix (2007)"
+  },
+  {
+   "id": "mamultiple",
+   "status": "reference-tested",
+   "cases": [
+    "mamultiple"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked SMA"
+  },
+  {
+   "id": "emacross",
+   "status": "hand-tested",
+   "cases": [
+    "emacross"
+   ],
+   "timing": "2a-2f",
+   "source": "EMA 9 / EMA 26 (first-value seed)"
+  },
+  {
+   "id": "smiergodicosc",
+   "status": "reference-tested",
+   "cases": [
+    "smiergodicosc"
+   ],
+   "timing": "2a-2f",
+   "source": "William Blau, SMI ergodic oscillator"
+  },
+  {
+   "id": "ratio",
+   "status": "hand-tested",
+   "cases": [
+    "ratio"
+   ],
+   "timing": "2a-2f",
+   "source": "Chart close / second symbol close (second symbol: deterministic transform, tests/reference/context.ts)"
+  },
+  {
+   "id": "correlationlog",
+   "status": "reference-tested",
+   "cases": [
+    "correlationlog"
+   ],
+   "timing": "2a-2f",
+   "source": "TA-Lib 0.6 (ta-lib.org), cross-checked CORREL of log returns"
+  },
+  {
+   "id": "mtfcandles",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "performance",
+   "status": "hand-tested",
+   "cases": [
+    "performance"
+   ],
+   "timing": "2a-2f",
+   "source": "Return = 100 x (close / reference close - 1); reference = newest bar at or before the same instant 1 week / n calendar months earlier; YTD vs the newest bar before 1 January UTC"
+  },
+  {
+   "id": "tradingsessions",
+   "status": "untested",
+   "cases": [],
+   "timing": "not headless",
+   "reason": "Needs configured clock windows on an intraday chart; the default instance has no session enabled. Not headless-tested."
+  },
+  {
+   "id": "seasonality",
+   "status": "untested",
+   "cases": [],
+   "timing": "not headless",
+   "reason": "Requires the chart-owned original candle source service; refuses bare bars by design. Not headless-tested."
+  },
+  {
+   "id": "autotrendlines",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "autoelliott",
+   "status": "untested",
+   "cases": [],
+   "timing": "2a-2f",
+   "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  }
+ ]
+}

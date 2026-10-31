@@ -38,8 +38,20 @@ user-data/
 
 # Editors and OS files
 .vscode/
-.claude/
 .idea/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Tool and agent settings (local only)
+.claude/
+.claude-work/
+.codex/
+.cursor/
+.continue/
+.aider*
+.windsurf/
+CLAUDE.local.md
+AGENTS.local.md
+.mcp.json
+*.local.json

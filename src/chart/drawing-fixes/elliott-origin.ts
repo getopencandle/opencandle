@@ -45,6 +45,8 @@ export function originWaveClass(Base:new(init:Init)=>PatternModel,type:string,la
    if(isLegacyWaveRecord(init,labels.length))this.anchors=migrateLegacyWave(this.anchors);
   }
   vertexLabels():string[]{return [...all];}
+  /** Wave labels sit on label pills (LV-VELA-DRAWING-FIXES-1 pattern painter). */
+  lvLabelPills():boolean{return true;}
   protected writeProps():Record<string,unknown>{return{...((super.writeProps() as Record<string,unknown>|undefined)??{}),[ELLIOTT_ORIGIN_FIELD]:1};}
  };
  Object.defineProperty(Wave.prototype,ORIGIN_MARK,{value:true,enumerable:false});

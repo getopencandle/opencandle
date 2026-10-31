@@ -15,10 +15,17 @@
 //    (read by the LV-VELA-DRAWING-FIXES-1 painter through lvPriceText) use the instrument tick decimals (./price-format.ts).
 //  * Ray and Info line keep their native factory (the drawing-factory-defaults seed wrapper): a model it builds adopts the fixed
 //    subclass prototype, which adds methods only (no fields, no constructor work).
+//  * Trend-based fib extension: levels project the A-B move from C (C + r(B - A)) and run from C to the right; a dashed
+//    grey A-B-C path shows what is measured (the type paints itself through LV-VELA-DRAWING-PAINT-HOOK-1).
 //  * Fib arcs: centred on the second point (the end of the measured move), as in the classic definition, so each arc crosses
 //    the trend line at its retracement ratio measured back from the end of the move.
-//  * Default level additions (new drawings only; saved levels never change): Trend-based fib extension 0.236, 0.786, 3.618
-//    and 4.236; Fib time zones 55 and 89.
+//  * Labels (second round, painters in LV-VELA-DRAWING-FIXES-1): Head and shoulders vertex labels sit on label pills
+//    (lvLabelPills; the Elliott waves ask for them in ./elliott-origin.ts); Callout, Comment and Note text wraps at
+//    DRAWING_TEXT_WRAP_WIDTH (lvWrapWidth), and their hit box follows the wrapped text.
+//  * Regression trend: Upper and Lower deviation inputs (default 2, the native fixed band) and the fit statistic shown as
+//    Pearson's R (the signed correlation of close with bar index, the reading a regression trend reports; lvFitLabel).
+//  * Default level additions (new drawings only; saved levels never change): Trend-based fib extension 0.236, 0.786, 1.272,
+//    3.618 and 4.236; Fib time zones 55 and 89.
 //
 // Elliott waves (an origin point) live in ./elliott-origin.ts; they register after the OpenCandle wave and pattern modules,
 // which pin the native labels.
@@ -28,6 +35,9 @@ import type {LvDrawingToolModule,LvTypeDefinition} from '../lv-types/contract';
 import {defineLvDrawingToolModule} from '../lv-types/contract';
 import {barMidX,barStepX,channelLineY,directedRay,segmentDistance,type Segment} from './geometry';
 import {drawingPriceDecimals,formatDrawingPrice,formatSignedDrawingPrice} from './price-format';
+import {DRAWING_TEXT_WRAP_WIDTH,wrapTextLines} from './text-wrap';
+import {REGRESSION_DEFAULT_DEVIATION,regressionDeviation} from './regression-deviation';
+export {REGRESSION_DEFAULT_DEVIATION,regressionDeviation};
 
 type Anchor={time:number;price:number};
 type Level={ratio:number;color:string;enabled:boolean;label?:string};
@@ -302,7 +312,15 @@ function defineFibExtension():DrawingTypeMeta{
  return meta(base,init=>new LvFibExtension(init));
 }
 /** Standard trend-based extension levels added to new drawings (the native set has 0, 0.382, 0.5, 0.618, 1, 1.618, 2.618). */
-export const TREND_EXTENSION_ADDED_LEVELS:readonly number[]=Object.freeze([0.236,0.786,3.618,4.236]);
+export const TREND_EXTENSION_ADDED_LEVELS:readonly number[]=Object.freeze([0.236,0.786,1.272,3.618,4.236]);
+/** The dashed A-B-C path colour (a neutral grey that reads on light and dark backgrounds). */
+export const TREND_EXTENSION_PATH_COLOR='#808080';
+const NAMED_SIZE:Readonly<Record<string,number>>={tiny:10,small:12,normal:14,large:18,huge:28};
+const namedSize=(size:unknown)=>typeof size==='string'&&Object.hasOwn(NAMED_SIZE,size)?NAMED_SIZE[size]:12;
+function strokeLine(ctx:CanvasRenderingContext2D,style:{lineColor:string;lineWidth:number;lineStyle:string},points:readonly (readonly [number,number])[]):void{
+ const w=Math.max(1,style.lineWidth);ctx.strokeStyle=style.lineColor;ctx.lineWidth=style.lineWidth;ctx.setLineDash(style.lineStyle==='dotted'?[w,w*2]:style.lineStyle==='dashed'?[w*4,w*3]:[]);
+ ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);for(const p of points.slice(1))ctx.lineTo(p[0],p[1]);ctx.stroke();ctx.setLineDash([]);
+}
 function defineFibExtensionTrend():DrawingTypeMeta{
  const base=pinned('fibextensiontrend',['entryLines','defaultLevels','priceRange']);
  const Base=base.ctor as unknown as new(init:Init)=>FibModel;
@@ -314,10 +332,44 @@ function defineFibExtensionTrend():DrawingTypeMeta{
    const levels=super.defaultLevels(),color=(ratio:number)=>[...levels].sort((p,q)=>Math.abs(p.ratio-ratio)-Math.abs(q.ratio-ratio))[0]?.color??'#787b86';
    return[...levels,...TREND_EXTENSION_ADDED_LEVELS.filter(r=>!levels.some(lv=>lv.ratio===r)).map(ratio=>({ratio,color:color(ratio),enabled:true}))].sort((p,q)=>p.ratio-q.ratio);
   }
+  /** Levels project the A-B move from C (price C + r * (B - A)) and run from C to the right, one A-B bar span long (to the
+   *  pane edge with Extend right). While only A and B are placed, nothing is projected yet. */
   entryLines(proj:Projector){
-   const rows=super.entryLines(proj),[a,b,c]=this.anchors;if(!rows||!a||!b||!c)return rows;
-   const ratios=this.levels.filter(lv=>lv.enabled&&proj.yOf(c.price+lv.ratio*(b.price-a.price),this.paneId)!=null).map(lv=>lv.ratio);
-   return rows.map((row,i)=>ratios[i]===undefined?row:{...row,numberText:`${ratios[i]} (${formatDrawingPrice(c.price+ratios[i]*(b.price-a.price),this)})`});
+   const [a,b,c]=this.anchors;if(!a||!b||!c)return null;
+   const xa=proj.xOf(a.time),xb=proj.xOf(b.time),xc=proj.xOf(c.time);
+   if(![xa,xb,xc].every(Number.isFinite))return null;
+   const x1=xc,x2=(this.style as {extendRight?:boolean}).extendRight?proj.width:xc+Math.max(40,Math.abs(xb-xa)),move=b.price-a.price,out:Entry[]=[];
+   for(const lv of this.levels){
+    if(!lv.enabled)continue;
+    const price=c.price+lv.ratio*move,y=proj.yOf(price,this.paneId);if(y==null)continue;
+    out.push({color:lv.color,...(lv.label?{label:lv.label}:{}),x1,y1:y,x2,y2:y,numberText:`${lv.ratio} (${formatDrawingPrice(price,this)})`,numberX:x1+4,numberY:y-7,numberAlign:'left',labelX:(x1+x2)/2,labelY:y-7});
+   }
+   return out;
+  }
+  /** The dashed A-B-C path the levels are measured on (two points while placing). */
+  trendPath(proj:Projector):[number,number][]|null{
+   const out:[number,number][]=[];for(const anchor of this.anchors.slice(0,3)){const p=px(this,proj,anchor);if(!p)return null;out.push(p);}
+   return out.length>=2?out:null;
+  }
+  hitTest(px0:number,py0:number,proj:Projector,tol:number):boolean{
+   if(super.hitTest(px0,py0,proj,tol))return true;
+   const path=this.trendPath(proj);if(!path)return false;
+   for(let i=1;i<path.length;i++)if(segmentDistance(px0,py0,path[i-1][0],path[i-1][1],path[i][0],path[i][1])<=tol)return true;
+   return false;
+  }
+  /** The dashed path, then the level lines exactly as the native Fibonacci painter draws them. */
+  lvPaint(ctx:CanvasRenderingContext2D,proj:Projector,theme:{fontFamily:string}):void{
+   const path=this.trendPath(proj);
+   if(path)strokeLine(ctx,{lineColor:TREND_EXTENSION_PATH_COLOR,lineWidth:1,lineStyle:'dashed'},path);
+   const lines=this.entryLines(proj);if(!lines||!lines.length)return;
+   const style=this.style as {lineColor:string;lineWidth:number;lineStyle:string},sizes=this as unknown as {numbersSize?:string;labelsSize?:string};
+   ctx.textBaseline='middle';
+   for(const l of lines){
+    strokeLine(ctx,{...style,lineColor:l.color},[[l.x1,l.y1],[l.x2,l.y2]]);
+    ctx.fillStyle=l.color;ctx.font=`${namedSize(sizes.numbersSize)}px ${theme.fontFamily}`;ctx.textAlign=l.numberAlign as CanvasTextAlign;ctx.fillText(l.numberText,l.numberX,l.numberY);
+    if(l.label){ctx.font=`${namedSize(sizes.labelsSize)}px ${theme.fontFamily}`;ctx.textAlign='center';ctx.fillText(l.label,l.labelX,l.labelY);}
+   }
+   ctx.textAlign='left';ctx.textBaseline='alphabetic';
   }
  }
  Object.defineProperties(LvFibExtensionTrend.prototype,FIXED);
@@ -348,7 +400,11 @@ function defineFibArcs():DrawingTypeMeta{
  const r=new Base(probeInit([{time:100,price:500},{time:200,price:500}])).radial(LINEAR);
  if(!r||r.cx!==100||r.R0!==100)fail('fib arcs geometry changed');
  class LvFibArcs extends Base{
-  /** Centre on the second point; the half circle opens back toward the first point. */
+  /** Centre on the second point; the half circle opens back toward the first point. Source: the arcs are "centered on the
+   *  second extreme point" and cross the trend line at the Fibonacci ratios (MetaTrader 5 Help, Fibonacci Arcs,
+   *  https://www.metatrader5.com/en/terminal/help/objects/fibo/fibo_arcs; Barchart Trader Help, Fibonacci Arc,
+   *  https://www.barchart.com/trader/help/chart/fibonacci_arcs.php; Fidelity Learning Center, Fibonacci Arc, "measured from
+   *  the second extreme point"). */
   radial(proj:Projector){
    const [s,e]=this.anchors,S=px(this,proj,s),E=px(this,proj,e);if(!S||!E)return null;
    const R0=Math.hypot(S[0]-E[0],S[1]-E[1]),phi=Math.atan2(S[1]-E[1],S[0]-E[0]);
@@ -357,6 +413,84 @@ function defineFibArcs():DrawingTypeMeta{
  }
  Object.defineProperties(LvFibArcs.prototype,FIXED);
  return meta(base,init=>new LvFibArcs(init));
+}
+
+// ---------------------------------------------------------------- labels
+
+function defineHeadShoulders():DrawingTypeMeta{
+ const base=pinned('headshoulders',['vertexLabels','necklineIndices']);
+ class LvHeadShoulders extends (base.ctor as unknown as new(init:Init)=>NativeModel){lvLabelPills():boolean{return true;}}
+ Object.defineProperties(LvHeadShoulders.prototype,FIXED);
+ return meta(base,init=>new LvHeadShoulders(init));
+}
+type Box={x:number;y:number;w:number;h:number};
+type TextModel=NativeModel&{text?:{value?:string;size?:string};labelText():string;box(proj:Projector):Box|null};
+const SIZE_PX:Readonly<Record<string,number>>={tiny:10,small:12,normal:14,large:18,huge:24,auto:14};
+/** The native approximate box (0.6 em per character), re-measured on the wrapped lines. */
+export function wrappedTextBox(text:string,size:string|undefined,box:Box,centred:boolean):Box{
+ const fs=SIZE_PX[size??'normal']??14,measure=(line:string)=>line.length*fs*0.6;
+ const lines=wrapTextLines(text.split('\n'),DRAWING_TEXT_WRAP_WIDTH,measure),cols=Math.max(1,...lines.map(line=>line.length));
+ const w=centred?Math.max(20,cols*fs*0.6)+16:Math.max(12,cols*fs*0.6)+8,h=centred?lines.length*fs*1.4+12:lines.length*fs*1.4+4;
+ return centred?{x:box.x+box.w/2-w/2,y:box.y+box.h/2-h/2,w,h}:{x:box.x,y:box.y,w,h};
+}
+function defineWrapped(type:'callout'|'comment'|'note'):DrawingTypeMeta{
+ const base=pinned(type,['box','labelText','hitTest']);
+ const centred=type!=='note';
+ class LvWrapped extends (base.ctor as unknown as new(init:Init)=>TextModel){
+  lvWrapWidth():number{return DRAWING_TEXT_WRAP_WIDTH;}
+  box(proj:Projector):Box|null{const box=super.box(proj);return box?wrappedTextBox(this.labelText(),this.text?.size,box,centred):box;}
+ }
+ Object.defineProperties(LvWrapped.prototype,FIXED);
+ return adopting(base,LvWrapped);
+}
+
+// ---------------------------------------------------------------- regression trend
+
+export interface RegressionFit{t0:number;t1:number;mid0:number;mid1:number;dev:number;up:number;down:number;r:number;r2:number;n:number}
+/** Least-squares fit of close on bar index, the residual standard deviation times each deviation input, and Pearson's r. */
+export function regressionFit(bars:readonly {time:number;close:number}[],upper=REGRESSION_DEFAULT_DEVIATION,lower=REGRESSION_DEFAULT_DEVIATION):RegressionFit|null{
+ const n=bars.length;if(n<2)return null;
+ let sx=0,sy=0,sxy=0,sxx=0,syy=0;
+ for(let i=0;i<n;i++){const y=bars[i].close;sx+=i;sy+=y;sxy+=i*y;sxx+=i*i;syy+=y*y;}
+ const denom=n*sxx-sx*sx,slope=denom===0?0:(n*sxy-sx*sy)/denom,intercept=(sy-slope*sx)/n;
+ let sse=0;for(let i=0;i<n;i++){const e=bars[i].close-(intercept+slope*i);sse+=e*e;}
+ const sigma=Math.sqrt(sse/n),den=Math.sqrt(denom*(n*syy-sy*sy)),r=den===0?0:Math.max(-1,Math.min(1,(n*sxy-sx*sy)/den));
+ return{t0:bars[0].time,t1:bars[n-1].time,mid0:intercept,mid1:intercept+slope*(n-1),dev:upper*sigma,up:upper*sigma,down:lower*sigma,r,r2:r*r,n};
+}
+/** Pearson's R as the regression trend writes it. */
+export const pearsonLabel=(r:number):string=>"Pearson's R "+(Number.isFinite(r)?r.toFixed(2):'0.00');
+type RegressionModel=NativeModel&{reg:Record<string,unknown>;cachedRange:{min:number;max:number}|null};
+function defineRegression():DrawingTypeMeta{
+ const base=pinned('regressionchannel',['fit','layout','band','hitTest','schema','readProps','writeProps']);
+ const Base=base.ctor as unknown as new(init:Init)=>RegressionModel;
+ if(!new Base(probeInit([])).schema().fields.some(field=>field.path==='reg.showR2'))fail('regression trend settings changed');
+ class LvRegression extends Base{
+  fit(proj:Projector):RegressionFit|null{
+   const [a,b]=this.anchors;if(!a||!b)return null;
+   const read=(proj as {barsInRange?:(from:number,to:number)=>{time:number;close:number}[]|null}).barsInRange;
+   const bars=read?read(Math.min(a.time,b.time),Math.max(a.time,b.time)):null;
+   const f=bars?regressionFit(bars,regressionDeviation(this.reg.upperDeviation),regressionDeviation(this.reg.lowerDeviation)):null;
+   if(f)this.cachedRange={min:Math.min(f.mid0,f.mid1)-f.down,max:Math.max(f.mid0,f.mid1)+f.up};
+   return f;
+  }
+  layout(proj:Projector){
+   const f=this.fit(proj);if(!f)return null;
+   const y=(price:number)=>proj.yOf(price,this.paneId);
+   const midY0=y(f.mid0),midY1=y(f.mid1),upperY0=y(f.mid0+f.up),upperY1=y(f.mid1+f.up),lowerY0=y(f.mid0-f.down),lowerY1=y(f.mid1-f.down);
+   if(midY0==null||midY1==null||upperY0==null||upperY1==null||lowerY0==null||lowerY1==null)return null;
+   return{x0:proj.xOf(f.t0),x1:proj.xOf(f.t1),midY0,midY1,upperY0,upperY1,lowerY0,lowerY1,r:f.r,r2:f.r2,showR2:this.reg.showR2};
+  }
+  lvFitLabel(layout:{r?:number}):string{return pearsonLabel(layout.r??0);}
+  schema(){
+   const own=super.schema();
+   return{...own,fields:[
+    {path:'reg.upperDeviation',label:'Upper deviation',kind:'number' as const,group:'behavior' as const,min:0,max:50,step:0.1},
+    {path:'reg.lowerDeviation',label:'Lower deviation',kind:'number' as const,group:'behavior' as const,min:0,max:50,step:0.1},
+    ...own.fields.map(field=>field.path==='reg.showR2'?{...field,label:"Show Pearson's R"}:field)]};
+  }
+ }
+ Object.defineProperties(LvRegression.prototype,FIXED);
+ return meta(base,init=>new LvRegression(init));
 }
 
 const replace=(type:string,define:()=>DrawingTypeMeta):LvTypeDefinition=>({type,base:type,define,replacesNative:true});
@@ -373,10 +507,17 @@ export const DRAWING_FIXES_081_MODULE:LvDrawingToolModule=defineLvDrawingToolMod
   replace('gannsquare',()=>defineGannGrid('gannsquare')),
   replace('parallelchannel',defineParallelChannel),
   replace('fibextension',defineFibExtension),
-  replace('fibextensiontrend',defineFibExtensionTrend),
+  {type:'fibextensiontrend',base:'fibextensiontrend',define:defineFibExtensionTrend,replacesNative:true,requiresPaintHook:true},
   replace('datepricerange',defineDatePriceRange),
   replace('fibarcs',defineFibArcs),
   replace('ray',defineRay),
   replace('infoline',defineInfoLine),
+  replace('headshoulders',defineHeadShoulders),
+  replace('regressionchannel',defineRegression),
  ],
+});
+/** Registered AFTER the OpenCandle tool modules: Pin and Table build on the native Note and keep its plain box. */
+export const DRAWING_FIXES_081_LATE_MODULE:LvDrawingToolModule=defineLvDrawingToolModule({
+ id:'drawing-fixes-081-late',
+ types:(['callout','comment','note'] as const).map(type=>replace(type,()=>defineWrapped(type))),
 });

@@ -81,7 +81,7 @@ describe('LV-VELA-HARMONIC-RATIOS-1 pattern ratio labels',()=>{
   const {sourceHash}=await installed(),plan=patchPlan as any;
   const chunk=plan.files.find((row:any)=>row.path==='dist/chunk-UNUVPQFW.js');expect(sourceHash).toBe(chunk.afterSha256);
   for(const row of plan.files.filter((r:any)=>/\.(c?js)$/.test(r.path))){
-   expect(row.transformations.slice(-4,-2).map((s:any)=>s.id)).toEqual([...harmonicStepIds]);expect(row.transformations.slice(-2).map((s:any)=>s.id)).toEqual([...drawingFixStepIds]);
+   expect(row.transformations.slice(-14,-12).map((s:any)=>s.id)).toEqual([...harmonicStepIds]);expect(row.transformations.slice(-12).map((s:any)=>s.id)).toEqual([...drawingFixStepIds]);
    const source=readFileSync(resolve('node_modules/@luxalgo/vela',row.path),'utf8');
    expect(source).toContain('/*! LarryVision LV-VELA-HARMONIC-RATIOS-1');expect(source).not.toContain('ctx.fillText(r.toFixed(3), (a[0] + b[0]) / 2 + 6');
   }

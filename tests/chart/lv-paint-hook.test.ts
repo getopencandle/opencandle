@@ -4,6 +4,8 @@ import {resolve,dirname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {createHash,randomUUID} from 'node:crypto';
 import {createDrawing,deserializeDrawing,drawingTypes,getDrawingType,type DrawingTypeMeta,type SerializedDrawing} from '@luxalgo/vela';
+import {DRAWING_FIXES_081_LATE_MODULE,DRAWING_FIXES_081_MODULE} from '../../src/chart/drawing-fixes/native-fixes';
+import {ELLIOTT_ORIGIN_081_MODULE} from '../../src/chart/drawing-fixes/elliott-origin';
 import {LV_DRAWING_TYPE_IDS,lvDrawingTypeStatus,registerLvDrawingToolModules} from '../../src/chart/lv-drawing-types';
 import {cloneStyle,lvKey,method,nativeBase,roles,fail,type Init,type NativeModel,type Projector} from '../../src/chart/lv-drawing-pin';
 import {LV_PAINT_HOOK_COMPONENT,LV_PAINT_HOOK_LINE,LV_PAINT_HOOK_NODE_FILES,confirmPaintHook,installedPaintHook,painterSourceCarriesHook,paintHookStatus,type LvPaintTheme} from '../../src/chart/lv-paint-hook';
@@ -31,7 +33,8 @@ import {LV_DRAWING_TOOL_MODULES} from '../../src/chart/lv-types';
 // byte-identically with the patched painter and with the prior COMPAT-3 painter.
 const PROBE:string='lvdwgap0probe',T0=1_000_000;
 /** Production LV types registered on the hook route (they own lvPaint by design, so they are not native types). */
-const LV_HOOK_TYPES:ReadonlySet<string>=new Set(LV_DRAWING_TOOL_MODULES.flatMap(module=>(module.types??[]).filter(type=>type.requiresPaintHook).map(type=>type.type)));
+// The 0.8.1 drawing fixes (src/chart/drawing-fixes) register paint hook types too (Trend-based fib extension).
+const LV_HOOK_TYPES:ReadonlySet<string>=new Set([...LV_DRAWING_TOOL_MODULES,DRAWING_FIXES_081_MODULE,DRAWING_FIXES_081_LATE_MODULE,ELLIOTT_ORIGIN_081_MODULE].flatMap(module=>(module.types??[]).filter(type=>type.requiresPaintHook).map(type=>type.type)));
 const theme:LvPaintTheme={fontFamily:'sans-serif',background:'#101010',textColor:'#ffffff'};
 
 function defineProbe():DrawingTypeMeta{
@@ -73,7 +76,7 @@ async function compat3Painter(){
  expect(current.split(step.after)).toHaveLength(2);
  const source=current.replace(step.after,step.before);
  expect(createHash('sha256').update(source).digest('hex')).toBe(row.compat3Sha256);
- // LV-VELA-HARMONIC-RATIOS-1 deliberately repaints pattern ratios and LV-VELA-DRAWING-FIXES-1 the ray and info line; the prior painter keeps them so this comparison isolates the paint hook.
+ // LV-VELA-HARMONIC-RATIOS-1 deliberately repaints pattern ratios and LV-VELA-DRAWING-FIXES-1 the ray, info line, measure, pattern label, text wrap and regression label painting; the prior painter keeps them so this comparison isolates the paint hook.
  let prior=source;for(const id of [...harmonicStepIds,...drawingFixStepIds]){const later=(row.transformations as Array<{id:string;before:string;after:string}>).find(item=>item.id===id)!;expect(prior.split(later.before)).toHaveLength(2);prior=prior.replace(later.before,()=>later.after);}
  const temporary=resolve('.tmp',`lv-dwgap0-compat3-${randomUUID()}.mjs`);mkdirSync(dirname(temporary),{recursive:true});
  try{

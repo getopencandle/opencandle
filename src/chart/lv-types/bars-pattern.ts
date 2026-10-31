@@ -232,7 +232,9 @@ function defineBarsPattern():DrawingTypeMeta{
    ctx.restore();
   }
  }
- return{type:lvKey(LV_BARS_PATTERN),group:base.meta.group,label:'Bars pattern',icon:base.meta.icon,defaultStyle:cloneStyle(base.meta),create:init=>new LvBarsPattern(init)};
+ // 0.8.1: a new pattern starts above the price series (coversSeries), so the copied bars show over their own source candles
+ // instead of hiding under them (the gallery saw nothing after placement).
+ return{type:lvKey(LV_BARS_PATTERN),group:base.meta.group,label:'Bars pattern',icon:base.meta.icon,defaultStyle:cloneStyle(base.meta),coversSeries:true,create:init=>new LvBarsPattern(init)};
 }
 
 export const BARS_PATTERN_MODULE=defineLvDrawingToolModule({

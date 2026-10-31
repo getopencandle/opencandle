@@ -77,7 +77,7 @@ describe('LV-VELA-FORWARD-1 plan',()=>{
   expect([...compat9StepIds]).toEqual(['forward-helper','forward-autoscale-series','forward-autoscale-range','forward-gl-range','forward-gl-fill','forward-gl-series','forward-canvas-range','forward-canvas-fill','forward-canvas-series']);
   for(const row of plan.files as any[]){
    if(!row.path.endsWith('.js')&&!row.path.endsWith('.cjs')){expect(row.afterSha256).toBe(row.compat8Sha256);continue;}
-   expect(row.transformations.slice(-35,-26).map((s:any)=>s.id)).toEqual([...compat9StepIds]);
+   expect(row.transformations.slice(-45,-36).map((s:any)=>s.id)).toEqual([...compat9StepIds]);
    expect(row.transformations.find((s:any)=>s.id==='forward-helper').after).toContain('/*! LarryVision LV-VELA-FORWARD-1 modification, 2026-10-22.');
   }
  });

@@ -28,7 +28,7 @@
       "path": "dist/chunk-UNUVPQFW.js",
       "beforeSha256": "64b30329ebd75b5b1207ef3765d1ce8dffaf4c267d36ded3d9290e588249ddea",
       "magnetSha256": "ffd29906030d486cfbb5f1ee390bd04191fb095146a2bb1bf0bf672179c3dc1d",
-      "afterSha256": "0ed0a8d0a909cb54c0097e5d157e641efa4761dfb03cacebb39ecc1995c499f3",
+      "afterSha256": "1832fff6359c0d292becf089f4d3372e2e014439a9ad79afc941cbf804a4f9e5",
       "compat5Sha256": "78660487c57cf594f405d14c67ab3e18f4fe6b1dc6046fbb29a86e12bb74fb39",
       "compat2Sha256": "f57e1e36beb7e7b94cd6d56785ceef920ec3768c1522e04bc186cc54a707b67e",
       "compat3Sha256": "8b885d94eb3c82f0976e5ed9cf26b937dd8ea3999ceac61145a10374be92c6ee",
@@ -473,6 +473,56 @@
           "id": "drawing-fixes-info-price",
           "before": "${sign}${priceChange.toFixed(2)} (",
           "after": "${sign}${typeof d.lvPriceText === \"function\" ? d.lvPriceText(priceChange) : priceChange.toFixed(2)} ("
+        },
+        {
+          "id": "drawing-fixes-bar-containing-x",
+          "before": "function createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  return {\n    xOf: (time) => coords.timeToX(time),",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. A drawing anchor whose time falls inside a loaded bar's own period (an anchor drawn on a finer interval) is drawn on that bar; bar times, session gaps and times outside the loaded bars keep the native mapping. Stored anchor times never change. Returns the bar index, or null when the native mapping applies. */\nfunction lvBarContainingLogical(coords, ms) {\n  const times = coords.times;\n  const interval = coords.intervalMs;\n  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;\n  let lo = 0;\n  let hi = times.length - 1;\n  while (hi - lo > 1) {\n    const mid = lo + hi >> 1;\n    if (times[mid] <= ms) lo = mid;\n    else hi = mid;\n  }\n  return ms > times[lo] && ms - times[lo] < interval ? lo : null;\n}\nfunction createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  const lvLogical = (time) => lvBarContainingLogical(coords, time) ?? coords.timeToLogical(time);\n  return {\n    xOf: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? coords.timeToX(time) : coords.logicalToX(bar);\n    },"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-bars",
+          "before": "    barsBetween: (t1, t2) => Math.abs(coords.timeToLogical(t2) - coords.timeToLogical(t1)),",
+          "after": "    barsBetween: (t1, t2) => Math.abs(lvLogical(t2) - lvLogical(t1)),"
+        },
+        {
+          "id": "drawing-fixes-measure-pill",
+          "before": "    const startY = y + h / 2 - (lines.length - 1) * lh / 2;\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the measurement text sits on a label pill (theme background at 0.8 alpha, 1 px outline in the box color); a box too flat to hold it puts the pill just below the box, clear of its edges. */\n    const lvBelow = h < lines.length * lh + 14;\n    const startY = lvBelow ? y + h + 9 + lh / 2 : y + h / 2 - (lines.length - 1) * lh / 2;\n    if (lines.length) {\n      const pw = Math.ceil(Math.max(...lines.map((line) => ctx.measureText(line).width))) + 12;\n      const ph = lines.length * lh + 6;\n      const px = x + w / 2 - pw / 2;\n      const py = startY - lh / 2 - 3;\n      const ink = ctx.fillStyle;\n      ctx.save();\n      ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n      ctx.fillStyle = theme.background ?? \"#ffffff\";\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.fill();\n      ctx.restore();\n      ctx.setLineDash([]);\n      ctx.lineWidth = 1;\n      ctx.strokeStyle = color;\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.stroke();\n      ctx.fillStyle = ink;\n    }\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));"
+        },
+        {
+          "id": "drawing-fixes-pattern-pill",
+          "before": "      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);",
+          "after": "      if (typeof d.lvLabelPills === \"function\" && d.lvLabelPills()) {\n        /*! LarryVision LV-VELA-DRAWING-FIXES-1: a pattern that asks for it (Elliott waves, head and shoulders) puts each vertex label on a label pill. */\n        const pw = Math.ceil(ctx.measureText(lbl).width) + 10;\n        const py = above ? p[1] - 7 - 14 : p[1] + 7 - 2;\n        ctx.save();\n        ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n        ctx.fillStyle = theme.background ?? \"#ffffff\";\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.fill();\n        ctx.restore();\n        ctx.setLineDash([]);\n        ctx.lineWidth = 1;\n        ctx.strokeStyle = d.style.lineColor;\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.stroke();\n        ctx.fillStyle = theme.textColor;\n      }\n      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);"
+        },
+        {
+          "id": "drawing-fixes-wrap-helper",
+          "before": "function extendEndpoints(x1, y1, x2, y2, extend, width, height) {",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. Word wrap for callout, comment and note text, at the width the drawing asks for (lvWrapWidth); a word wider than the width breaks inside. */\nfunction lvWrapLines(ctx, d, lines) {\n  const max = typeof d.lvWrapWidth === \"function\" ? d.lvWrapWidth() : 0;\n  if (!(max > 0)) return lines;\n  const out = [];\n  for (const line of lines) {\n    let cur = \"\";\n    for (const word of line.split(/(?<=\\s)/)) {\n      if (!cur || ctx.measureText((cur + word).trimEnd()).width <= max) cur += word;\n      else {\n        out.push(cur.trimEnd());\n        cur = word;\n      }\n      while (cur.trimEnd().length > 1 && ctx.measureText(cur.trimEnd()).width > max) {\n        let k = cur.length - 1;\n        while (k > 1 && ctx.measureText(cur.slice(0, k)).width > max) k -= 1;\n        out.push(cur.slice(0, k));\n        cur = cur.slice(k);\n      }\n    }\n    out.push(cur.trimEnd());\n  }\n  return out;\n}\nfunction extendEndpoints(x1, y1, x2, y2, extend, width, height) {"
+        },
+        {
+          "id": "drawing-fixes-wrap-bubble",
+          "before": "    const lines = (text?.value ?? \"\").split(\"\\n\");\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value ?? \"\").split(\"\\n\"));\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;"
+        },
+        {
+          "id": "drawing-fixes-wrap-plate",
+          "before": "    const lines = (text?.value || fallback).split(\"\\n\");",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value || fallback).split(\"\\n\"));"
+        },
+        {
+          "id": "drawing-fixes-regression-label",
+          "before": "      const txt = `R\\xB2 ${Math.round(L.r2 * 100)}%`;",
+          "after": "      const txt = typeof d.lvFitLabel === \"function\" ? d.lvFitLabel(L) : `R\\xB2 ${Math.round(L.r2 * 100)}%`;"
+        },
+        {
+          "id": "drawing-fixes-info-label",
+          "before": "    const bx = mx - 2;\n    const by = my - bh - 4;",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the readout sits beside the midpoint on the side the line does not cross (below right of a rising line, above right of a falling one), so the line never strikes through it. */\n    const bx = mx + 6;\n    const by = (y2 - y1) * (x2 - x1) < 0 ? my + 6 : my - bh - 6;"
+        },
+        {
+          "id": "drawing-fixes-inline-select",
+          "before": "    ta.focus();\n    ta.setSelectionRange(ta.value.length, ta.value.length);",
+          "after": "    ta.focus();\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a drawing still showing its placeholder text (Callout, Note) opens with that text selected, so typing replaces it. */\n    if (typeof d.defaultLabel === \"function\" && initial === d.defaultLabel()) ta.select();\n    else ta.setSelectionRange(ta.value.length, ta.value.length);"
         }
       ],
       "compat6Sha256": "5c51a1550598872e4c012a49dc24f72040679a588313c0037aa1715c7926579e",
@@ -481,13 +531,14 @@
       "compat9Sha256": "1a811de60abdd161ad04525ab6f47906655843a9855ffcbbf15e794e2e115530",
       "compat10Sha256": "3cc788663dd7397d664551eb1e7cd3ead9a16d49872d48633b4e1ae815fae589",
       "compat11Sha256": "a811be74b66f20100a058bc67d4f46345f8359f2ed2d02ddd438b23061650eb2",
-      "harmonicSha256": "f8a90c6160097cfc249ece860a195ecc132edd841cb8750152d0bfda641f7774"
+      "harmonicSha256": "f8a90c6160097cfc249ece860a195ecc132edd841cb8750152d0bfda641f7774",
+      "drawingFixesSha256": "0ed0a8d0a909cb54c0097e5d157e641efa4761dfb03cacebb39ecc1995c499f3"
     },
     {
       "path": "dist/index.cjs",
       "beforeSha256": "e608c8c9052a7502340523a7dce7309b1677b4249f860a37da346df284dfb2e6",
       "magnetSha256": "f05474fbaf0728408c3cb06d8d8a9291058587269126db5344e1b5ef63a69b93",
-      "afterSha256": "a41d90a24f830bf4bb0fc973d92bef9e2511f4631d8afa7092609c463db4b4b1",
+      "afterSha256": "c7232d90502bb86eeef7829d4052c7159b80fb612b7a18ba2049bb928f891cfc",
       "compat5Sha256": "a61b4b9d1a3567c69fb48430e993c4e948d34257866a28523d927e001228d25d",
       "compat2Sha256": "375157034d41882241c2578570d4a942cbbd9b119935e6956db1c66d36785cf2",
       "compat3Sha256": "ba56a926c162cac2be4eee22e43390aba7281bdb3927c1cf84b71d1f6331fcd9",
@@ -932,6 +983,56 @@
           "id": "drawing-fixes-info-price",
           "before": "${sign}${priceChange.toFixed(2)} (",
           "after": "${sign}${typeof d.lvPriceText === \"function\" ? d.lvPriceText(priceChange) : priceChange.toFixed(2)} ("
+        },
+        {
+          "id": "drawing-fixes-bar-containing-x",
+          "before": "function createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  return {\n    xOf: (time) => coords.timeToX(time),",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. A drawing anchor whose time falls inside a loaded bar's own period (an anchor drawn on a finer interval) is drawn on that bar; bar times, session gaps and times outside the loaded bars keep the native mapping. Stored anchor times never change. Returns the bar index, or null when the native mapping applies. */\nfunction lvBarContainingLogical(coords, ms) {\n  const times = coords.times;\n  const interval = coords.intervalMs;\n  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;\n  let lo = 0;\n  let hi = times.length - 1;\n  while (hi - lo > 1) {\n    const mid = lo + hi >> 1;\n    if (times[mid] <= ms) lo = mid;\n    else hi = mid;\n  }\n  return ms > times[lo] && ms - times[lo] < interval ? lo : null;\n}\nfunction createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  const lvLogical = (time) => lvBarContainingLogical(coords, time) ?? coords.timeToLogical(time);\n  return {\n    xOf: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? coords.timeToX(time) : coords.logicalToX(bar);\n    },"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-bars",
+          "before": "    barsBetween: (t1, t2) => Math.abs(coords.timeToLogical(t2) - coords.timeToLogical(t1)),",
+          "after": "    barsBetween: (t1, t2) => Math.abs(lvLogical(t2) - lvLogical(t1)),"
+        },
+        {
+          "id": "drawing-fixes-measure-pill",
+          "before": "    const startY = y + h / 2 - (lines.length - 1) * lh / 2;\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the measurement text sits on a label pill (theme background at 0.8 alpha, 1 px outline in the box color); a box too flat to hold it puts the pill just below the box, clear of its edges. */\n    const lvBelow = h < lines.length * lh + 14;\n    const startY = lvBelow ? y + h + 9 + lh / 2 : y + h / 2 - (lines.length - 1) * lh / 2;\n    if (lines.length) {\n      const pw = Math.ceil(Math.max(...lines.map((line) => ctx.measureText(line).width))) + 12;\n      const ph = lines.length * lh + 6;\n      const px = x + w / 2 - pw / 2;\n      const py = startY - lh / 2 - 3;\n      const ink = ctx.fillStyle;\n      ctx.save();\n      ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n      ctx.fillStyle = theme.background ?? \"#ffffff\";\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.fill();\n      ctx.restore();\n      ctx.setLineDash([]);\n      ctx.lineWidth = 1;\n      ctx.strokeStyle = color;\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.stroke();\n      ctx.fillStyle = ink;\n    }\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));"
+        },
+        {
+          "id": "drawing-fixes-pattern-pill",
+          "before": "      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);",
+          "after": "      if (typeof d.lvLabelPills === \"function\" && d.lvLabelPills()) {\n        /*! LarryVision LV-VELA-DRAWING-FIXES-1: a pattern that asks for it (Elliott waves, head and shoulders) puts each vertex label on a label pill. */\n        const pw = Math.ceil(ctx.measureText(lbl).width) + 10;\n        const py = above ? p[1] - 7 - 14 : p[1] + 7 - 2;\n        ctx.save();\n        ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n        ctx.fillStyle = theme.background ?? \"#ffffff\";\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.fill();\n        ctx.restore();\n        ctx.setLineDash([]);\n        ctx.lineWidth = 1;\n        ctx.strokeStyle = d.style.lineColor;\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.stroke();\n        ctx.fillStyle = theme.textColor;\n      }\n      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);"
+        },
+        {
+          "id": "drawing-fixes-wrap-helper",
+          "before": "function extendEndpoints(x1, y1, x2, y2, extend, width, height) {",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. Word wrap for callout, comment and note text, at the width the drawing asks for (lvWrapWidth); a word wider than the width breaks inside. */\nfunction lvWrapLines(ctx, d, lines) {\n  const max = typeof d.lvWrapWidth === \"function\" ? d.lvWrapWidth() : 0;\n  if (!(max > 0)) return lines;\n  const out = [];\n  for (const line of lines) {\n    let cur = \"\";\n    for (const word of line.split(/(?<=\\s)/)) {\n      if (!cur || ctx.measureText((cur + word).trimEnd()).width <= max) cur += word;\n      else {\n        out.push(cur.trimEnd());\n        cur = word;\n      }\n      while (cur.trimEnd().length > 1 && ctx.measureText(cur.trimEnd()).width > max) {\n        let k = cur.length - 1;\n        while (k > 1 && ctx.measureText(cur.slice(0, k)).width > max) k -= 1;\n        out.push(cur.slice(0, k));\n        cur = cur.slice(k);\n      }\n    }\n    out.push(cur.trimEnd());\n  }\n  return out;\n}\nfunction extendEndpoints(x1, y1, x2, y2, extend, width, height) {"
+        },
+        {
+          "id": "drawing-fixes-wrap-bubble",
+          "before": "    const lines = (text?.value ?? \"\").split(\"\\n\");\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value ?? \"\").split(\"\\n\"));\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;"
+        },
+        {
+          "id": "drawing-fixes-wrap-plate",
+          "before": "    const lines = (text?.value || fallback).split(\"\\n\");",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value || fallback).split(\"\\n\"));"
+        },
+        {
+          "id": "drawing-fixes-regression-label",
+          "before": "      const txt = `R\\xB2 ${Math.round(L.r2 * 100)}%`;",
+          "after": "      const txt = typeof d.lvFitLabel === \"function\" ? d.lvFitLabel(L) : `R\\xB2 ${Math.round(L.r2 * 100)}%`;"
+        },
+        {
+          "id": "drawing-fixes-info-label",
+          "before": "    const bx = mx - 2;\n    const by = my - bh - 4;",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the readout sits beside the midpoint on the side the line does not cross (below right of a rising line, above right of a falling one), so the line never strikes through it. */\n    const bx = mx + 6;\n    const by = (y2 - y1) * (x2 - x1) < 0 ? my + 6 : my - bh - 6;"
+        },
+        {
+          "id": "drawing-fixes-inline-select",
+          "before": "    ta.focus();\n    ta.setSelectionRange(ta.value.length, ta.value.length);",
+          "after": "    ta.focus();\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a drawing still showing its placeholder text (Callout, Note) opens with that text selected, so typing replaces it. */\n    if (typeof d.defaultLabel === \"function\" && initial === d.defaultLabel()) ta.select();\n    else ta.setSelectionRange(ta.value.length, ta.value.length);"
         }
       ],
       "compat6Sha256": "facefcf26f266502b741d514f4a84d07587156d1b06f30cb2aeae0fa8e580a67",
@@ -940,13 +1041,14 @@
       "compat9Sha256": "2139f027a2018171e4f0cbf8600139a6409794f234e3a62515d6d7abd3af56ea",
       "compat10Sha256": "51b343321afce046d1e3fd8ee70046b30452fd065975756e6666dd7c4602c26f",
       "compat11Sha256": "2a1f7ddea446018389bc3f8e2a1e10ca5b22a89b9ae132ecb81fcc94a93cf297",
-      "harmonicSha256": "170dec9d75dc2bb1fde9df14ddeff47273c2eb8f048ee4b0afce8f9b0f29b4d8"
+      "harmonicSha256": "170dec9d75dc2bb1fde9df14ddeff47273c2eb8f048ee4b0afce8f9b0f29b4d8",
+      "drawingFixesSha256": "a41d90a24f830bf4bb0fc973d92bef9e2511f4631d8afa7092609c463db4b4b1"
     },
     {
       "path": "dist/vela.global.js",
       "beforeSha256": "af13eed0ce6660f7dca4e6c7c4468933104873d2600844eb5c7854cb3434918b",
       "magnetSha256": "81e752710562d99b825f5bbc3a46da92a9fac0defea146d3d5374d10e7883745",
-      "afterSha256": "dee5a5fa95a064278547c7700edca8fa774d0cf52bdf7e6fc2358fd3368744d2",
+      "afterSha256": "ba40beb77205b217433f86949bc58742e084b2936ba92a5662ab1b74f724e62f",
       "compat5Sha256": "68098454960beed5141588abf9ca0314646b4c76203fb2e4c359c327618179b8",
       "compat2Sha256": "68f9318c3455cad36b356edba135f05ba93aec63973251a85df31778acd7fc71",
       "compat3Sha256": "45e8da41dad1d7c72cffc30d5af4f082550b8acb64bec84bde56dc98215b5919",
@@ -1391,6 +1493,56 @@
           "id": "drawing-fixes-info-price",
           "before": "${sign}${priceChange.toFixed(2)} (",
           "after": "${sign}${typeof d.lvPriceText === \"function\" ? d.lvPriceText(priceChange) : priceChange.toFixed(2)} ("
+        },
+        {
+          "id": "drawing-fixes-bar-containing-x",
+          "before": "  function createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n    return {\n      xOf: (time) => coords.timeToX(time),",
+          "after": "  /*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. A drawing anchor whose time falls inside a loaded bar's own period (an anchor drawn on a finer interval) is drawn on that bar; bar times, session gaps and times outside the loaded bars keep the native mapping. Stored anchor times never change. Returns the bar index, or null when the native mapping applies. */\n  function lvBarContainingLogical(coords, ms) {\n    const times = coords.times;\n    const interval = coords.intervalMs;\n    if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;\n    let lo = 0;\n    let hi = times.length - 1;\n    while (hi - lo > 1) {\n      const mid = lo + hi >> 1;\n      if (times[mid] <= ms) lo = mid;\n      else hi = mid;\n    }\n    return ms > times[lo] && ms - times[lo] < interval ? lo : null;\n  }\n  function createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n    const lvLogical = (time) => lvBarContainingLogical(coords, time) ?? coords.timeToLogical(time);\n    return {\n      xOf: (time) => {\n        const bar = lvBarContainingLogical(coords, time);\n        return bar === null ? coords.timeToX(time) : coords.logicalToX(bar);\n      },"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-bars",
+          "before": "      barsBetween: (t1, t2) => Math.abs(coords.timeToLogical(t2) - coords.timeToLogical(t1)),",
+          "after": "      barsBetween: (t1, t2) => Math.abs(lvLogical(t2) - lvLogical(t1)),"
+        },
+        {
+          "id": "drawing-fixes-measure-pill",
+          "before": "      const startY = y + h / 2 - (lines.length - 1) * lh / 2;\n      lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));",
+          "after": "      /*! LarryVision LV-VELA-DRAWING-FIXES-1: the measurement text sits on a label pill (theme background at 0.8 alpha, 1 px outline in the box color); a box too flat to hold it puts the pill just below the box, clear of its edges. */\n      const lvBelow = h < lines.length * lh + 14;\n      const startY = lvBelow ? y + h + 9 + lh / 2 : y + h / 2 - (lines.length - 1) * lh / 2;\n      if (lines.length) {\n        const pw = Math.ceil(Math.max(...lines.map((line) => ctx.measureText(line).width))) + 12;\n        const ph = lines.length * lh + 6;\n        const px = x + w / 2 - pw / 2;\n        const py = startY - lh / 2 - 3;\n        const ink = ctx.fillStyle;\n        ctx.save();\n        ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n        ctx.fillStyle = theme.background ?? \"#ffffff\";\n        roundRect(ctx, px, py, pw, ph, 4);\n        ctx.fill();\n        ctx.restore();\n        ctx.setLineDash([]);\n        ctx.lineWidth = 1;\n        ctx.strokeStyle = color;\n        roundRect(ctx, px, py, pw, ph, 4);\n        ctx.stroke();\n        ctx.fillStyle = ink;\n      }\n      lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));"
+        },
+        {
+          "id": "drawing-fixes-pattern-pill",
+          "before": "        ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);",
+          "after": "        if (typeof d.lvLabelPills === \"function\" && d.lvLabelPills()) {\n          /*! LarryVision LV-VELA-DRAWING-FIXES-1: a pattern that asks for it (Elliott waves, head and shoulders) puts each vertex label on a label pill. */\n          const pw = Math.ceil(ctx.measureText(lbl).width) + 10;\n          const py = above ? p[1] - 7 - 14 : p[1] + 7 - 2;\n          ctx.save();\n          ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n          ctx.fillStyle = theme.background ?? \"#ffffff\";\n          roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n          ctx.fill();\n          ctx.restore();\n          ctx.setLineDash([]);\n          ctx.lineWidth = 1;\n          ctx.strokeStyle = d.style.lineColor;\n          roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n          ctx.stroke();\n          ctx.fillStyle = theme.textColor;\n        }\n        ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);"
+        },
+        {
+          "id": "drawing-fixes-wrap-helper",
+          "before": "  function extendEndpoints(x1, y1, x2, y2, extend, width, height) {",
+          "after": "  /*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. Word wrap for callout, comment and note text, at the width the drawing asks for (lvWrapWidth); a word wider than the width breaks inside. */\n  function lvWrapLines(ctx, d, lines) {\n    const max = typeof d.lvWrapWidth === \"function\" ? d.lvWrapWidth() : 0;\n    if (!(max > 0)) return lines;\n    const out = [];\n    for (const line of lines) {\n      let cur = \"\";\n      for (const word of line.split(/(?<=\\s)/)) {\n        if (!cur || ctx.measureText((cur + word).trimEnd()).width <= max) cur += word;\n        else {\n          out.push(cur.trimEnd());\n          cur = word;\n        }\n        while (cur.trimEnd().length > 1 && ctx.measureText(cur.trimEnd()).width > max) {\n          let k = cur.length - 1;\n          while (k > 1 && ctx.measureText(cur.slice(0, k)).width > max) k -= 1;\n          out.push(cur.slice(0, k));\n          cur = cur.slice(k);\n        }\n      }\n      out.push(cur.trimEnd());\n    }\n    return out;\n  }\n  function extendEndpoints(x1, y1, x2, y2, extend, width, height) {"
+        },
+        {
+          "id": "drawing-fixes-wrap-bubble",
+          "before": "      const lines = (text?.value ?? \"\").split(\"\\n\");\n      const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n      const padX = 9;",
+          "after": "      const lines = lvWrapLines(ctx, d, (text?.value ?? \"\").split(\"\\n\"));\n      const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n      const padX = 9;"
+        },
+        {
+          "id": "drawing-fixes-wrap-plate",
+          "before": "      const lines = (text?.value || fallback).split(\"\\n\");",
+          "after": "      const lines = lvWrapLines(ctx, d, (text?.value || fallback).split(\"\\n\"));"
+        },
+        {
+          "id": "drawing-fixes-regression-label",
+          "before": "        const txt = `R\\xB2 ${Math.round(L.r2 * 100)}%`;",
+          "after": "        const txt = typeof d.lvFitLabel === \"function\" ? d.lvFitLabel(L) : `R\\xB2 ${Math.round(L.r2 * 100)}%`;"
+        },
+        {
+          "id": "drawing-fixes-info-label",
+          "before": "      const bx = mx - 2;\n      const by = my - bh - 4;",
+          "after": "      /*! LarryVision LV-VELA-DRAWING-FIXES-1: the readout sits beside the midpoint on the side the line does not cross (below right of a rising line, above right of a falling one), so the line never strikes through it. */\n      const bx = mx + 6;\n      const by = (y2 - y1) * (x2 - x1) < 0 ? my + 6 : my - bh - 6;"
+        },
+        {
+          "id": "drawing-fixes-inline-select",
+          "before": "      ta.focus();\n      ta.setSelectionRange(ta.value.length, ta.value.length);",
+          "after": "      ta.focus();\n      /*! LarryVision LV-VELA-DRAWING-FIXES-1: a drawing still showing its placeholder text (Callout, Note) opens with that text selected, so typing replaces it. */\n      if (typeof d.defaultLabel === \"function\" && initial === d.defaultLabel()) ta.select();\n      else ta.setSelectionRange(ta.value.length, ta.value.length);"
         }
       ],
       "compat6Sha256": "3708227bbb41f7aeccdb40abd6c6595d3db65da4056b5773136a0892c649c742",
@@ -1399,13 +1551,14 @@
       "compat9Sha256": "c9c76ff9434848163f5ae5d573efb6ce07b63b452dd0b8b9654bb310a478e4c6",
       "compat10Sha256": "d620a25a4026359874e3be3fa28c4515006466107fe3a0d9410fa7a9e47279b8",
       "compat11Sha256": "62d0d9bccc54ec79431b7e19467903ddd609d969e729b7aa5aa17074c224cd56",
-      "harmonicSha256": "3bb435fc2ec726e494a3ef52a529b01d84e5f712a03a3bf7215f5ce8b3aebc0e"
+      "harmonicSha256": "3bb435fc2ec726e494a3ef52a529b01d84e5f712a03a3bf7215f5ce8b3aebc0e",
+      "drawingFixesSha256": "dee5a5fa95a064278547c7700edca8fa774d0cf52bdf7e6fc2358fd3368744d2"
     },
     {
       "path": "dist/widget.cjs",
       "beforeSha256": "47cec7b06ea1cb2aaca2cf28a12554945ba143b834ea8bdfc13c62b39b68796c",
       "magnetSha256": "7863e6ee0bcfced3d57aaa277c8ece0fb87aa49823874500e1e768d6be7e85e4",
-      "afterSha256": "9f534db47cd66a2e347dd7b3dcaea5f43271c52f12ae5f01e0343adfb3fd5c22",
+      "afterSha256": "189e7c3f67519a8f9a2854acfe444904b46841cfc490417b7b34a73045987a77",
       "compat5Sha256": "9917e94181e2b1c550cbc8394091ac6df55a2483b2d6c9543e08a60706effcd4",
       "compat2Sha256": "275a628694fa04f6cb87b15fa108edb6480df12c6f8a4401276b99ee0eab25bf",
       "compat3Sha256": "7a1b641565dcc0737735a7ca1e3ebc2a1b5d938fbc7baec176e8616e1f63ecd9",
@@ -1850,6 +2003,56 @@
           "id": "drawing-fixes-info-price",
           "before": "${sign}${priceChange.toFixed(2)} (",
           "after": "${sign}${typeof d.lvPriceText === \"function\" ? d.lvPriceText(priceChange) : priceChange.toFixed(2)} ("
+        },
+        {
+          "id": "drawing-fixes-bar-containing-x",
+          "before": "function createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  return {\n    xOf: (time) => coords.timeToX(time),",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. A drawing anchor whose time falls inside a loaded bar's own period (an anchor drawn on a finer interval) is drawn on that bar; bar times, session gaps and times outside the loaded bars keep the native mapping. Stored anchor times never change. Returns the bar index, or null when the native mapping applies. */\nfunction lvBarContainingLogical(coords, ms) {\n  const times = coords.times;\n  const interval = coords.intervalMs;\n  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;\n  let lo = 0;\n  let hi = times.length - 1;\n  while (hi - lo > 1) {\n    const mid = lo + hi >> 1;\n    if (times[mid] <= ms) lo = mid;\n    else hi = mid;\n  }\n  return ms > times[lo] && ms - times[lo] < interval ? lo : null;\n}\nfunction createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  const lvLogical = (time) => lvBarContainingLogical(coords, time) ?? coords.timeToLogical(time);\n  return {\n    xOf: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? coords.timeToX(time) : coords.logicalToX(bar);\n    },"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-bars",
+          "before": "    barsBetween: (t1, t2) => Math.abs(coords.timeToLogical(t2) - coords.timeToLogical(t1)),",
+          "after": "    barsBetween: (t1, t2) => Math.abs(lvLogical(t2) - lvLogical(t1)),"
+        },
+        {
+          "id": "drawing-fixes-measure-pill",
+          "before": "    const startY = y + h / 2 - (lines.length - 1) * lh / 2;\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the measurement text sits on a label pill (theme background at 0.8 alpha, 1 px outline in the box color); a box too flat to hold it puts the pill just below the box, clear of its edges. */\n    const lvBelow = h < lines.length * lh + 14;\n    const startY = lvBelow ? y + h + 9 + lh / 2 : y + h / 2 - (lines.length - 1) * lh / 2;\n    if (lines.length) {\n      const pw = Math.ceil(Math.max(...lines.map((line) => ctx.measureText(line).width))) + 12;\n      const ph = lines.length * lh + 6;\n      const px = x + w / 2 - pw / 2;\n      const py = startY - lh / 2 - 3;\n      const ink = ctx.fillStyle;\n      ctx.save();\n      ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n      ctx.fillStyle = theme.background ?? \"#ffffff\";\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.fill();\n      ctx.restore();\n      ctx.setLineDash([]);\n      ctx.lineWidth = 1;\n      ctx.strokeStyle = color;\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.stroke();\n      ctx.fillStyle = ink;\n    }\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));"
+        },
+        {
+          "id": "drawing-fixes-pattern-pill",
+          "before": "      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);",
+          "after": "      if (typeof d.lvLabelPills === \"function\" && d.lvLabelPills()) {\n        /*! LarryVision LV-VELA-DRAWING-FIXES-1: a pattern that asks for it (Elliott waves, head and shoulders) puts each vertex label on a label pill. */\n        const pw = Math.ceil(ctx.measureText(lbl).width) + 10;\n        const py = above ? p[1] - 7 - 14 : p[1] + 7 - 2;\n        ctx.save();\n        ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n        ctx.fillStyle = theme.background ?? \"#ffffff\";\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.fill();\n        ctx.restore();\n        ctx.setLineDash([]);\n        ctx.lineWidth = 1;\n        ctx.strokeStyle = d.style.lineColor;\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.stroke();\n        ctx.fillStyle = theme.textColor;\n      }\n      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);"
+        },
+        {
+          "id": "drawing-fixes-wrap-helper",
+          "before": "function extendEndpoints(x1, y1, x2, y2, extend, width, height) {",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. Word wrap for callout, comment and note text, at the width the drawing asks for (lvWrapWidth); a word wider than the width breaks inside. */\nfunction lvWrapLines(ctx, d, lines) {\n  const max = typeof d.lvWrapWidth === \"function\" ? d.lvWrapWidth() : 0;\n  if (!(max > 0)) return lines;\n  const out = [];\n  for (const line of lines) {\n    let cur = \"\";\n    for (const word of line.split(/(?<=\\s)/)) {\n      if (!cur || ctx.measureText((cur + word).trimEnd()).width <= max) cur += word;\n      else {\n        out.push(cur.trimEnd());\n        cur = word;\n      }\n      while (cur.trimEnd().length > 1 && ctx.measureText(cur.trimEnd()).width > max) {\n        let k = cur.length - 1;\n        while (k > 1 && ctx.measureText(cur.slice(0, k)).width > max) k -= 1;\n        out.push(cur.slice(0, k));\n        cur = cur.slice(k);\n      }\n    }\n    out.push(cur.trimEnd());\n  }\n  return out;\n}\nfunction extendEndpoints(x1, y1, x2, y2, extend, width, height) {"
+        },
+        {
+          "id": "drawing-fixes-wrap-bubble",
+          "before": "    const lines = (text?.value ?? \"\").split(\"\\n\");\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value ?? \"\").split(\"\\n\"));\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;"
+        },
+        {
+          "id": "drawing-fixes-wrap-plate",
+          "before": "    const lines = (text?.value || fallback).split(\"\\n\");",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value || fallback).split(\"\\n\"));"
+        },
+        {
+          "id": "drawing-fixes-regression-label",
+          "before": "      const txt = `R\\xB2 ${Math.round(L.r2 * 100)}%`;",
+          "after": "      const txt = typeof d.lvFitLabel === \"function\" ? d.lvFitLabel(L) : `R\\xB2 ${Math.round(L.r2 * 100)}%`;"
+        },
+        {
+          "id": "drawing-fixes-info-label",
+          "before": "    const bx = mx - 2;\n    const by = my - bh - 4;",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the readout sits beside the midpoint on the side the line does not cross (below right of a rising line, above right of a falling one), so the line never strikes through it. */\n    const bx = mx + 6;\n    const by = (y2 - y1) * (x2 - x1) < 0 ? my + 6 : my - bh - 6;"
+        },
+        {
+          "id": "drawing-fixes-inline-select",
+          "before": "    ta.focus();\n    ta.setSelectionRange(ta.value.length, ta.value.length);",
+          "after": "    ta.focus();\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a drawing still showing its placeholder text (Callout, Note) opens with that text selected, so typing replaces it. */\n    if (typeof d.defaultLabel === \"function\" && initial === d.defaultLabel()) ta.select();\n    else ta.setSelectionRange(ta.value.length, ta.value.length);"
         }
       ],
       "compat6Sha256": "2bb3c6c6133f95443e9b3729092631f413d7484d34313a9afe0d5e6a984ee1f5",
@@ -1858,13 +2061,14 @@
       "compat9Sha256": "1ddfb92f7b22286c52dbddbb9cb2776f413f76a698c3cc5038fb3459518f8f1e",
       "compat10Sha256": "831c16da318d92b02be17749ef871329bd573ab71a2777f99feab3552105a28c",
       "compat11Sha256": "25631fcfcf85089a7290a37660ebcf56807d8a02e78e6c692e6fe817cdc5b392",
-      "harmonicSha256": "0ec5061588720c4c753809aa9fda432ec6c3fdebb9fdfc49f50710a67e202d02"
+      "harmonicSha256": "0ec5061588720c4c753809aa9fda432ec6c3fdebb9fdfc49f50710a67e202d02",
+      "drawingFixesSha256": "9f534db47cd66a2e347dd7b3dcaea5f43271c52f12ae5f01e0343adfb3fd5c22"
     },
     {
       "path": "dist/workspace.cjs",
       "beforeSha256": "90c92a50bb3df3bdbe5d2b4f5c45574e133b9da0bd6ffd31396371ba80ace9cf",
       "magnetSha256": "a6750895efacd0a9b7d81717d64eaf764aad0681898ad6d9ce2332675ddfe997",
-      "afterSha256": "11364af0daa7a396e22516f36e4236008276315ce45b48b2f8456968fbd9a6e1",
+      "afterSha256": "9aed1c5e5de77397c40f83e56c3ab1d4882e396197dfd369fa5a1928b292c08b",
       "compat5Sha256": "5884ef9682bef18bb696e976d8c07ee10cee0e5167c60be3f92ce2ccd7ccecbd",
       "compat2Sha256": "3222ad85239d4a889cbca4d30d58d42264397d30f609fe16d994a7283b6b539b",
       "compat3Sha256": "328fb0216092e32ee71c83453357053c44050e841fdbdb03fe8f4903ac7dc51b",
@@ -2309,6 +2513,56 @@
           "id": "drawing-fixes-info-price",
           "before": "${sign}${priceChange.toFixed(2)} (",
           "after": "${sign}${typeof d.lvPriceText === \"function\" ? d.lvPriceText(priceChange) : priceChange.toFixed(2)} ("
+        },
+        {
+          "id": "drawing-fixes-bar-containing-x",
+          "before": "function createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  return {\n    xOf: (time) => coords.timeToX(time),",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. A drawing anchor whose time falls inside a loaded bar's own period (an anchor drawn on a finer interval) is drawn on that bar; bar times, session gaps and times outside the loaded bars keep the native mapping. Stored anchor times never change. Returns the bar index, or null when the native mapping applies. */\nfunction lvBarContainingLogical(coords, ms) {\n  const times = coords.times;\n  const interval = coords.intervalMs;\n  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;\n  let lo = 0;\n  let hi = times.length - 1;\n  while (hi - lo > 1) {\n    const mid = lo + hi >> 1;\n    if (times[mid] <= ms) lo = mid;\n    else hi = mid;\n  }\n  return ms > times[lo] && ms - times[lo] < interval ? lo : null;\n}\nfunction createProjector(coords, paneOf, paneIdAtY, barsInRange, seriesInRange) {\n  const lvLogical = (time) => lvBarContainingLogical(coords, time) ?? coords.timeToLogical(time);\n  return {\n    xOf: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? coords.timeToX(time) : coords.logicalToX(bar);\n    },"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-bars",
+          "before": "    barsBetween: (t1, t2) => Math.abs(coords.timeToLogical(t2) - coords.timeToLogical(t1)),",
+          "after": "    barsBetween: (t1, t2) => Math.abs(lvLogical(t2) - lvLogical(t1)),"
+        },
+        {
+          "id": "drawing-fixes-measure-pill",
+          "before": "    const startY = y + h / 2 - (lines.length - 1) * lh / 2;\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the measurement text sits on a label pill (theme background at 0.8 alpha, 1 px outline in the box color); a box too flat to hold it puts the pill just below the box, clear of its edges. */\n    const lvBelow = h < lines.length * lh + 14;\n    const startY = lvBelow ? y + h + 9 + lh / 2 : y + h / 2 - (lines.length - 1) * lh / 2;\n    if (lines.length) {\n      const pw = Math.ceil(Math.max(...lines.map((line) => ctx.measureText(line).width))) + 12;\n      const ph = lines.length * lh + 6;\n      const px = x + w / 2 - pw / 2;\n      const py = startY - lh / 2 - 3;\n      const ink = ctx.fillStyle;\n      ctx.save();\n      ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n      ctx.fillStyle = theme.background ?? \"#ffffff\";\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.fill();\n      ctx.restore();\n      ctx.setLineDash([]);\n      ctx.lineWidth = 1;\n      ctx.strokeStyle = color;\n      roundRect(ctx, px, py, pw, ph, 4);\n      ctx.stroke();\n      ctx.fillStyle = ink;\n    }\n    lines.forEach((line, i) => ctx.fillText(line, x + w / 2, startY + i * lh));"
+        },
+        {
+          "id": "drawing-fixes-pattern-pill",
+          "before": "      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);",
+          "after": "      if (typeof d.lvLabelPills === \"function\" && d.lvLabelPills()) {\n        /*! LarryVision LV-VELA-DRAWING-FIXES-1: a pattern that asks for it (Elliott waves, head and shoulders) puts each vertex label on a label pill. */\n        const pw = Math.ceil(ctx.measureText(lbl).width) + 10;\n        const py = above ? p[1] - 7 - 14 : p[1] + 7 - 2;\n        ctx.save();\n        ctx.globalAlpha = 0.8 * ctx.globalAlpha;\n        ctx.fillStyle = theme.background ?? \"#ffffff\";\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.fill();\n        ctx.restore();\n        ctx.setLineDash([]);\n        ctx.lineWidth = 1;\n        ctx.strokeStyle = d.style.lineColor;\n        roundRect(ctx, p[0] - pw / 2, py, pw, 16, 4);\n        ctx.stroke();\n        ctx.fillStyle = theme.textColor;\n      }\n      ctx.fillText(lbl, p[0], above ? p[1] - 7 : p[1] + 7);"
+        },
+        {
+          "id": "drawing-fixes-wrap-helper",
+          "before": "function extendEndpoints(x1, y1, x2, y2, extend, width, height) {",
+          "after": "/*! LarryVision LV-VELA-DRAWING-FIXES-1 modification, 2026-10-31. Word wrap for callout, comment and note text, at the width the drawing asks for (lvWrapWidth); a word wider than the width breaks inside. */\nfunction lvWrapLines(ctx, d, lines) {\n  const max = typeof d.lvWrapWidth === \"function\" ? d.lvWrapWidth() : 0;\n  if (!(max > 0)) return lines;\n  const out = [];\n  for (const line of lines) {\n    let cur = \"\";\n    for (const word of line.split(/(?<=\\s)/)) {\n      if (!cur || ctx.measureText((cur + word).trimEnd()).width <= max) cur += word;\n      else {\n        out.push(cur.trimEnd());\n        cur = word;\n      }\n      while (cur.trimEnd().length > 1 && ctx.measureText(cur.trimEnd()).width > max) {\n        let k = cur.length - 1;\n        while (k > 1 && ctx.measureText(cur.slice(0, k)).width > max) k -= 1;\n        out.push(cur.slice(0, k));\n        cur = cur.slice(k);\n      }\n    }\n    out.push(cur.trimEnd());\n  }\n  return out;\n}\nfunction extendEndpoints(x1, y1, x2, y2, extend, width, height) {"
+        },
+        {
+          "id": "drawing-fixes-wrap-bubble",
+          "before": "    const lines = (text?.value ?? \"\").split(\"\\n\");\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value ?? \"\").split(\"\\n\"));\n    const tw = Math.max(8, ...lines.map((l) => ctx.measureText(l).width));\n    const padX = 9;"
+        },
+        {
+          "id": "drawing-fixes-wrap-plate",
+          "before": "    const lines = (text?.value || fallback).split(\"\\n\");",
+          "after": "    const lines = lvWrapLines(ctx, d, (text?.value || fallback).split(\"\\n\"));"
+        },
+        {
+          "id": "drawing-fixes-regression-label",
+          "before": "      const txt = `R\\xB2 ${Math.round(L.r2 * 100)}%`;",
+          "after": "      const txt = typeof d.lvFitLabel === \"function\" ? d.lvFitLabel(L) : `R\\xB2 ${Math.round(L.r2 * 100)}%`;"
+        },
+        {
+          "id": "drawing-fixes-info-label",
+          "before": "    const bx = mx - 2;\n    const by = my - bh - 4;",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the readout sits beside the midpoint on the side the line does not cross (below right of a rising line, above right of a falling one), so the line never strikes through it. */\n    const bx = mx + 6;\n    const by = (y2 - y1) * (x2 - x1) < 0 ? my + 6 : my - bh - 6;"
+        },
+        {
+          "id": "drawing-fixes-inline-select",
+          "before": "    ta.focus();\n    ta.setSelectionRange(ta.value.length, ta.value.length);",
+          "after": "    ta.focus();\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a drawing still showing its placeholder text (Callout, Note) opens with that text selected, so typing replaces it. */\n    if (typeof d.defaultLabel === \"function\" && initial === d.defaultLabel()) ta.select();\n    else ta.setSelectionRange(ta.value.length, ta.value.length);"
         }
       ],
       "compat6Sha256": "ee951df24a1336146a7954c61c5ad7a35d86fde8d10a827e9e91b3dbcb84c6f9",
@@ -2317,7 +2571,8 @@
       "compat9Sha256": "fcdbe5c2d1ff752ffab56026ba4b1ef5a2265c4fc2184aa6fb46734326b99aae",
       "compat10Sha256": "3923f038af3c290ee8a6d2a09ee51c4a1a1f11e08390c0ab9afb0f28afc029fb",
       "compat11Sha256": "a3478af97eba8e29cf73607db75ecf41344a46dcc33e2088f63d874d1da27fa8",
-      "harmonicSha256": "9b88ce6e21e13b200532e5d4899946eeb5c5c5029bfffdcf22085f9a0f068128"
+      "harmonicSha256": "9b88ce6e21e13b200532e5d4899946eeb5c5c5029bfffdcf22085f9a0f068128",
+      "drawingFixesSha256": "11364af0daa7a396e22516f36e4236008276315ce45b48b2f8456968fbd9a6e1"
     },
     {
       "path": "dist/index.d.ts",
@@ -2340,7 +2595,8 @@
       "compat9Sha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
       "compat10Sha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
       "compat11Sha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
-      "harmonicSha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb"
+      "harmonicSha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
+      "drawingFixesSha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb"
     },
     {
       "path": "dist/index.d.cts",
@@ -2363,7 +2619,8 @@
       "compat9Sha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
       "compat10Sha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
       "compat11Sha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
-      "harmonicSha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19"
+      "harmonicSha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
+      "drawingFixesSha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19"
     },
     {
       "path": "dist/contributions-BY3zSYiZ.d.ts",
@@ -2391,7 +2648,8 @@
       "compat9Sha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
       "compat10Sha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
       "compat11Sha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
-      "harmonicSha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91"
+      "harmonicSha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
+      "drawingFixesSha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91"
     },
     {
       "path": "dist/contributions-DOm40g5-.d.cts",
@@ -2419,7 +2677,8 @@
       "compat9Sha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
       "compat10Sha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
       "compat11Sha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
-      "harmonicSha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be"
+      "harmonicSha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
+      "drawingFixesSha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be"
     }
   ],
   "redistribution": [

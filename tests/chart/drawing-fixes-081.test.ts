@@ -32,7 +32,7 @@ const barAt=(x:number)=>Math.round(x/10*1000)/1000;
 
 describe('registration',()=>{
  it('every 0.8.1 fix replaced its native registration',()=>{
-  expect(drawingFixStatus().map(row=>[row.type,row.state])).toEqual(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork','fibfan','gannfan','fibtimezones','gannbox','gannsquare','parallelchannel','fibextension','fibextensiontrend','datepricerange','fibarcs','ray','infoline','elliottimpulse','elliottcorrection'].map(type=>[type,'registered']));
+  expect(drawingFixStatus().map(row=>[row.type,row.state])).toEqual(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork','fibfan','gannfan','fibtimezones','gannbox','gannsquare','parallelchannel','fibextension','fibextensiontrend','datepricerange','fibarcs','ray','infoline','headshoulders','regressionchannel','elliottimpulse','elliottcorrection','callout','comment','note'].map(type=>[type,'registered']));
  });
 });
 
@@ -230,7 +230,7 @@ describe('Fib arcs and default levels',()=>{
   expect(Math.cos((r.a0+r.a1)/2)).toBeCloseTo(-1,9);
  });
  it('new drawings add the standard levels; saved levels are kept as they are',()=>{
-  expect(make('fibextensiontrend',[]).levels.map((lv:any)=>lv.ratio)).toEqual([0,0.236,0.382,0.5,0.618,0.786,1,1.618,2.618,3.618,4.236]);
+  expect(make('fibextensiontrend',[]).levels.map((lv:any)=>lv.ratio)).toEqual([0,0.236,0.382,0.5,0.618,0.786,1,1.272,1.618,2.618,3.618,4.236]);
   expect(make('fibtimezones',[]).levels.map((lv:any)=>lv.ratio)).toEqual([0,1,2,3,5,8,13,21,34,55,89]);
   const saved=make('fibtimezones',[{time:bar(0),price:1},{time:bar(1),price:1}]),props=saved.serialize().props;props.levels=props.levels.slice(0,3);
   expect(((deserializeDrawing({...saved.serialize(),props} as never) as any).serialize().props.levels as any[]).map((lv:any)=>lv.ratio)).toEqual([0,1,2]);

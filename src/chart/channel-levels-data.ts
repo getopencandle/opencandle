@@ -19,13 +19,13 @@ export interface ChannelLevel {readonly enabled:boolean;readonly ratio:number;re
 export interface ChannelBackground {readonly enabled:boolean;readonly color:string;readonly opacity:number}
 export interface ChannelLevelsSettings {readonly schemaVersion:1;readonly levels:readonly ChannelLevel[];readonly extendLeft:boolean;readonly extendRight:boolean;readonly background:ChannelBackground}
 
-const level=(enabled:boolean,ratio:number):ChannelLevel=>Object.freeze({enabled,ratio,color:'#38c0fd',opacity:100,width:1,style:'dashed' as const});
-/** One midline at ratio 0.5 on, three spare rows off, extend off, background on at the native fill color (#38c0fd at alpha 0x1a, 10 percent). */
+const level=(enabled:boolean,ratio:number):ChannelLevel=>Object.freeze({enabled,ratio,color:'#2962FF',opacity:100,width:1,style:'dashed' as const});
+/** One midline at ratio 0.5 on, three spare rows off, extend off, background on at the native fill color (#2962FF at alpha 0x1a, 10 percent; the drawing blue since 0.8.1, drawing-fixes/contrast-defaults.ts). */
 export const CHANNEL_LEVELS_FACTORY_DEFAULTS:Readonly<ChannelLevelsSettings>=Object.freeze({
  schemaVersion:1,
  levels:Object.freeze([level(true,0.5),level(false,0.25),level(false,0.75),level(false,1.25)]),
  extendLeft:false,extendRight:false,
- background:Object.freeze({enabled:true,color:'#38c0fd',opacity:10}),
+ background:Object.freeze({enabled:true,color:'#2962ff',opacity:10}),
 });
 /** What a channel saved before this wave means: no levels, no extension. The background here mirrors the factory color only for the editor; the native fill stays the authority until a member exists. */
 export const CHANNEL_LEVELS_LEGACY:Readonly<ChannelLevelsSettings>=Object.freeze({

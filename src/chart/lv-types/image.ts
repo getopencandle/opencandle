@@ -264,6 +264,12 @@ export const DRAWING_ASSETS_MESSAGES=Object.freeze({
  unavailable:'The saved workspace images could not be loaded, so no image can be added to this workspace.',
  changed:'The workspace changed while the image was being added, so it was not added. Try again.',
 });
+/** True when two workspace image maps name the same pictures. */
+export function sameImageMap(a:ImageAssetDocument,b:ImageAssetDocument):boolean{
+ const ka=Object.keys(a).sort(),kb=Object.keys(b).sort();
+ return ka.length===kb.length&&ka.every((key,index)=>key===kb[index]);
+}
+const sameMap=sameImageMap;
 /** Keeps the in-memory store and the committed workspace map consistent: loads are serialized with a generation token so a stale load
  *  never replaces a newer one, and a trim can never commit while the store is not the loaded copy of the current map. */
 export function createDrawingAssetsController(store:ImageAssetStore,commit:(document:ImageAssetDocument)=>unknown,report:(message:string)=>void):DrawingAssetsController{
@@ -276,6 +282,10 @@ export function createDrawingAssetsController(store:ImageAssetStore,commit:(docu
   sync(document){
    const next=document??{};
    if(next===target)return;
+   // 0.8.1: a workspace update that carries the same map (the same picture ids; ids are sha256 of the bytes, so the same pictures)
+   // is not a new map. Before, every workspace change (an absent map read as a fresh {}, or the image drawing being placed)
+   // looked new, so an add in progress was refused as "the workspace changed".
+   if(target!==undefined&&sameMap(next,target)){target=next;return;}
    target=next;
    if(pending===0&&sameIds(next))return;
    const mine=++generation;pending++;

@@ -1709,7 +1709,8 @@ export function App(){
    if(!session.current()){imageAssets.current.release(held);return{ok:false as const,message:DRAWING_ASSETS_MESSAGES.changed};}
    const placed=chart.placeImage({paneId:result.record.paneId,anchors:result.record.anchors,props:result.record.props});
    if(!placed.ok){imageAssets.current.release(held);return placed;}
-   if(!session.commit()){imageAssets.current.release(held);return{ok:false as const,message:DRAWING_ASSETS_MESSAGES.changed};}
+   // A refused commit removes the drawing it just placed, so no "Image unavailable" placeholder is left behind (0.8.1).
+   if(!session.commit()){imageAssets.current.release(held);try{(chart as unknown as {drawings?:{remove?:(id:string)=>unknown}}).drawings?.remove?.(placed.id);}catch{/* the drawing is already gone */}return{ok:false as const,message:DRAWING_ASSETS_MESSAGES.changed};}
    return{ok:true as const};
   });
   if(!outcome.ok)setMessage(outcome.message);

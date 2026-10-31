@@ -142,8 +142,11 @@ const BEFORE={
 //   boundary lines, and the replaced native types (pitchforks, fans, time zones, Gann grids, channel, extensions, range, arcs, waves)
 //   are re-registered. catalog, factoryUnapplied, portCatalog, registered and all move. Previous: all a9a40513, catalog 4eb1fa66,
 //   factoryUnapplied b1f504ec, portCatalog fc9c59e3, registered c2159399.
+// 0.8.1 round 2/3: the pale cyan default drawing colour becomes the drawing blue (contrast on light charts), the regression
+//   trend gains deviation inputs, Bars pattern starts above the series. portCatalog, registered and all move. Previous:
+//   portCatalog bf45eb26, registered b3f5ed6e, all 4acfb579.
 const PINNED={
- all:'4acfb57987299962f7f4b5ba3c2a28375155d99c5c17115dbba69ff63e5fce40',
+ all:'e2678e5a70efb6fd880e900f4f1520f4a3dcc7d4ffc614a29b37afb3a595f12d',
  catalog:'9ae61aaf59ca2288523b80d5ffb464032ac193f3916ded797dcb097b03ec8587',
  factoryDefinitions:'815d67cb786de19aeab78dba31d5ce4a963e3939dd6ef25e7ace9e0daac31646',
  factoryUnapplied:'4b2595e051490540ce2fc1861a4543f70b709b4a94a52a6533169ed612eca403',
@@ -151,8 +154,8 @@ const PINNED={
  dialogSpecs:'332ce420d6513ddb60469c9cb2ceac29859b723532f1f5a027aa98133e1cb56c',
  dialogUnavailable:'a816dd28be2ae041ca2b1069c6fe9df848d19e02d110b4662f26e94477b5ff51',
  lvStatus:'fadb0efa2df48518660b5a5da223dacf433e0d13e5c6158fcab58ff0966f12d1',
- portCatalog:'bf45eb269dcef5b13dbdf462ed55200f56693a8fd2a55abd37c3086be681cfc5',
- registered:'b3f5ed6e243929c11d4c846bd6d543d14614c3c1f2fd3c05e8d7857c3047c465',
+ portCatalog:'ca36cfb7bf3a15eeec6a587c1d3cf1b083fce9cd8f8ab9811fd3d52fb98ecf7b',
+ registered:'54b17759b98a5e9f31ab59b27d1fe175a9cef899968ba7804e12be5c650e6a6d',
 } as const;
 
 describe('per-tool registry snapshot (baseline, re-pinned at each integration)',()=>{

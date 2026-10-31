@@ -19,8 +19,9 @@ import {paintHookStatus} from './lv-paint-hook';
 import {LV_DRAWING_TOOL_MODULES,type LvDrawingToolModule} from './lv-types';
 import {LV_SHORT_POSITION} from './lv-types/short-position';
 import {LV_DATE_RANGE,LV_PRICE_RANGE} from './lv-types/measure-ranges';
-import {DRAWING_FIXES_081_MODULE} from './drawing-fixes/native-fixes';
+import {DRAWING_FIXES_081_LATE_MODULE,DRAWING_FIXES_081_MODULE} from './drawing-fixes/native-fixes';
 import {ELLIOTT_ORIGIN_081_MODULE} from './drawing-fixes/elliott-origin';
+import {applyContrastDefaults} from './drawing-fixes/contrast-defaults';
 
 export {LV_SHORT_POSITION,LV_PRICE_RANGE,LV_DATE_RANGE};
 export const LV_DRAWING_TYPE_IDS:readonly string[]=Object.freeze(LV_DRAWING_TOOL_MODULES.flatMap(module=>(module.types??[]).map(definition=>definition.type)));
@@ -65,6 +66,9 @@ const registerFixes=(module:LvDrawingToolModule)=>{const before=statuses.length;
 registerFixes(DRAWING_FIXES_081_MODULE);
 registerLvDrawingToolModules(LV_DRAWING_TOOL_MODULES);
 registerFixes(ELLIOTT_ORIGIN_081_MODULE);
+registerFixes(DRAWING_FIXES_081_LATE_MODULE);
+/** Types whose pale default colour was replaced for contrast on light charts (drawing-fixes/contrast-defaults.ts). */
+export const CONTRAST_DEFAULT_TYPES:readonly string[]=Object.freeze(applyContrastDefaults());
 /** Registration outcome of each 0.8.1 drawing fix (replaced native types), for diagnostics and tests. */
 export function drawingFixStatus():readonly LvDrawingTypeStatus[]{return Object.freeze([...fixStatuses]);}
 

@@ -4,7 +4,7 @@
   "status": "SOURCE-ONLY static build composition; installed SDK remains COMPAT-11",
   "base": {
     "id": "LV-VELA-COMPAT-11",
-    "planSHA256": "0a98f9b8bf02fba773b389b8b9ed30a6631820aa9e8d1f686b8be0970fbb562b",
+    "planSHA256": "50d4332a6af1c32ca02f370565ec61ced1819494ef7e3c0212e68311ad0e265d",
     "package": "@luxalgo/vela",
     "version": "0.8.4",
     "license": "Apache-2.0",
@@ -23,8 +23,8 @@
   "files": [
     {
       "path": "dist/chunk-UNUVPQFW.js",
-      "baseSHA256": "0ed0a8d0a909cb54c0097e5d157e641efa4761dfb03cacebb39ecc1995c499f3",
-      "composedSHA256": "5fc9945b0c3cb1e37ae9a810f5004135af241f1394b18bba48f81f96d6961dd2",
+      "baseSHA256": "1832fff6359c0d292becf089f4d3372e2e014439a9ad79afc941cbf804a4f9e5",
+      "composedSHA256": "1cf54516cceeb6da4255b85535073bd059f310343980f1c9f4bc4f99afc50c02",
       "transformations": [
         {
           "id": "future-calendar-support",
@@ -75,8 +75,8 @@
     },
     {
       "path": "dist/index.cjs",
-      "baseSHA256": "a41d90a24f830bf4bb0fc973d92bef9e2511f4631d8afa7092609c463db4b4b1",
-      "composedSHA256": "ccdc10192220aa33dc705285e1948dd1915f80128c3b7e35057731a10f13046d",
+      "baseSHA256": "c7232d90502bb86eeef7829d4052c7159b80fb612b7a18ba2049bb928f891cfc",
+      "composedSHA256": "36d78055a66306ad42a379d089190be276bf584adacf23eff92c32628503f226",
       "transformations": [
         {
           "id": "future-calendar-support",
@@ -127,8 +127,8 @@
     },
     {
       "path": "dist/vela.global.js",
-      "baseSHA256": "dee5a5fa95a064278547c7700edca8fa774d0cf52bdf7e6fc2358fd3368744d2",
-      "composedSHA256": "a9987dfc77e2e3bfc20d531cb3cefb32914e42e7eef1a1f2f58605adb7f486da",
+      "baseSHA256": "ba40beb77205b217433f86949bc58742e084b2936ba92a5662ab1b74f724e62f",
+      "composedSHA256": "0e4352ee643205fca2ec9249ca115cfdbbd243756088ed16b8df4fc46d5a1be3",
       "transformations": [
         {
           "id": "future-calendar-support",
@@ -179,8 +179,8 @@
     },
     {
       "path": "dist/widget.cjs",
-      "baseSHA256": "9f534db47cd66a2e347dd7b3dcaea5f43271c52f12ae5f01e0343adfb3fd5c22",
-      "composedSHA256": "ab6fed8fcb5461549191029df51afa687c04c5d53c313aa310b5d7acc0321e86",
+      "baseSHA256": "189e7c3f67519a8f9a2854acfe444904b46841cfc490417b7b34a73045987a77",
+      "composedSHA256": "87c0677675f4062d519829766af230485c94569157bd0bc9cf1c5ee8ad31f699",
       "transformations": [
         {
           "id": "future-calendar-support",
@@ -231,8 +231,8 @@
     },
     {
       "path": "dist/workspace.cjs",
-      "baseSHA256": "11364af0daa7a396e22516f36e4236008276315ce45b48b2f8456968fbd9a6e1",
-      "composedSHA256": "cbddb130e8614b3a6e114c9f5a05dc32ff829c8c167ba5e78aff27992ced2a31",
+      "baseSHA256": "9aed1c5e5de77397c40f83e56c3ab1d4882e396197dfd369fa5a1928b292c08b",
+      "composedSHA256": "674b558dfdc09bd52ec1346f54f78332263050be4bb104466a3f044b748ad045",
       "transformations": [
         {
           "id": "future-calendar-support",

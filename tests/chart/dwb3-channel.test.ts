@@ -56,9 +56,9 @@ describe('CHANNEL.PARALLEL_CHANNEL levels, extends and background (props.lvChann
  it('the background fields drive the native fill and turning the background off removes it',()=>{
   const record=seedNewChannel(channel());
   const off=patchDrawingEdit(record,bars,{'props.lvChannel.background.enabled':false});
-  expect(off.style.fillColor).toBe('#38c0fd00');
+  expect(off.style.fillColor).toBe('#2962ff00');
   const on=patchDrawingEdit(off,bars,{'props.lvChannel.background.enabled':true,'props.lvChannel.background.opacity':50});
-  expect(on.style.fillColor).toBe('#38c0fd80');
+  expect(on.style.fillColor).toBe('#2962ff80');
   const direct=patchDrawingEdit(record,bars,{'style.fillColor':'#112233cc'});
   expect(drawingEditor(direct,bars).values['props.lvChannel.background.color']).toBe('#112233');
   expect(drawingEditor(direct,bars).values['props.lvChannel.background.opacity']).toBe(80);

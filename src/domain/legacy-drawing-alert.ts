@@ -4,7 +4,7 @@
 // not moved since: a moved, retyped or deleted drawing gives no value, never a guess. The value is the endpoint close minus
 // the line's price at that bar's time, so crossing 0 is the close crossing the line.
 // The line is straight in time and price ('linear-time-price') or in time and log price ('linear-time-log-price'),
-// as the saved contract says; a ray starts at its first anchor; an unextended trend line exists only between its anchors.
+// as the saved contract says; a ray starts at its first anchor and runs in its drawn direction; an unextended trend line exists only between its anchors.
 import type {AlertScalarSource} from './alert-observation';
 
 type LegacyDrawing=Extract<AlertScalarSource,{kind:'drawing'}>;
@@ -35,7 +35,8 @@ export function legacyDrawingDistance(source:LegacyDrawing,drawings:readonly unk
  if(second){
   if(first.time===second.time)return refuse('A vertical line has no single price.');
   const low=Math.min(first.time,second.time),high=Math.max(first.time,second.time);
-  if(source.tool==='ray'&&time<low)return refuse('This bar is before the start of the ray.');
+  // A ray runs from its first anchor in the direction it was drawn (0.8.1): drawn right to left, it runs to the left.
+  if(source.tool==='ray'&&(first.time<second.time?time<first.time:time>first.time))return refuse(first.time<second.time?'This bar is before the start of the ray.':'This bar is after the start of the ray, which runs to the left.');
   if(source.tool==='trendline'&&(!flag('extendLeft')&&time<low||!flag('extendRight')&&time>high))return refuse('This bar is outside the trend line.');
   const share=(time-first.time)/(second.time-first.time);
   price=log?Math.exp(Math.log(first.price)+share*(Math.log(second.price)-Math.log(first.price))):first.price+share*(second.price-first.price);

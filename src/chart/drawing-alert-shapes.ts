@@ -19,6 +19,7 @@
 // Every shape is built the way the renderer paints it (@luxalgo/vela 0.8.4 geometry): x is the logical bar position, a ray and a
 // pitchfork tine run right from the left end of their two points, the parallel channel and flat top/bottom span their base line
 // only (their third anchor sets a price), and the disjoint channel exists where both of its lines do.
+import {REGRESSION_DEFAULT_DEVIATION,regressionDeviation} from './drawing-fixes/regression-deviation';
 import type {Bar} from '../domain/types';
 import {fitRegressionAlert} from './regression-alert-fit';
 import {readBoxExtend} from './box-extend-data';
@@ -164,7 +165,9 @@ export function captureDrawingAlertShape(value:unknown,grid:DrawingAlertGrid,opt
     if(!(fit.halfWidth>0))throw new Error('Regression trend has no residual channel height on these observed bars.');
     const first=atTime(fit.firstTime),last=atTime(fit.lastTime);
     if(first!==fit.firstIndex||last!==fit.lastIndex||last>=grid.count)throw new Error('Regression trend fitting rows do not match this information grid.');
-    const low0=fit.startCenter-fit.halfWidth,low1=fit.endCenter-fit.halfWidth,high0=fit.startCenter+fit.halfWidth,high1=fit.endCenter+fit.halfWidth;
+    // The band follows the drawing's Upper and Lower deviation inputs (0.8.1, default 2: the fit's halfWidth is 2 standard deviations).
+    const reg=plain(value.props)?value.props as Record<string,unknown>:{},upperK=regressionDeviation(reg.upperDeviation)/REGRESSION_DEFAULT_DEVIATION,lowerK=regressionDeviation(reg.lowerDeviation)/REGRESSION_DEFAULT_DEVIATION;
+    const low0=fit.startCenter-lowerK*fit.halfWidth,low1=fit.endCenter-lowerK*fit.halfWidth,high0=fit.startCenter+upperK*fit.halfWidth,high1=fit.endCenter+upperK*fit.halfWidth;
     if(![low0,low1,high0,high1].every(finite)||!(high0>low0&&high1>low1))throw new Error('Regression trend channel height is not representable.');
     if(log&&![low0,low1,high0,high1].every(value=>value>0))throw new Error('Regression trend on a logarithmic scale requires positive fitted bands.');
     placed.push({time:fit.firstTime,price:fit.startCenter,logical:first},{time:fit.lastTime,price:fit.endCenter,logical:last});

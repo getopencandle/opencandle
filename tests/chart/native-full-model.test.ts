@@ -7,7 +7,7 @@ import {createScriptPort} from '../../src/chart/script-port';
 import {createComparisonPort} from '../../src/chart/compare-port';
 import type {BarDataset} from '../../src/domain/types';
 import {rolldown} from 'rolldown';
-import {writeFileSync,unlinkSync,readFileSync} from 'node:fs';
+import {writeFileSync,unlinkSync,readFileSync,mkdirSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
@@ -46,7 +46,7 @@ it('measures bounded actual native full-model mount overhead for ten studies and
  const t=await nativeCoreHarness(),port=createIndicatorPort(t.chart,undefined,undefined,undefined,t.bridge.claim);try{
  t.core.bars=Array.from({length:500},(_,i)=>({time:1700000000000+i*60000,open:100+i%9,high:110+i%9,low:90+i%9,close:101+i%9,volume:100+i}));let mounts=0,mountMs=0;const mount=t.renderer.mountIndicator.bind(t.renderer);t.renderer.mountIndicator=model=>{mounts++;const start=performance.now();try{return mount(model);}finally{mountMs+=performance.now()-start;}};for(let i=0;i<10;i++)port.add(i%2?'rsi':'sma',{length:14});mounts=0;mountMs=0;
  const before=process.memoryUsage().heapUsed,start=performance.now();for(let i=0;i<16;i++)port.recompute();const elapsed=performance.now()-start;
- writeFileSync('reports/native-full-model-performance.json',JSON.stringify({synthetic:true,kind:'actual pinned core and NativeRenderer scene, controlled scheduler and legend sinks',gui:false,referenceCompared:false,chartCount:1,sequentialUpdateRounds:16,studyCount:10,barCount:500,fullMounts:mounts,publicMountMs:mountMs,totalMs:elapsed,meanRoundMs:elapsed/16,sampledHeapDeltaBytes:process.memoryUsage().heapUsed-before,coreSha256:t.sourceHash,bridgeSha256:createHash('sha256').update(readFileSync('src/chart/native-full-model.ts')).digest('hex'),ceilingMs:2000,pass:elapsed<2000},null,2));expect(mounts).toBe(160);expect(elapsed).toBeLessThan(2000);
+ mkdirSync('reports',{recursive:true});writeFileSync('reports/native-full-model-performance.json',JSON.stringify({synthetic:true,kind:'actual pinned core and NativeRenderer scene, controlled scheduler and legend sinks',gui:false,referenceCompared:false,chartCount:1,sequentialUpdateRounds:16,studyCount:10,barCount:500,fullMounts:mounts,publicMountMs:mountMs,totalMs:elapsed,meanRoundMs:elapsed/16,sampledHeapDeltaBytes:process.memoryUsage().heapUsed-before,coreSha256:t.sourceHash,bridgeSha256:createHash('sha256').update(readFileSync('src/chart/native-full-model.ts')).digest('hex'),ceilingMs:2000,pass:elapsed<2000},null,2));expect(mounts).toBe(160);expect(elapsed).toBeLessThan(2000);
  }finally{port.dispose();t.dispose();}
 });
 it('real built-in port style-only emissions update the actual scene without synthetic input events',async()=>{

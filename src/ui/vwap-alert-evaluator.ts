@@ -3,6 +3,7 @@ import type {OwnedVwapPrefix} from '../chart/vwap-prefix-source';
 import {sourceContextForDataset} from '../chart/source-context';
 import type {Bar,BarDataset} from '../domain/types';
 import {alertDatasetKey,alertDatasetWithPrefix} from '../domain/alert-observation';
+import {alertChartFacts} from '../domain/indicator-alertability';
 import type {TechnicalVwapRequest} from '../domain/technical-alerts';
 import {applicationVwapClient} from '../vwap/application-client';
 import {effectiveVwapSettings} from '../vwap/settings';
@@ -41,7 +42,7 @@ export function createTechnicalVwapEvaluator(options:{chart:ChartController;data
   if(!request.signal||request.signal.aborted||request.cancelled())throw Error('VWAP alert calculation is cancelled or has no cancellation owner.');
   const prefix=chart.captureVwapPrefix(expected,executionIdentity);assertCurrent();prefix.assertCurrent();proof??=prefix;
   if(prefix.rows!==bars.length||count>prefix.rows)throw Error('VWAP alert request does not match its owned source prefix.');
-  const settings=effectiveVwapSettings(request.inputs,request.transform),check=()=>{assertCurrent();if(request.signal!.aborted||request.cancelled())throw Error('VWAP alert calculation was cancelled.');prefix.assertCurrent();};
+  const settings=effectiveVwapSettings(request.inputs,request.transform,request.chart??alertChartFacts(dataset)),check=()=>{assertCurrent();if(request.signal!.aborted||request.cancelled())throw Error('VWAP alert calculation was cancelled.');prefix.assertCurrent();};
   check();const client=(options.client??applicationVwapClient)();check();const job=client.request({rows:count,settings,prepare:async signal=>{const packed=await prefix.prepare(signal);return count===prefix.rows?packed:packed.slice(0,count*FIELDS*Float64Array.BYTES_PER_ELEMENT);}},{token,signal:request.signal,assertCurrent:check});
   try{const lease=await job.result;try{check();job.assertCurrent();lease.assertCurrent();check();return lease;}catch(error){try{lease.release();}catch(cleanup){throw new AggregateError([error,cleanup],'VWAP alert result retirement failed');}throw error;}}
   catch(error){try{job.cancel('VWAP alert observation failed or retired.');}catch(cleanup){throw new AggregateError([error,cleanup],'VWAP alert job retirement failed');}throw error;}

@@ -12,9 +12,16 @@ export const RATING_MIN_BARS = 30;
 export function smaLastOf(v: number[], p: number): number | null {
   if (v.length < p) return null; let s = 0; for (let i = v.length - p; i < v.length; i++) s += v[i]; return s / p;
 }
-/** Seeded with the first value, alpha = 2/(p+1). */
-export function emaSeries(v: number[], p: number): number[] {
-  const a = 2 / (p + 1), out: number[] = []; v.forEach((x, i) => out.push(i === 0 ? x : a * x + (1 - a) * out[i - 1])); return out;
+/** alpha = 2/(p+1), seeded by the SMA of the first p values (null before), the seed every EMA in the app uses
+ *  (src/domain/indicators.ts emaStepper: StockCharts, TA-Lib). Null inputs are skipped and give null. */
+export function emaSeries(v: readonly (number | null)[], p: number): (number | null)[] {
+  const a = 2 / (p + 1), out: (number | null)[] = []; let prior: number | null = null, sum = 0, count = 0;
+  for (const x of v) {
+    if (x === null || !Number.isFinite(x)) { out.push(null); continue; }
+    if (prior === null) { sum += x; count++; if (count === p) prior = sum / p; out.push(prior); continue; }
+    prior = a * x + (1 - a) * prior; out.push(prior);
+  }
+  return out;
 }
 /** Wilder RSI: first average is the simple mean of the first p changes. */
 export function rsiLast(c: number[], p = 14): number | null {
@@ -36,8 +43,9 @@ export function cciLast(b: Bar[], p = 20): number | null {
   const md = tp.reduce((s, x) => s + Math.abs(x - m), 0) / p; return md === 0 ? null : (tp[p - 1] - m) / (0.015 * md);
 }
 export function macdLast(c: number[]): { macd: number; signal: number } | null {
-  if (c.length < 35) return null; const f = emaSeries(c, 12), s = emaSeries(c, 26), line = c.map((_, i) => f[i] - s[i]), sig = emaSeries(line, 9);
-  return { macd: line[line.length - 1], signal: sig[sig.length - 1] };
+  if (c.length < 35) return null; const f = emaSeries(c, 12), s = emaSeries(c, 26), line = c.map((_, i) => { const a = f[i], b = s[i]; return a === null || b === null ? null : a - b; }), sig = emaSeries(line, 9);
+  const macd = line[line.length - 1], signal = sig[sig.length - 1];
+  return macd === null || signal === null ? null : { macd, signal };
 }
 const label = (s: number) => s >= 0.5 ? 'Strong buy' : s >= 0.1 ? 'Buy' : s > -0.1 ? 'Neutral' : s > -0.5 ? 'Sell' : 'Strong sell';
 

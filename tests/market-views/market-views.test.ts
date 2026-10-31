@@ -66,14 +66,18 @@ describe('seasonals', () => {
 });
 
 describe('technical rating', () => {
-  it('scores a clean uptrend 0.333 (Buy) by hand: averages +1, oscillators -1/3', () => {
+  it('scores a clean uptrend 1/6 (Buy) by hand: averages +1, oscillators -2/3', () => {
     const r = technicalRating(series(Array.from({ length: 60 }, (_, i) => i + 1)));
-    expect(r.groups.average).toBe(1); expect(r.groups.oscillator).toBeCloseTo(-1 / 3, 10);
-    expect(r.score).toBeCloseTo(1 / 3, 10); expect(r.label).toBe('Buy'); expect([r.buy, r.sell, r.neutral]).toEqual([10, 4, 0]);
+    // 0.8.1: the EMAs are SMA-seeded, so on an exactly linear series each EMA sits at its steady-state lag from its first
+    // value and the MACD line (7) equals its signal; rounding leaves it 1.8e-15 below, a sell vote (was +1 with the old
+    // first-value seed, whose MACD was still converging upward).
+    const macd = r.votes.find(v => v.name === 'MACD 12 26 9')!; expect(Math.abs(macd.value as number)).toBeLessThan(1e-12);
+    expect(r.groups.average).toBe(1); expect(r.groups.oscillator).toBeCloseTo(-2 / 3, 10);
+    expect(r.score).toBeCloseTo(1 / 6, 10); expect(r.label).toBe('Buy'); expect([r.buy, r.sell, r.neutral]).toEqual([9, 5, 0]);
     expect(r.votes.find(v => v.name === 'RSI 14')!.value).toBe(100); expect(r.votes.find(v => v.name === 'SMA 50')!.value).toBeCloseTo(35.5, 10);
   });
   it('mirrors for a downtrend and refuses short history', () => {
-    expect(technicalRating(series(Array.from({ length: 60 }, (_, i) => 60 - i))).score).toBeCloseTo(-1 / 3, 10);
+    expect(technicalRating(series(Array.from({ length: 60 }, (_, i) => 60 - i))).score).toBeCloseTo(-1 / 6, 10);// 0.8.1 SMA seed, see above
     const short = technicalRating(series([1, 2, 3])); expect(short.score).toBeNull(); expect(short.label).toBe('Unavailable');
   });
 });

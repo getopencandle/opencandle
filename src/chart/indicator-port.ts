@@ -930,7 +930,7 @@ function buildIndicatorPort(chart:Vela,panes:PaneRegistry=createPaneRegistry(cha
      // never acquire a replacement source after a calculation failure.
      const capturedPrefix=vwapHost.capture();owned();capturedPrefix.assertCurrent();owned();
      if(capturedPrefix===prefix||capturedPrefix.rows!==prefix.rows||capturedPrefix.transform!==prefix.transform||capturedPrefix.executionIdentity!==prefix.executionIdentity)throw Error('VWAP calculation requires distinct matching owned source and calculation leases.');
-     const calculation=effectiveVwapSettings(inputs,capturedPrefix.transform),check=()=>{owned();capturedPrefix.assertCurrent();owned();};
+     const zoneContext=presentationContext?.(),calculation=effectiveVwapSettings(inputs,capturedPrefix.transform,{exchangeZone:zoneContext?.exchangeZone??null,calendar:zoneContext?.calendar??null}),check=()=>{owned();capturedPrefix.assertCurrent();owned();};
      const client=vwapHost.client();check();const preparedContext=settings.offset===0?presentationContext?.():undefined;check();
      const run=state.run=startVwapIndicatorRun({prefix:capturedPrefix,client,settings:calculation,token:model,assertCurrent:check,assertCapacity(rows){budget(rows);},...(settings.offset===0?{presentation:{settings,context:preparedContext}}:{})});
      void run.result.then((materialized:MaterializedVwap)=>{

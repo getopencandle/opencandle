@@ -34,6 +34,8 @@ export interface TechnicalVwapRequest {
  /** Exact observer-owned reference for the injected host's correlation, never an immutable certificate. */
  readonly prefix:readonly Bar[];readonly sourceBasis?:string;readonly sourceRevision?:string;
  readonly signal:AbortSignal;readonly cancelled:()=>boolean;
+ /** The observed source's exchange zone and calendar, so an 'Exchange' VWAP zone resolves as on the chart. */
+ readonly chart?:Readonly<{exchangeZone:string|null;calendar:'us-equity'|'utc'|null}>;
 }
 /** One restricted-worker run of a frozen script source on the supplied (or Heikin Ashi) prefix. */
 export interface TechnicalScriptRequest {readonly source:string;readonly inputs:Readonly<Record<string,number|string|boolean>>;readonly bars:readonly Bar[];readonly signal:AbortSignal;readonly cancelled:()=>boolean}
@@ -48,7 +50,9 @@ export interface TechnicalScriptOutputs {
 export const SCRIPT_ALERT_BARS=5000;
 /** resolution and calendar: the observed source's chart facts for catalog kinds (indicator-alertability.ts
  *  alertChartFacts); absent = unknown, and a kind falls back to its bar-based inference as on a chart without them. */
-export interface TechnicalAlertOptions {timeframe?:{evaluator:NyseMtfAlertEvaluator;dataset:BarDataset;bars:readonly Bar[];execution:string};resolution?:string|null;calendar?:'us-equity'|'utc'|null;cancelled?:()=>boolean;yieldControl?:()=>Promise<void>;sourceBasis?:string;sourceRevision?:string;signal?:AbortSignal;evaluateVwap?:(request:TechnicalVwapRequest)=>Promise<VwapResultLease>;evaluateScript?:(request:TechnicalScriptRequest)=>Promise<TechnicalScriptOutputs>;
+export interface TechnicalAlertOptions {timeframe?:{evaluator:NyseMtfAlertEvaluator;dataset:BarDataset;bars:readonly Bar[];execution:string};resolution?:string|null;calendar?:'us-equity'|'utc'|null;
+ /** The observed source's exchange time zone (alertChartFacts): an 'Exchange' VWAP zone resolves to it as on the chart. */
+ exchangeZone?:string|null;cancelled?:()=>boolean;yieldControl?:()=>Promise<void>;sourceBasis?:string;sourceRevision?:string;signal?:AbortSignal;evaluateVwap?:(request:TechnicalVwapRequest)=>Promise<VwapResultLease>;evaluateScript?:(request:TechnicalScriptRequest)=>Promise<TechnicalScriptOutputs>;
  /** The saved workspace drawings of this symbol, for the older 'drawing' alert kind (legacy-drawing-alert.ts). */
  drawings?:readonly unknown[]|null;
  /** Split and dividend ex-dates for the VWAP Dividends and Splits anchors (vwap-event-anchors.ts). */
@@ -184,7 +188,7 @@ export async function evaluateTechnicalAlertSources(prefix:readonly Bar[],source
  }
  const materializeVwap=async(source:Extract<AlertScalarSource,{kind:'indicator'}>,key:string):Promise<{values:readonly(number|null)[];diagnostics:string[]}>=>{
   if(!evaluateVwap)throw new Error('Captured VWAP kernel 2 requires the owned asynchronous source evaluator.');
-  const transform=source.transformId as TechnicalTransform,settings=effectiveVwapSettings(source.inputs,transform),controller=new AbortController(),started=performance.now();
+  const transform=source.transformId as TechnicalTransform,chart=Object.freeze({exchangeZone:options.exchangeZone??null,calendar:options.calendar??null}),settings=effectiveVwapSettings(source.inputs,transform,chart),controller=new AbortController(),started=performance.now();
   let live=true,lease:VwapResultLease|undefined,rejectDeadline!:(cause:unknown)=>void;
   const expired=new Promise<never>((_resolve,reject)=>{rejectDeadline=reject;});
   const timeout=setTimeout(()=>{controller.abort();rejectDeadline(new Error('Technical VWAP calculation and materialization exceeded their shared deadline.'));},VWAP_WORKER_LIMITS.totalMs);
@@ -193,7 +197,7 @@ export async function evaluateTechnicalAlertSources(prefix:readonly Bar[],source
   let failed=false,failure:unknown;
   try{
    signal?.addEventListener('abort',onAbort,{once:true});check();
-   const request:TechnicalVwapRequest=Object.freeze({inputs:Object.freeze({...source.inputs}),transform,prefix,sourceBasis,sourceRevision,signal:controller.signal,cancelled:()=>cancelled()||controller.signal.aborted});
+   const request:TechnicalVwapRequest=Object.freeze({inputs:Object.freeze({...source.inputs}),transform,prefix,sourceBasis,sourceRevision,chart,signal:controller.signal,cancelled:()=>cancelled()||controller.signal.aborted});
    const acquisition=Promise.resolve().then(()=>{check();return evaluateVwap(request);}).then(value=>{if(!live){releaseVwapResultLease(value);throw new Error('Technical VWAP lease arrived after retirement.');}lease=value;return value;});
    await Promise.race([acquisition,expired]);check();assertVwapResultLease(lease,{rows:informationBars,settings});
    const copied=new Map<string,{values:(number|null)[];diagnostics:string[]}>();
@@ -300,7 +304,7 @@ export async function evaluateTechnicalAlertSources(prefix:readonly Bar[],source
    else{
     const needsVolume=['volume','vwap','obv'].includes(source.indicator)||source.inputs.basisType==='VWMA';
     if(needsVolume&&bars.some(bar=>typeof bar.volume!=='number'||!Number.isFinite(bar.volume)||bar.volume<0))result={values:[],diagnostics:['This captured indicator requires volume, which is unavailable in the supplied prefix.']};
-    else{const computed=calculateIndicator(source.indicator as IndicatorId,bars,source.inputs,source.indicator==='vwap'?{corporateActions:options.corporateActions??null}:catalogDefinition(source.indicator)?{resolution:options.resolution??null,calendar:options.calendar??null,secondSeries:options.secondSeries??unsuppliedSecondSeries}:{});for(const plot of computed.series)calculated.set(key+':'+plot.id,{values:plot.values,diagnostics:[...computed.diagnostics,...(computed.plotDiagnostics?.[plot.id]??[])]});plotLists.set(key,computed.series.map(plot=>({id:plot.id,title:plot.label,valueKey:key+':'+plot.id})));result={values:[],diagnostics:computed.diagnostics};}
+    else{const computed=calculateIndicator(source.indicator as IndicatorId,bars,source.inputs,source.indicator==='vwap'?{corporateActions:options.corporateActions??null,exchangeZone:options.exchangeZone??null,calendar:options.calendar??null}:catalogDefinition(source.indicator)?{resolution:options.resolution??null,calendar:options.calendar??null,secondSeries:options.secondSeries??unsuppliedSecondSeries}:{});for(const plot of computed.series)calculated.set(key+':'+plot.id,{values:plot.values,diagnostics:[...computed.diagnostics,...(computed.plotDiagnostics?.[plot.id]??[])]});plotLists.set(key,computed.series.map(plot=>({id:plot.id,title:plot.label,valueKey:key+':'+plot.id})));result={values:[],diagnostics:computed.diagnostics};}
    }
    calculated.set(key,result);
   }

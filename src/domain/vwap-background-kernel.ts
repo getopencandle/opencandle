@@ -31,7 +31,7 @@ export function createBackgroundVwapEvaluator(options:BackgroundVwapOptions):Bac
   const prefix=request.prefix;
   if(!Array.isArray(prefix)||!prefix.length||prefix.length>bars.length||prefix.some((row,index)=>row!==bars[index])||request.sourceBasis!==sourceBasis||request.sourceRevision!==sourceRevision)throw new Error('The VWAP alert request does not match its background feed rows.');
   if(!request.signal||request.signal.aborted||request.cancelled())throw new Error('The background VWAP calculation was cancelled.');
-  const settings=effectiveVwapSettings(request.inputs,request.transform),rows=pack(prefix);
+  const settings=effectiveVwapSettings(request.inputs,request.transform,request.chart??{}),rows=pack(prefix);// the alert's exchange zone and calendar
   const check=()=>{assertCurrent();if(request.signal.aborted||request.cancelled())throw new Error('The background VWAP calculation was cancelled.');};
   const job=options.client().request({rows:prefix.length,settings,prepare:()=>{check();return rows;}},{token:{},signal:request.signal,assertCurrent:check});
   try{const lease=await job.result;try{check();lease.assertCurrent();return lease;}catch(error){try{lease.release();}catch{/* the lease is already gone */}throw error;}}

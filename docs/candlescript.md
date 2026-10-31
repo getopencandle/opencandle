@@ -117,6 +117,8 @@ The script editor underlines static problems as you type (the same checks as Com
 
 The functions below operate on supplied observations. A keyed function takes a 1 to 128 character series key first. Keep its parameters fixed; repeated calls on the same bar with the same inputs return its cached value. Stateful TA calls are unavailable during `onFill`. Finite-window functions return `null` before their complete window is available, and missing values keep a window unavailable until the gap leaves it. Arithmetic overflow rejects the run without committing state. The table describes how each function behaves in CandleScript.
 
+`ctx.ta.ema` (and the EMAs inside `dema`, `tema`, `tsi` and `kcw`) is seeded at its first finite value, a CandleScript choice: it has a value from the first bar. The chart's built-in indicators seed every EMA with the simple average of its first Length values instead, so a script EMA and the EMA indicator differ for roughly the first few Length bars and then converge. `ctx.ta.macd` and `ctx.ta.kc` use the built-in seed.
+
 | Function after `ctx.ta.` | Behaviour |
 | --- | --- |
 | `alma(key, value, length, offset=0.85, sigma=6, floor=false)` | Gaussian weighted window, oldest first; center `offset*(length-1)` optionally floored; width `length/sigma`; positive sigma. |

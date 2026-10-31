@@ -56,7 +56,7 @@ describe('R36 catalog alert sources (SYNTHETIC)',()=>{
  });
  it('chart facts reach the calculation: pivots on a US equity 5-minute source use the declared calendar',async()=>{
   const bars=wave(320),stock={...dataset(bars),instrument:{...dataset(bars).instrument,assetClass:'stock',timezone:'America/New_York'}} as BarDataset;
-  const facts=alertChartFacts(stock);expect(facts).toEqual({resolution:'5m',calendar:'us-equity'});
+  const facts=alertChartFacts(stock);expect(facts).toEqual({resolution:'5m',calendar:'us-equity',exchangeZone:'America/New_York'});// 0.8.1: the exchange zone for 'Exchange' VWAPs
   const source=captureIndicatorAlertSource(settings('pivots'),indicatorPlotIds.pivots[0],'standard','snap'),key=technicalSourceKey(source);
   const value=(await evaluateTechnicalAlertSources(bars,[source],'USD',facts)).results.get(key)!.sample.value;
   expect(value).toBe(calculateIndicator('pivots',bars,{...indicatorDefaults.pivots},facts).series[0].values.at(-1));

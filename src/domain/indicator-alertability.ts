@@ -37,9 +37,10 @@ export function indicatorAlertBlock(kind:string,inputs?:Readonly<Record<string,u
 }
 /** The chart facts a catalog kind receives on the chart, derived from the observed dataset the same way the chart derives
  *  them from its source (declared resolution; the session calendar of New York stocks, ETFs and indexes, or UTC for crypto). */
-export function alertChartFacts(dataset:Pick<BarDataset,'resolution'|'instrument'>):{resolution:string|null;calendar:PivotCalendar|null}{
- const resolution=typeof dataset.resolution==='string'&&dataset.resolution.length<=40?dataset.resolution:null;
- return {resolution,calendar:sourcePivotCalendar(dataset.instrument?.assetClass,dataset.instrument?.timezone)??null};
+export function alertChartFacts(dataset:Pick<BarDataset,'resolution'|'instrument'>):{resolution:string|null;calendar:PivotCalendar|null;exchangeZone:string|null}{
+ const resolution=typeof dataset.resolution==='string'&&dataset.resolution.length<=40?dataset.resolution:null,zone=dataset.instrument?.timezone;
+ // exchangeZone: the instrument time zone, the same field the chart reads (sourceExchangeTimeZone), for 'Exchange' VWAPs.
+ return {resolution,calendar:sourcePivotCalendar(dataset.instrument?.assetClass,dataset.instrument?.timezone)??null,exchangeZone:typeof zone==='string'&&zone.length>0&&zone.length<=80?zone:null};
 }
 /** The indicator's own name and plot title for alert labels; null for the original ten (they keep their historical label). */
 export function catalogAlertTitles(kind:string,plotId:string):{name:string;plot:string}|null{

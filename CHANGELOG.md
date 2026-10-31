@@ -27,7 +27,11 @@ A correctness release: indicator values, timing and drawing tools were checked a
 - ADR on intraday charts uses completed daily ranges.
 - Chart pattern signals no longer change on older bars as new bars arrive.
 - Double and triple tops and bottoms and head and shoulders can require a close through the neckline (on for new instances).
-- Piercing, Dark Cloud Cover, Tweezers and Kicking follow Nison's definitions.
+- Piercing, Dark Cloud Cover, Tweezers, Kicking and Harami follow Nison's definitions.
+- Detrended Price Oscillator (non-centered) subtracts the current average from the earlier price, as defined.
+- 24-hour Volume shows no total when a bar inside the window has unknown volume.
+- A later pre-market or after-hours bar no longer changes an earlier day's higher-timeframe confirmation.
+- Auto Elliott Waves no longer moves a wave end after it has been drawn.
 - Volume Delta, Up/Down Volume and CVD no longer see future intrabar data during bar replay.
 - "Wait for timeframe close" now waits for the bar to close, on charts and in scripts.
 

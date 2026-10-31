@@ -9,6 +9,7 @@ import {parseIndicatorSource} from '../domain/indicator-source';
 import {formatIndicatorNumber,isIndicatorPrecision,type IndicatorPrecision} from './indicator-number-format';
 import {withIndicatorTickPrecision,type IndicatorPrecisionAxis} from './indicator-precision-native';
 import {labelTextColor,publishReservedAxisRanges} from './axis-labels';
+import {installPatternLabelLayout,legendBoxesOver} from './indicator-pattern-layout';
 
 type Row=Record<string,any>;
 type Method=(this:any,...args:any[])=>any;
@@ -314,8 +315,11 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
   ctx.save();try{paintLabels(ctx,coords,finite(dataWidth,'axis origin'));}catch(error){lastDiagnostics=[diagnostic(error instanceof Error?error.message:String(error))];}finally{ctx.restore();}for(const failure of failures)report(failure);return result;
   }finally{painting=false;}
  };
- /** For one axis paint, an indicator pane whose master-scale indicators are all volume-unit kinds (OBV, EFI, A/D, ...)
-  *  reads its ticks abbreviated like the Volume pane. Returns the undo; the renderer recomputes the format every frame. */
+ /** An indicator pane whose master-scale indicators are all volume-unit kinds (OBV, EFI, A/D, ...) reads its ticks
+  *  abbreviated like the Volume pane. The format is left in place after the axis paint: the renderer's computeScales resets
+  *  it on every Light/Full frame, and the crosshair price chip (painted after the axes, and on cursor-only frames that reuse
+  *  the retained pane state) then reads K/M/B too. Returns the undo, run only on dispose. */
+ let compactUndo:()=>void=()=>{};
  function compactAxisPanes():()=>void{
   const changed:Row[]=[];
   try{
@@ -325,11 +329,14 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
   }catch{/* labels keep the renderer's own format */}
   return()=>{for(const pane of changed)if((pane as Record<string,unknown>).axisFormat==='volume')(pane as Record<string,unknown>).axisFormat=undefined;};
  }
- const axesPaint:Method=function(ctx:CanvasRenderingContext2D,incoming:unknown,coords:Row,theme:unknown,dataWidth:number,paneList:unknown){assertOwner(this,chrome);if(incoming!==scene||own(host,'coords')!==coords||own(chrome,'ctx')!==ctx)throw Error('Indicator display axis scene, coordinates or canvas identity changed.');if(painting)throw Error('Indicator display painter is already in progress.');painting=true;try{pendingAxisFailures=[];ctx.save();try{const axes=precisionAxes('master',coords,finite(dataWidth,'axis origin')),restore=compactAxisPanes();try{return axes.length?withIndicatorTickPrecision(ctx,coords,axes,()=>assertOwner(this,chrome),(context,coordinates)=>Reflect.apply(originalAxes,chrome,[context,incoming,coordinates,theme,dataWidth,paneList])):Reflect.apply(originalAxes,chrome,[ctx,incoming,coords,theme,dataWidth,paneList]);}finally{restore();}}catch(error){pendingAxisFailures=[error];report(error);}finally{ctx.restore();}}finally{painting=false;}};
+ const axesPaint:Method=function(ctx:CanvasRenderingContext2D,incoming:unknown,coords:Row,theme:unknown,dataWidth:number,paneList:unknown){assertOwner(this,chrome);if(incoming!==scene||own(host,'coords')!==coords||own(chrome,'ctx')!==ctx)throw Error('Indicator display axis scene, coordinates or canvas identity changed.');if(painting)throw Error('Indicator display painter is already in progress.');painting=true;try{pendingAxisFailures=[];ctx.save();try{const axes=precisionAxes('master',coords,finite(dataWidth,'axis origin'));compactUndo=compactAxisPanes();return axes.length?withIndicatorTickPrecision(ctx,coords,axes,()=>assertOwner(this,chrome),(context,coordinates)=>Reflect.apply(originalAxes,chrome,[context,incoming,coordinates,theme,dataWidth,paneList])):Reflect.apply(originalAxes,chrome,[ctx,incoming,coords,theme,dataWidth,paneList]);}catch(error){pendingAxisFailures=[error];report(error);}finally{ctx.restore();}}finally{painting=false;}};
  const readout:Method=function(model:Row,index:number,pane:unknown,surface:unknown){assertOwner(this,host);if(surface==='legend'&&!current.valuesVisible)return [];if(reading)throw Error('Indicator readout formatting is already in progress.');reading=true;const before=current;try{const result=surface==='legend'||surface==='dataWindow'?formattedReadout(model,index,pane,surface):Reflect.apply(originalReadout,host,[model,index,pane,surface]);assertOwner(this,host);if(current!==before)throw Error('Indicator display options changed during readout.');return result;}catch(error){report(error);return [];}finally{reading=false;}};
  Object.defineProperty(chrome,'drawMergedScaleColumns',{configurable:true,writable:true,value:paint});
  try{Object.defineProperty(chrome,'drawPriceAxes',{configurable:true,writable:true,value:axesPaint});Object.defineProperty(host,'readoutRowsFor',{configurable:true,writable:true,value:readout});if(originalLeft)Object.defineProperty(chrome,'lvDrawLeftScale',{configurable:true,writable:true,value:leftPaint});}catch(error){active=false;const cleanup:unknown[]=[];for(const [owner,key,expected]of [[chrome,'drawMergedScaleColumns',paint],[chrome,'drawPriceAxes',axesPaint],[host,'readoutRowsFor',readout],[chrome,'lvDrawLeftScale',leftPaint]] as const){try{if(!Object.hasOwn(owner,key))continue;if(own(owner,key)!==expected)throw Error('Indicator display installation preserved a foreign method: '+key);delete owner[key];}catch(failure){cleanup.push(failure);}}if(cleanup.length)throw new AggregateError([error,...cleanup],'Indicator display installation and cleanup failed.');throw error;}
  activeInstallations.add(renderer);
+ // Pattern bubbles laid out at paint time and decoration lines cut to the visible bars for the autoscale. Best effort: a
+ // renderer without the seams keeps its own label placement and scale.
+ let disposePatternLayout:()=>void=()=>{};try{disposePatternLayout=installPatternLabelLayout(renderer,()=>legendBoxesOver(own(chrome,'canvas',true)));}catch{/* renderer label placement stands */}
  const controller:IndicatorDisplayController={
   setOptions(next){if(this!==controller)throw Error('Indicator display controller receiver changed.');assertOwner();if(optionsBusy)throw Error('Indicator display option transaction is already in progress.');const candidate=options(next),previous=current,previousDiagnostics=lastDiagnostics;if(candidate.labelsVisible===current.labelsVisible&&candidate.valuesVisible===current.valuesVisible)return;
    optionsBusy=true;try{current=candidate;lastDiagnostics=[];try{Reflect.apply(invalidate,scheduler,[4]);assertOwner();}catch(error){current=previous;lastDiagnostics=previousDiagnostics;try{assertOwner();Reflect.apply(invalidate,scheduler,[4]);assertOwner();}catch(recovery){quarantined=true;lastDiagnostics=[diagnostic('Indicator display repaint recovery failed; reopen this chart.')];throw new AggregateError([error,recovery],'Indicator display options and repaint recovery failed.');}throw error;}}finally{optionsBusy=false;}
@@ -338,7 +345,7 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
    optionsBusy=true;try{const previous=names;names=on;try{Reflect.apply(invalidate,scheduler,[4]);assertOwner();}catch(error){names=previous;throw error;}}finally{optionsBusy=false;}
   },
   diagnostics(){if(this!==controller)throw Error('Indicator display controller receiver changed.');if(!active)throw Error('Indicator display controller is retired.');return [...lastDiagnostics,...leftDiagnostics.filter(row=>!lastDiagnostics.some(other=>other.message===row.message))].map(row=>({...row}));},
-  dispose(){if(this!==controller)throw Error('Indicator display controller receiver changed.');if(!active)return;active=false;activeInstallations.delete(renderer);const failures:unknown[]=[];for(const [owner,key,expected]of [[chrome,'drawMergedScaleColumns',paint],[chrome,'drawPriceAxes',axesPaint],[host,'readoutRowsFor',readout],...(originalLeft?[[chrome,'lvDrawLeftScale',leftPaint] as const]:[])] as const){try{if(own(owner,key)!==expected)throw Error('Indicator display cleanup preserved a foreign method: '+key);delete owner[key];}catch(error){failures.push(error);}}if(failures.length)throw new AggregateError(failures,'Indicator display cleanup was incomplete.');},
+  dispose(){if(this!==controller)throw Error('Indicator display controller receiver changed.');if(!active)return;active=false;activeInstallations.delete(renderer);const failures:unknown[]=[];try{compactUndo();}catch(error){failures.push(error);}compactUndo=()=>{};try{disposePatternLayout();}catch(error){failures.push(error);}for(const [owner,key,expected]of [[chrome,'drawMergedScaleColumns',paint],[chrome,'drawPriceAxes',axesPaint],[host,'readoutRowsFor',readout],...(originalLeft?[[chrome,'lvDrawLeftScale',leftPaint] as const]:[])] as const){try{if(own(owner,key)!==expected)throw Error('Indicator display cleanup preserved a foreign method: '+key);delete owner[key];}catch(error){failures.push(error);}}if(failures.length)throw new AggregateError(failures,'Indicator display cleanup was incomplete.');},
  };
  return controller;
 }

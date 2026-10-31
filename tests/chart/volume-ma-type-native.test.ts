@@ -2,12 +2,13 @@ import {expect,it} from 'vitest';
 import {indicatorDisplayHarness} from './indicator-display-harness';
 import {nativeCoreHarness} from './native-core-harness';
 import {createIndicatorPort,defaultPlotStyle} from '../../src/chart/indicator-port';
-import {defaultIndicatorPresentation} from '../../src/chart/indicator-settings';
+import {defaultIndicatorPresentation,VOLUME_NEW_INSTANCE_PALETTE} from '../../src/chart/indicator-settings';
 import {acquireIndicatorDisplayPort} from '../../src/chart/indicator-display-source';
 import type {Bar} from '../../src/domain/types';
 
 const rows=[3,9,6,12].map((volume,index)=>({time:1700000000000+index*60000,open:10,high:12,low:9,close:11,volume}));
-const expected={SMA:[null,null,6,9],EMA:[3,6,6,9],WMA:[null,null,6.5,9.5]};
+// EMA is SMA-seeded (StockCharts, TA-Lib; 4520258): mean(3,9,6)=6, then 6+(12-6)/2=9. The old first-value seed pinned [3,6,6,9].
+const expected={SMA:[null,null,6,9],EMA:[null,null,6,9],WMA:[null,null,6.5,9.5]};
 
 it('actual full models and indexed MA readouts follow type while Volume colors and the latest MA remain independent',async()=>{
  const t=await indicatorDisplayHarness();try{
@@ -54,4 +55,22 @@ it('actual port quota rejects WMA before touching rows or native models, even wh
   const forbidden=Array<Bar>(20348);Object.defineProperty(forbidden,'0',{get(){reads++;throw Error('Unadmitted source read');}});input=forbidden;
   expect(()=>port.update(id,{inputs:{maType:'WMA'}})).toThrow(/batch exceeds/);expect(reads).toBe(0);expect(port.serialize()).toEqual(saved);expect(t.native.scene.indicators.size).toBe(nativeCount);
  }finally{port.dispose();t.dispose();}
+});
+
+it('a new Volume colors bars by candle direction behind the candles, and its default 20 SMA draws once shown',async()=>{
+ const t=await indicatorDisplayHarness();try{
+  // 25 bars: odd bars close below their open (down), even bars close at or above it (up; equal counts as up).
+  const many=Array.from({length:25},(_,i)=>({time:1700000000000+i*60000,open:10,high:12,low:9,close:i%2?9.5:i%4?10:11,volume:100+i}));
+  t.core.bars=many;t.native.bars=many;t.native.scene.bars=many;t.coords.barCount=25;
+  const id=t.port.add('volume',{},undefined,{volumeOverlay:true}),rendererId=t.port.list()[0].rendererId;
+  expect(t.port.list()[0].presentation?.volumePalette).toEqual(VOLUME_NEW_INSTANCE_PALETTE);
+  let model=t.native.scene.indicators.get(rendererId);const volume=model.series[0].points;
+  expect(volume.map((point:any)=>point.color)).toEqual(many.map(bar=>bar.close>=bar.open?'#3fbf8f80':'#e8605a80'));
+  expect(model.series.find((series:any)=>series.title==='Volume MA').visible).toBe(false);
+  t.port.update(id,{plots:{ma:{...defaultPlotStyle('volume','ma',1),visible:true}}});model=t.native.scene.indicators.get(rendererId);
+  const ma=model.series.find((series:any)=>series.title==='Volume MA');expect(ma.visible).not.toBe(false);
+  const values=ma.points.map((point:any)=>point.value);expect(values.slice(0,19).every((value:any)=>value===null)).toBe(true);
+  // SMA(20) of volumes 100..119 is 109.5; each later bar adds one.
+  expect(values.slice(19)).toEqual([109.5,110.5,111.5,112.5,113.5,114.5]);
+ }finally{t.dispose();}
 });

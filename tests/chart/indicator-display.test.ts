@@ -73,8 +73,9 @@ it('painting one hundred cached endpoints reads no historical OHLC fields and re
 it('all ten built-ins paint only their numerical endpoints through the actual core and native column hook',async()=>{
  const t=await indicatorDisplayHarness();try{
   const rows=Array.from({length:50},(_,index)=>({time:1700000000000+index*60000,open:index+1,high:index+2,low:index,close:index+1,volume:1}));t.core.bars=rows;t.native.bars=rows;t.native.scene.bars=rows;
-  // Volume MA is hidden by default, so only Volume paints.
-  const cases:Array<[IndicatorId,Record<string,number|string>,string[]]>=[['volume',{},['1.00']],['sma',{length:1},['50.00']],['ema',{length:1},['50.00']],['rsi',{},['100.00']],['macd',{fast:1,slow:1,signal:1},['0.00','0.00','0.00']],['bb',{},['28.97','40.50','52.03']],['vwap',{source:'close'},['25.50']],['stochastic',{},['93.33','93.33']],['atr',{},['2.00']],['obv',{},['49.00']]];
+  // Volume MA is hidden by default, so only Volume paints. Volume-unit kinds (Volume, OBV) read compact K/M/B at Auto
+  // precision since ba80cfd (isVolumeUnitKind), so small whole values show without decimals.
+  const cases:Array<[IndicatorId,Record<string,number|string>,string[]]>=[['volume',{},['1']],['sma',{length:1},['50.00']],['ema',{length:1},['50.00']],['rsi',{},['100.00']],['macd',{fast:1,slow:1,signal:1},['0.00','0.00','0.00']],['bb',{},['28.97','40.50','52.03']],['vwap',{source:'close'},['25.50']],['stochastic',{},['93.33','93.33']],['atr',{},['2.00']],['obv',{},['49']]];
   for(const [kind,inputs,expected]of cases){const id=t.port.add(kind,inputs),view=t.port.list()[0],model=t.native.scene.indicators.get(view.rendererId),pane=t.native.scene.panes.get(model.paneId);Object.assign(pane,{bounds:{top:0,height:400},scale:{min:-10,max:110},axisFormat:'price'});expect(t.paint().map(row=>String(row.values[0])).sort(),kind).toEqual(expected);expect(t.display.diagnostics(),kind).toEqual([]);t.port.remove(id);}
  }finally{t.dispose();}
 });

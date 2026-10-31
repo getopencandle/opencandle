@@ -34,7 +34,9 @@ it('prepares all7 zero-offset points within conversion without a final full-hist
   await finish(h);h.port.assertVwapReady();const output=h.native.scene.indicators.get(nativeId),values=[100,101,99,102,98,103,97];
   expect(h.port.values(id).series.map(plot=>plot.values)).toEqual(values.map(value=>[null,...Array(128).fill(value)]));
   expect(output.series).toHaveLength(13);expect(output.fills).toHaveLength(3);expect(new Set(output.series.map((plot:any)=>plot.points)).size).toBe(13);
-  for(let ordinal=0;ordinal<7;ordinal++)expect(output.series[ordinal].points).toEqual(input.map((row,index)=>({time:row.time*1000,value:index===0?null:values[ordinal]})));
+  // ba80cfd: the first bar of a new session (UTC day) carries a transparent point color, so no stroke joins two VWAP periods.
+  const reset=(index:number)=>index>0&&Math.floor(input[index].time/86400)!==Math.floor(input[index-1].time/86400);
+  for(let ordinal=0;ordinal<7;ordinal++)expect(output.series[ordinal].points).toEqual(input.map((row,index)=>({time:row.time*1000,value:index===0?null:values[ordinal],...(reset(index)?{color:'rgba(0,0,0,0)'}:{})})));
   for(let pair=0;pair<3;pair++){
    const fill=output.fills[pair],lower=output.series.find((plot:any)=>plot.id===fill.fromSeriesId),upper=output.series.find((plot:any)=>plot.id===fill.toSeriesId);
    expect(lower.points.map((point:any)=>point.value)).toEqual([null,...Array(128).fill(99-pair)]);expect(upper.points.map((point:any)=>point.value)).toEqual([null,...Array(128).fill(101+pair)]);

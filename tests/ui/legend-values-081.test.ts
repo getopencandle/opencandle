@@ -52,3 +52,15 @@ describe('legend values match the data window (SYNTHETIC)',()=>{
   expect(table.rows.find(r=>r.time===bars[7].time)!.cells[column]).toBe('1.16346');
  });
 });
+
+describe('Pivots legend names each level (SYNTHETIC)',()=>{
+ it('shows P, R1, S1 ... before each value, skips hidden R3-R5/S3-S5, and leaves other kinds unnamed',()=>{
+  const ids=['p','r1','s1','r2','s2','r3','s3','r4','s4','r5','s5'],port={values:()=>({series:ids.map((id,i)=>({id,values:[10+i] as unknown as ArrayLike<number>}))})};
+  const hidden=(kind:string,plot:string)=>({color:'#000',visible:kind!=='pivots'||!/[345]$/.test(plot)});
+  const texts=indicatorLegendTexts(port,{id:'pv',kind:'pivots'},null,hidden,values=>(values as unknown as number[])[0].toFixed(2)).map(part=>part.text);
+  expect(texts).toEqual(['P 10.00','R1 11.00','S1 12.00','R2 13.00','S2 14.00']);
+  const shown=indicatorLegendTexts(port,{id:'pv',kind:'pivots',plots:{r3:{color:'#000',visible:true},s5:{color:'#000',visible:true}}},null,hidden,values=>(values as unknown as number[])[0].toFixed(2)).map(part=>part.text);
+  expect(shown).toEqual(['P 10.00','R1 11.00','S1 12.00','R2 13.00','S2 14.00','R3 15.00','S5 20.00']);
+  expect(indicatorLegendTexts(port,{id:'x',kind:'sma'},null,()=>({color:'#000'}),values=>(values as unknown as number[])[0].toFixed(2))[0].text).toBe('10.00');
+ });
+});

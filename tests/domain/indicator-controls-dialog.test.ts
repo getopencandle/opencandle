@@ -1,7 +1,7 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {IndicatorDialog,IndicatorSettings} from '../../src/ui/IndicatorDialog';
 import {createIndicatorLibrary,factoryIndicatorDefault,saveIndicatorDefault,type IndicatorLibrary} from '../../src/ui/indicator-library';
-import {indicatorInputSchema} from '../../src/chart/indicator-settings';
+import {indicatorInputSchema,VOLUME_NEW_INSTANCE_PALETTE} from '../../src/chart/indicator-settings';
 import {VWAP_BAND_INPUT_KEYS,type IndicatorId} from '../../src/domain/indicators';
 import type {IndicatorInstanceView} from '../../src/chart/indicator-port';
 
@@ -23,7 +23,7 @@ beforeEach(()=>{hooks.cells=[];hooks.cursor=0;hooks.cleanups=[];hooks.writes=0;}
 it('Volume MA selector preserves omitted legacy inputs until an explicit choice is applied',()=>{
  const ui=setup('volume',true),select=ui.field('Volume MA type');expect(select.props.value).toBe('SMA');expect(select.props.children.map((x:any)=>x.props.value)).toEqual(['SMA','EMA','WMA']);
  ui.submit();expect(ui.row.inputs).toEqual({length:20});ui.click('Save as default');expect(ui.library.defaults.volume?.inputs).toEqual({length:20});
- ui.edit('Volume MA type','WMA');expect(ui.row.inputs).toEqual({length:20});ui.submit();expect(ui.row.inputs).toEqual({length:20,maType:'WMA'});expect(ui.status()).toContain('EMA starts with the first supplied volume');
+ ui.edit('Volume MA type','WMA');expect(ui.row.inputs).toEqual({length:20});ui.submit();expect(ui.row.inputs).toEqual({length:20,maType:'WMA'});expect(ui.status()).toContain('EMA is seeded with their simple average');
  ui.edit('Volume MA type','SMA');ui.submit();expect(ui.row.inputs.maType).toBe('SMA');
 });
 it('Volume MA defaults, discard and factory reset keep accepted instance edits separate',()=>{
@@ -56,7 +56,9 @@ it('Volume single color cannot change while directional mode is active and both 
 });
 it('Volume defaults keep the full directional tuple without editing existing instances and factory reset removes it',()=>{
  const ui=setup('volume',true);ui.edit('Volume coloring','open-close');ui.click('Style');ui.edit('Volume down color','#019283');ui.click('Save as default');expect(ui.row.presentation).toBeUndefined();expect(ui.library.defaults.volume?.presentation?.volumePalette).toMatchObject({mode:'open-close',downColor:'#019283'});ui.submit();expect(ui.row.presentation?.volumePalette?.downColor).toBe('#019283');
- ui.click('Reset draft to factory');ui.submit();expect(ui.row.presentation?.volumePalette).toBeUndefined();expect(ui.library.defaults.volume?.presentation?.volumePalette?.downColor).toBe('#019283');ui.click('Reset draft to saved defaults');ui.submit();expect(ui.row.presentation?.volumePalette?.mode).toBe('open-close');
+ // 0.8.1: the factory Volume colors bars by candle direction (VOLUME_NEW_INSTANCE_PALETTE), so a factory reset restores that
+ // tuple rather than a single color; the saved default's custom down color is still not applied.
+ ui.click('Reset draft to factory');ui.submit();expect(ui.row.presentation?.volumePalette).toEqual(VOLUME_NEW_INSTANCE_PALETTE);expect(ui.library.defaults.volume?.presentation?.volumePalette?.downColor).toBe('#019283');ui.click('Reset draft to saved defaults');ui.submit();expect(ui.row.presentation?.volumePalette?.mode).toBe('open-close');
 });
 it('Volume invalid colors and directional area remain visible drafts until a supported correction',()=>{
  const ui=setup('volume',true);ui.edit('Volume coloring','open-close');ui.click('Style');ui.edit('Volume up color','not-a-color');ui.submit();expect(ui.onApply).not.toHaveBeenCalled();expect(ui.field('Volume up color').props.value).toBe('not-a-color');ui.edit('Volume up color','#abcdef');

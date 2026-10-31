@@ -20,7 +20,9 @@ describe('additional indicator controls: independent rational oracles',()=>{
  });
  it('covers EMA, Wilder, weighted and volume-weighted smoothing using original fractions',()=>{
   const rows=bars([2,4,8,10],[1,3,2,4]);
-  for(const [type,expected] of [['EMA',[2,10/3,58/9,238/27]],['RMA',[null,3,11/2,31/4]],['WMA',[null,10/3,20/3,28/3]],['VWMA',[null,7/2,28/5,28/3]]] as const)close(values('sma',rows,{length:1,smoothingType:type,smoothingLength:2},'smooth'),[...expected]);
+  // EMA is SMA-seeded (StockCharts, TA-Lib; commit 4520258): null until 2 values, seed (2+4)/2=3, then alpha 2/3:
+  // 3+(2/3)(8-3)=19/3 and 19/3+(2/3)(10-19/3)=79/9. The old first-value seed pinned [2,10/3,58/9,238/27].
+  for(const [type,expected] of [['EMA',[null,3,19/3,79/9]],['RMA',[null,3,11/2,31/4]],['WMA',[null,10/3,20/3,28/3]],['VWMA',[null,7/2,28/5,28/3]]] as const)close(values('sma',rows,{length:1,smoothingType:type,smoothingLength:2},'smooth'),[...expected]);
   expect(indicatorActivePlotIds('sma',{smoothingType:'None'})).toEqual(['sma']);expect(indicatorActivePlotIds('rsi',{smoothingType:'SMA+BB'})).toEqual(['rsi','smooth','smoothUpper','smoothLower']);
  });
  it('preserves RSI and OBV base values when smoothing is enabled',()=>{
@@ -28,9 +30,12 @@ describe('additional indicator controls: independent rational oracles',()=>{
   const obv=calculateIndicator('obv',bars([10,11,11,9],[100,20,30,40]),{smoothingType:'SMA',smoothingLength:2});close(obv.series[0].values,[0,20,20,-20]);close(obv.series[1].values,[null,10,20,0]);
  });
  it('keeps a base result when smoothing volume is unavailable, and never invents zero-volume values',()=>{
-  const rows=bars([2,4,8],[1,NaN,3]),r=calculateIndicator('sma',rows,{length:1,smoothingType:'VWMA',smoothingLength:2});expect(r.diagnostics).toEqual([]);expect(r.series[0].values).toEqual([2,4,8]);expect(r.series[1].values).toEqual([null,null,null]);expect(r.plotDiagnostics?.smooth[0]).toMatch(/volume/);
+  // Since 87d5468 a missing volume gaps only the windows that contain it (the obvStep rule); a series with no usable
+  // volume at all is still refused with a volume diagnostic.
+  const rows=bars([2,4,8],[1,NaN,3]),r=calculateIndicator('sma',rows,{length:1,smoothingType:'VWMA',smoothingLength:2});expect(r.diagnostics).toEqual([]);expect(r.series[0].values).toEqual([2,4,8]);expect(r.series[1].values).toEqual([null,null,null]);
+  const none=bars([2,4,8],[NaN,NaN,NaN]),n=calculateIndicator('sma',none,{length:1,smoothingType:'VWMA',smoothingLength:2});expect(n.diagnostics).toEqual([]);expect(n.series[0].values).toEqual([2,4,8]);expect(n.series[1].values).toEqual([null,null,null]);expect(n.plotDiagnostics?.smooth[0]).toMatch(/volume/);
   expect(values('sma',bars([2,4,8],[0,0,0]),{length:1,smoothingType:'VWMA',smoothingLength:2},'smooth')).toEqual([null,null,null]);
-  expect(calculateIndicator('obv',rows,{smoothingType:'SMA'}).diagnostics[0]).toMatch(/volume/);
+  expect(calculateIndicator('obv',none,{smoothingType:'SMA'}).diagnostics[0]).toMatch(/volume/);
   const overflow=calculateIndicator('sma',bars([1e307,2e307],[100,100]),{length:1,smoothingType:'VWMA',smoothingLength:2});expect(overflow.series[0].values.map(value=>value!/1e307)).toEqual([expect.closeTo(1,12),expect.closeTo(2,12)]);expect(overflow.series[1].values).toEqual([null,null]);expect(overflow.plotDiagnostics?.smooth[0]).toMatch(/overflow/);
  });
  it('does not access a future tail and every prefix agrees with its own full-history prefix',()=>{
@@ -69,8 +74,9 @@ describe('additional indicator controls: independent rational oracles',()=>{
   const result=await evaluateTechnicalAlertSources(bars([2,4,8]),[source],'USD');expect(result.results.get(key)?.sample.value).toBe(6);expect(JSON.stringify(source)).toBe(serialized);
  });
  it('keeps missing add-on diagnostics local to the selected frozen plot',async()=>{
+  // No usable volume at all (a single gap now only gaps its own windows, 87d5468), so the VWMA add-on is refused.
   const base:AlertSourceSnapshot={kind:'indicator',indicator:'sma',instanceId:'one',snapshotId:'new',plotId:'sma',inputs:{length:1,source:'close',smoothingType:'VWMA',smoothingLength:2,smoothingMultiplier:2},inputBasis:'standard-ohlc',transformId:'standard'};
-  const addon={...base,plotId:'smooth'};const result=await evaluateTechnicalAlertSources(bars([2,4,8],[1,NaN,2]),[base,addon],'USD');expect(result.results.get(technicalSourceKey(base))?.sample.value).toBe(8);expect(result.results.get(technicalSourceKey(base))?.diagnostics).toEqual([]);expect(result.results.get(technicalSourceKey(addon))?.sample.value).toBeNull();expect(result.results.get(technicalSourceKey(addon))?.diagnostics[0]).toMatch(/volume/);
+  const addon={...base,plotId:'smooth'};const result=await evaluateTechnicalAlertSources(bars([2,4,8],[NaN,NaN,NaN]),[base,addon],'USD');expect(result.results.get(technicalSourceKey(base))?.sample.value).toBe(8);expect(result.results.get(technicalSourceKey(base))?.diagnostics).toEqual([]);expect(result.results.get(technicalSourceKey(addon))?.sample.value).toBeNull();expect(result.results.get(technicalSourceKey(addon))?.diagnostics[0]).toMatch(/volume/);
  });
  it('copies optional presentation through defaults and templates without assigning ownership or upgrading legacy omission',()=>{
   const factory=factoryIndicatorDefault('rsi');factory.inputs.smoothingType='SMA+BB';factory.plots.rsi.opacity=21;factory.plots.rsi.trackPrice=true;factory.presentation!.guides.upper!.value=72;factory.presentation!.fills.band!.opacity=31;

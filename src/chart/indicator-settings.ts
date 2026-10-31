@@ -70,6 +70,12 @@ export interface IndicatorHistogramPalette {nonnegativeRising:string;nonnegative
 /** The RSI-based MA (smoothing line) colored by direction: rising where the MA is above its previous value, falling otherwise. */
 export interface IndicatorMaPalette {rising:string;falling:string}
 export interface IndicatorVolumePalette {schemaVersion:1;mode:'uniform'|'open-close'|'previous-close'|'rising-falling';upColor:string;downColor:string;upRisingColor?:string;upFallingColor?:string;downRisingColor?:string;downFallingColor?:string}
+/** A new Volume colors each bar by its candle's direction: up when close >= open, down otherwise, the body-color rule of
+ * the candle drawn above it (Nison, Japanese Candlestick Charting Techniques: a white body closes at or above the open)
+ * and the primary rule Up/Down volume uses for each intrabar (r40-volume-catalog.ts). The colors are the OpenCandle up and
+ * down at 50% alpha so the bottom-band columns stay behind readable candles. Saved instances keep their stored palette
+ * (or none, a single color). */
+export const VOLUME_NEW_INSTANCE_PALETTE:Readonly<IndicatorVolumePalette>=Object.freeze({schemaVersion:1,mode:'open-close',upColor:'#3fbf8f80',downColor:'#e8605a80'});
 export const VOLUME_FOUR_WAY_DEFAULTS={upRisingColor:'#2fbf9b',upFallingColor:'#8fd9c3',downRisingColor:'#e8566a',downFallingColor:'#f2a7b1'} as const;
 export type {IndicatorPrecision} from './indicator-number-format';
 import {isIndicatorPrecision,type IndicatorPrecision} from './indicator-number-format';
@@ -210,7 +216,7 @@ export function defaultIndicatorPresentation(kind:IndicatorId,legacy=false):Indi
  const definition=catalogDefinition(kind),catalogGuides=definition?.guides,guides:IndicatorPresentation['guides']={};for(const id of indicatorGuideIds(kind)){const guide=catalogGuides?.find(row=>row.id===id);guides[id]={visible:!legacy&&!(id in RSI_ZONE_DEFAULTS),value:guide?guide.value:id in RSI_ZONE_DEFAULTS?RSI_ZONE_DEFAULTS[id as keyof typeof RSI_ZONE_DEFAULTS]:id==='zero'?0:id==='middle'?50:id==='upper'?(kind==='stochastic'?80:70):(kind==='stochastic'?20:30),color:guide?.color??LV_GUIDE_COLOR,width:1,lineStyle:'dashed'};}
  const fills:IndicatorPresentation['fills']={};for(const id of indicatorFillIds(kind)){if(isVpFillId(id)){fills[id]={...VP_FILL_DEFAULTS[id]};continue;}if(id==='bullZone'||id==='bearZone'){fills[id]={visible:!legacy,color:id==='bullZone'?LV_HISTOGRAM_COLORS.up:LV_HISTOGRAM_COLORS.down,opacity:12};continue;}const source=id==='bearish'?definition?.bearishFill:definition?.fill;fills[id]={visible:!legacy,color:source?.color??(kind==='rsi'?LV_RSI_FILL:LV_INDICATOR_PALETTE[0]),opacity:source?.opacity??10};}
  const colors=definition?.histogramColors??{growing:LV_HISTOGRAM_COLORS.up,falling:LV_HISTOGRAM_COLORS.down};
- return {schemaVersion:1,precision:definition?.precision??'auto',guides,fills,...(kind==='macd'&&!legacy?{histogramPalette:{nonnegativeRising:LV_HISTOGRAM_COLORS.up,nonnegativeFalling:LV_HISTOGRAM_COLORS.upPale,negativeRising:LV_HISTOGRAM_COLORS.downPale,negativeFalling:LV_HISTOGRAM_COLORS.down}}:definition?.histogramPalette&&!legacy?{histogramPalette:{nonnegativeRising:colors.growing,nonnegativeFalling:colors.falling,negativeRising:colors.growing,negativeFalling:colors.falling}}:{}),...(kind==='rsi'&&!legacy?{maPalette:{...RSI_MA_PALETTE_DEFAULTS}}:{})};
+ return {schemaVersion:1,precision:definition?.precision??'auto',guides,fills,...(kind==='macd'&&!legacy?{histogramPalette:{nonnegativeRising:LV_HISTOGRAM_COLORS.up,nonnegativeFalling:LV_HISTOGRAM_COLORS.upPale,negativeRising:LV_HISTOGRAM_COLORS.downPale,negativeFalling:LV_HISTOGRAM_COLORS.down}}:definition?.histogramPalette&&!legacy?{histogramPalette:{nonnegativeRising:colors.growing,nonnegativeFalling:colors.falling,negativeRising:colors.growing,negativeFalling:colors.falling}}:{}),...(kind==='rsi'&&!legacy?{maPalette:{...RSI_MA_PALETTE_DEFAULTS}}:{}),...(kind==='volume'&&!legacy?{volumePalette:{...VOLUME_NEW_INSTANCE_PALETTE}}:{})};
 }
 /** Lossless migration of stored inputs (ENV equal upper/lower percentages to Percent, KC Use true range to Bands style, default AO lengths dropped). */
 export function migrateIndicatorInputs(kind:IndicatorId,inputs:IndicatorInputs):IndicatorInputs{return migrateCatalogInputs(kind,inputs) as IndicatorInputs;}

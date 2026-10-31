@@ -100,7 +100,8 @@ it.each(kinds)('PANE_PLACEMENT %s: LV default pane, then price/new/existing-pane
 });
 
 it.each(kinds)('RESET_DEFAULTS %s: factory reset is staged until Apply, saved defaults seed and reset drafts, and restoring factory clears them',kind=>{
- const edit=edits[kind],plot=indicatorPlotIds[kind][0],factory=factoryIndicatorDefault(kind),ui=dialog({seed:[kind],initialSelected:0}),[id]=ui.ids;
+ // A new Volume colors its columns by candle direction (0.8.1), which disables the single Volume color, so its MA color is edited.
+ const edit=edits[kind],plot=kind==='volume'?'ma':indicatorPlotIds[kind][0],factory=factoryIndicatorDefault(kind),ui=dialog({seed:[kind],initialSelected:0}),[id]=ui.ids;
  ui.sEdit(edit.field,edit.value);ui.sClick('Style');ui.sEdit(plot+' color','#123456');ui.sClick('Inputs');ui.sEdit('Display offset (bars)','2');ui.sSubmit();
  let row=ui.port.list()[0];expect(row.inputs[edit.key]).toBe(edit.parsed);expect(row.plots[plot].color).toBe('#123456');expect(row.offset).toBe(2);
  ui.sClick('Reset draft to factory');expect(ui.sText()).toContain('Factory settings staged.');expect(ui.port.list()[0].inputs[edit.key]).toBe(edit.parsed);expect(ui.sText()).toContain('Unapplied changes.');

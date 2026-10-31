@@ -303,15 +303,14 @@ export function rsiDivergenceBackgroundsNative(settings:IndicatorInstanceSetting
  *  at a price), boxes are price zones (border in the plot color, fill at 20% of the plot opacity), and candles
  *  are one native candle series over the bars' own OHLC in their plot's color (hollow = transparent body). */
 export const PATTERN_BOX_FILL_SHARE=0.2;
-/** Pattern label layout (see patternMarksNative). */
-export const PATTERN_LABEL_GAP=6,PATTERN_MAX_LANES=3,PATTERN_LANE_STEP=2;
 export function patternMarksNative(instanceId:string,result:IndicatorResult,bars:readonly Bar[],plotStyle:(id:string)=>IndicatorPlotStyle):{labels:DrawingLabel[];lines:DrawingLine[];boxes:DrawingBox[];candles:CandleSeries|null}{
  const labels:DrawingLabel[]=[],lines:DrawingLine[]=[],boxes:DrawingBox[]=[];const marks=result.marks;if(!marks)return {labels,lines,boxes,candles:null};
  const time=(index:number)=>bars[index]?.time;
  const colorOf=(style:IndicatorPlotStyle)=>indicatorColorOpacity(style.color,style.opacity??100);
- // Readable markers: markers of one bar and side share one label (texts stacked), bare counts (Sequential 1-8) are small
- // plain text rather than bubbles, and a text bubble that would sit within PATTERN_LABEL_GAP bars of an earlier one on the
- // same side moves out to the next lane (one median bar range x PATTERN_LANE_STEP further from the bar) instead of covering it.
+ // Readable markers: markers of one bar and side share one label (texts stacked) and bare counts (Sequential 1-8) are small
+ // plain text rather than bubbles. Every bubble stays anchored at its own bar here; overlapping bubbles are moved apart in
+ // pixels at paint time (indicator-pattern-layout.ts), so they never cover one another or the legend at any zoom and never
+ // widen the price scale.
  const merged=new Map<string,{ordinal:number;row:typeof marks.markers[number];texts:string[];tips:string[];color:string;below:boolean}>();
  marks.markers.forEach((row,ordinal)=>{
   const style=plotStyle(row.plot),at=time(row.index);if(!style.visible||at===undefined)return;const position=row.position??(row.plot==='bullish'?'below':'above'),below=position==='below',color=colorOf(style);
@@ -319,15 +318,9 @@ export function patternMarksNative(instanceId:string,result:IndicatorResult,bars
   if(hit&&hit.color===color){if(row.text)hit.texts.push(row.text);if(row.tooltip)hit.tips.push(row.tooltip);return;}
   merged.set(hit?`${key}:${ordinal}`:key,{ordinal,row,texts:row.text?[row.text]:[],tips:row.tooltip?[row.tooltip]:[],color,below});
  });
- const ranges=bars.map(bar=>bar.high-bar.low).filter(value=>Number.isFinite(value)&&value>0).sort((a,b)=>a-b),step=(ranges[ranges.length>>1]??0)*PATTERN_LANE_STEP;
- const lanes={above:[] as number[],below:[] as number[]};
  for(const {ordinal,row,texts,tips,color,below} of [...merged.values()].sort((a,b)=>a.row.index-b.row.index||a.ordinal-b.ordinal)){
   const at=time(row.index)!,position=row.position??(row.plot==='bullish'?'below':'above'),text=texts.join('\n'),count=!row.shape&&/^\d{1,2}$/.test(text)&&text!=='13';// a 13 (countdown completion) keeps its bubble
-  let yloc:'price'|'abovebar'|'belowbar'=position==='price'?'price':below?'belowbar':'abovebar',y=position==='price'?row.price!:below?bars[row.index].low:bars[row.index].high;
-  if(position!=='price'&&!row.shape&&!count&&step>0){
-   const side=below?lanes.below:lanes.above;let lane=side.findIndex(last=>row.index-last>PATTERN_LABEL_GAP);if(lane<0)lane=side.length<PATTERN_MAX_LANES?side.length:side.length-1;side[lane]=row.index;
-   if(lane>0){yloc='price';y=below?bars[row.index].low-lane*step:bars[row.index].high+lane*step;}
-  }
+  const yloc:'price'|'abovebar'|'belowbar'=position==='price'?'price':below?'belowbar':'abovebar',y=position==='price'?row.price!:below?bars[row.index].low:bars[row.index].high;
   labels.push({id:indicatorDecorationId(instanceId,`pattern:marker:${ordinal}`),paneId:'',xloc:'bar_time',x:at*1000,y,yloc,text,style:row.shape??(count?'none':below?'label_up':'label_down'),color,textColor:row.shape||count?color:'#ffffff',size:row.shape||count?'tiny':'small',textAlign:'center',tooltip:tips.join('\n')||undefined,fontFamily:'default'});
  }
  marks.lines.forEach((row,ordinal)=>{

@@ -1,5 +1,6 @@
 // Per-pane legend grouping and live plot values. Pure data, no chart access.
 // Wording and ordering are OpenCandle's own: the price pane's legend comes first, other panes follow in chart order.
+import {catalogDefinition} from '../domain/indicator-catalog';
 export const LEGEND_VALUE_EMPTY='∅';
 export interface LegendPaneRow {id:string;paneId:string|null}
 export interface LegendPaneGroup<T extends LegendPaneRow> {paneId:string;rows:T[]}
@@ -25,15 +26,21 @@ export function legendValueParts(result:{series:readonly LegendValueSeries[]},pl
  }
  return out;
 }
+/** The label prefix of a legend value ("R1 ") for kinds whose values are otherwise unreadable (catalog legendNames:
+ * Pivots shows up to 11 levels in three colors), or an empty prefix. The data window already lists each plot label. */
+export function legendValueName(kind:string):(plot:string)=>string{
+ const definition=catalogDefinition(kind);if(!definition?.legendNames)return ()=>'';
+ const labels=new Map(definition.plots.map(plot=>[plot.id,plot.label]));return plot=>{const label=labels.get(plot);return label?label+' ':'';};
+}
 /** Legend parts read by `text(values, barIndex)` (barIndex null = the last bar), e.g. the data window's indicatorPlotTextAt,
  * so the legend shows what the data window shows at the same bar (display offset and formatting included). */
 export function indicatorLegendTexts(port:{values(id:string):{series:readonly LegendValueSeries[]}},row:{id:string;kind:string;plots?:Readonly<Record<string,LegendPlotStyle|undefined>>},barIndex:number|null,styleOf:(kind:string,plot:string)=>LegendPlotStyle,text:(values:ArrayLike<number>,barIndex:number|null)=>string):LegendValuePart[]{
  try{
-  const out:LegendValuePart[]=[];
+  const out:LegendValuePart[]=[],name=legendValueName(row.kind);
   for(const series of port.values(row.id).series){
    const style=row.plots?.[series.id]??styleOf(row.kind,series.id);
    if(!style||style.visible===false||style.legend===false)continue;
-   out.push({plot:series.id,text:text(series.values,barIndex),color:style.color});
+   out.push({plot:series.id,text:name(series.id)+text(series.values,barIndex),color:style.color});
   }
   return out;
  }catch{return[];}
@@ -42,8 +49,8 @@ export function indicatorLegendTexts(port:{values(id:string):{series:readonly Le
  * the row has not styled. An unmounted or removed instance reads as no values rather than an error in the legend. */
 export function indicatorLegendValues(port:{values(id:string):{series:readonly LegendValueSeries[]}},row:{id:string;kind:string;plots?:Readonly<Record<string,LegendPlotStyle|undefined>>},barIndex:number|null,styleOf:(kind:string,plot:string)=>LegendPlotStyle,format?:(value:number)=>string):LegendValuePart[]{
  try{
-  const result=port.values(row.id),plots:Record<string,LegendPlotStyle>={};
+  const result=port.values(row.id),plots:Record<string,LegendPlotStyle>={},name=legendValueName(row.kind);
   for(const series of result.series)plots[series.id]=row.plots?.[series.id]??styleOf(row.kind,series.id);
-  return legendValueParts(result,plots,barIndex,format);
+  return legendValueParts(result,plots,barIndex,format).map(part=>({...part,text:name(part.plot)+part.text}));
  }catch{return[];}
 }

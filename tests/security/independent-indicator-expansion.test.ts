@@ -8,7 +8,11 @@ it('uses the unshifted base SMA for addon smoothing and population bands with in
  expect(result.diagnostics).toEqual([]);expect(Object.fromEntries(result.series.map(row=>[row.id,row.values]))).toEqual({sma:[null,6,7.5,9],smooth:[null,null,6.75,8.25],smoothUpper:[null,null,8.25,9.75],smoothLower:[null,null,5.25,6.75]});
 });
 it('preserves available base values when VWMA addon volume is unavailable or band variance overflows',()=>{
- const input=bars([3,9,6,12],[1,Number.NaN,2,3]),missing=calculateIndicator('sma',input,{length:2,smoothingType:'VWMA',smoothingLength:2,smoothingMultiplier:2});
+ // Since 87d5468 a missing volume gaps only the windows that contain it: VWMA(2) of base [_,6,7.5,9] with volumes [1,_,2,3]
+ // is unavailable through bar 2 and (7.5x2 + 9x3)/5 = 8.4 at bar 3. Only a series with no usable volume is refused.
+ const input=bars([3,9,6,12],[1,Number.NaN,2,3]),gap=calculateIndicator('sma',input,{length:2,smoothingType:'VWMA',smoothingLength:2,smoothingMultiplier:2});
+ expect(gap.series.find(row=>row.id==='sma')!.values).toEqual([null,6,7.5,9]);expect(gap.series.find(row=>row.id==='smooth')!.values[3]).toBeCloseTo(8.4,12);expect(gap.series.find(row=>row.id==='smooth')!.values.slice(0,3)).toEqual([null,null,null]);expect(gap.diagnostics).toEqual([]);
+ const missing=calculateIndicator('sma',bars([3,9,6,12],[Number.NaN,Number.NaN,Number.NaN,Number.NaN]),{length:2,smoothingType:'VWMA',smoothingLength:2,smoothingMultiplier:2});
  expect(missing.series.find(row=>row.id==='sma')!.values).toEqual([null,6,7.5,9]);expect(missing.series.find(row=>row.id==='smooth')!.values).toEqual([null,null,null,null]);expect(missing.plotDiagnostics!.smooth[0]).toMatch(/volume/i);expect(missing.diagnostics).toEqual([]);
  const large=calculateIndicator('sma',bars([1e304,2e304]),{length:1,smoothingType:'SMA+BB',smoothingLength:2,smoothingMultiplier:100000});
  const base=large.series.find(row=>row.id==='sma')!.values;expect(base).toHaveLength(2);for(const [index,expected] of [1e304,2e304].entries())expect(Math.abs(base[index]!/expected-1)).toBeLessThanOrEqual(1e-12);for(const id of ['smoothUpper','smoothLower']){expect(large.series.find(row=>row.id===id)!.values).toEqual([null,null]);expect(large.plotDiagnostics?.[id]?.[0]).toMatch(/overflow/i);}

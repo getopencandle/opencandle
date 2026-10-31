@@ -1,5 +1,5 @@
 import {expect,it} from 'vitest';
-import {DOMAIN_INDICATORS,defaultIndicatorPresentation,indicatorInputSchema,validateIndicatorPresentation,validateIndicatorSettings,validateIndicatorSnapshots,validateIndicatorVolumePalette,assertIndicatorBatchBudget,type IndicatorVolumePalette,type IndicatorInstanceSettings} from '../../src/chart/indicator-settings';
+import {DOMAIN_INDICATORS,VOLUME_NEW_INSTANCE_PALETTE,defaultIndicatorPresentation,indicatorInputSchema,validateIndicatorPresentation,validateIndicatorSettings,validateIndicatorSnapshots,validateIndicatorVolumePalette,assertIndicatorBatchBudget,type IndicatorVolumePalette,type IndicatorInstanceSettings} from '../../src/chart/indicator-settings';
 import {createIndicatorLibrary,factoryIndicatorDefault,instanceDefaults,restoreIndicatorLibrary,saveIndicatorDefault,validateIndicatorDefault} from '../../src/ui/indicator-library';
 import {createIndicatorTemplates,saveIndicatorTemplate,restoreIndicatorTemplates,instantiateIndicatorTemplate} from '../../src/ui/indicator-templates';
 import {calculateIndicator} from '../../src/domain/indicators';
@@ -35,7 +35,8 @@ it('rejects directional area across live, dormant, default, snapshot and templat
 });
 
 it('roundtrips palette fields through defaults and templates while preserving exact legacy omission',()=>{
- const factory=factoryIndicatorDefault('volume');expect(Object.hasOwn(factory.presentation!,'volumePalette')).toBe(false);const legacy=structuredClone(factory);delete legacy.presentation;
+ // 0.8.1: a new (factory) Volume carries the candle-direction palette; a saved instance without presentation stays omitted.
+ const factory=factoryIndicatorDefault('volume');expect(factory.presentation!.volumePalette).toEqual(VOLUME_NEW_INSTANCE_PALETTE);const legacy=structuredClone(factory);delete legacy.presentation;
  expect(Object.hasOwn(instanceDefaults(saveIndicatorDefault(createIndicatorLibrary(),'volume',legacy),'volume'),'presentation')).toBe(false);
  factory.presentation!.volumePalette=palette();const library=restoreIndicatorLibrary(JSON.parse(JSON.stringify(saveIndicatorDefault(createIndicatorLibrary(),'volume',factory))));
  const detached=instanceDefaults(library,'volume');expect(detached.presentation!.volumePalette).toEqual(palette());detached.presentation!.volumePalette!.upColor='#123456';expect(instanceDefaults(library,'volume').presentation!.volumePalette!.upColor).toBe('#00ff00');
@@ -53,6 +54,7 @@ it('preserves literal Volume and MA calculations, frozen alerts and frame identi
 
 it('retains existing MA bounds and accounts for the extra presentation pass independently of calculations',()=>{
  expect(indicatorInputSchema('volume')[0]).toMatchObject({key:'length',title:'MA Length',defval:20,min:1,max:100000});expect(indicatorInputSchema('sma')[0].title).toBe('Length');
- const row=settings(),ordinary=assertIndicatorBatchBudget([row],100);row.presentation!.volumePalette=palette();const directional=assertIndicatorBatchBudget([row],100);expect(directional.numericSlots).toBe(ordinary.numericSlots);expect(directional.operations-ordinary.operations).toBe(400);
+ // The factory row now carries a direction palette (0.8.1), so the single-color baseline removes it explicitly.
+ const row=settings();delete row.presentation!.volumePalette;const ordinary=assertIndicatorBatchBudget([row],100);row.presentation!.volumePalette=palette();const directional=assertIndicatorBatchBudget([row],100);expect(directional.numericSlots).toBe(ordinary.numericSlots);expect(directional.operations-ordinary.operations).toBe(400);
  row.visible=false;row.presentation!.visibility={schemaVersion:1,mode:'include',intervals:[],ranges:[]};expect(assertIndicatorBatchBudget([row],100)).toEqual(directional);
 });

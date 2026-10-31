@@ -1,7 +1,7 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {IndicatorSettings} from '../../src/ui/IndicatorDialog';
 import {createIndicatorLibrary,factoryIndicatorDefault,type IndicatorLibrary} from '../../src/ui/indicator-library';
-import {indicatorInputSchema} from '../../src/chart/indicator-settings';
+import {indicatorInputSchema,VOLUME_NEW_INSTANCE_PALETTE} from '../../src/chart/indicator-settings';
 import type {IndicatorInstanceView} from '../../src/chart/indicator-port';
 
 const hooks=vi.hoisted(()=>({cells:[]as any[],cursor:0,cleanup:[]as (()=>void)[],writes:0}));
@@ -24,7 +24,8 @@ it('two same-render directional color callbacks cannot overwrite each other befo
 
 it('a retained directional color callback cannot materialize a removed factory tuple',()=>{
  const ui=setup();ui.edit('Volume coloring','open-close');ui.click('Style');const retained=ui.field('Volume down color').props.onChange;ui.click('Reset draft to factory');const writes=hooks.writes;retained({target:{value:'#123456'}});expect(hooks.writes).toBe(writes);
- ui.submit();expect(ui.row.presentation?.volumePalette).toBeUndefined();expect(ui.row.inputs.length).toBe(20);
+ // 0.8.1: factory reset restores the factory direction palette (VOLUME_NEW_INSTANCE_PALETTE); the retained callback's #123456 never lands.
+ ui.submit();expect(ui.row.presentation?.volumePalette).toEqual(VOLUME_NEW_INSTANCE_PALETTE);expect(ui.row.inputs.length).toBe(20);
 });
 
 it('a rejected save-default that closes the parent cannot publish status, apply or lose the retained mode',()=>{

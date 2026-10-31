@@ -111,6 +111,8 @@ export interface CatalogDefinition {
  bearishFill?:{color:string;opacity:number};
  /** Plots are piecewise constant per period: a value change starts a new horizontal segment (the joining stroke is transparent). */
  segmented?:boolean;
+ /** Many same-colored levels (Pivots: P, R1-R5, S1-S5): the legend names each value with its plot label ("P 24.03"). */
+ legendNames?:boolean;
  /** The calculation depends on the visible range, so the chart recalculates it after each pan or zoom. */
  viewport?:boolean;
  /** A volume profile kind (Profiles tab; histogram boxes from IndicatorResult.profiles). */

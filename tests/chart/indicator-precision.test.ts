@@ -129,3 +129,23 @@ it('actual full-output changes format new smoothing and VWAP bands without expos
   t.setResolution('1m');t.port.recompute();expect(rows(vwap)).toEqual(expected);expect(t.paint().map(row=>row.values[0]).sort()).toEqual(expected);expect(t.display.diagnostics()).toEqual([]);
  }finally{t.dispose();}
 });
+
+it('a volume-unit study pane keeps its K/M/B format after the axis paint, so the crosshair price chip reads abbreviated too',async()=>{
+ const t=await indicatorDisplayHarness();try{
+  for(const row of t.core.bars)row.volume=2500000;
+  const id=t.port.add('obv',{}),model=t.native.scene.indicators.get(t.port.list()[0].rendererId),pane=t.native.scene.panes.get(model.paneId);
+  Object.assign(pane,{bounds:{top:180,height:180},scale:{min:0,max:40000000}});delete pane.axisFormat;t.coords.height=360;
+  t.recording.commands.length=0;t.native.chrome.drawPriceAxes(t.recording.ctx,t.native.scene,t.coords,t.native.theme,300,[t.pane,pane]);
+  const ticks=t.recording.commands.filter(row=>row.op==='fillText'&&(row.values[2] as number)>180).map(row=>String(row.values[0]));
+  expect(ticks.length).toBeGreaterThan(0);expect(ticks.every(text=>/[KMB]$/.test(text.trim()))).toBe(true);
+  // Retained for the crosshair layer (cursor frames reuse the pane state; computeScales resets it on the next full frame).
+  expect(pane.axisFormat).toBe('volume');
+  const layer=t.native.crosshairLayer,chips:string[]=[];
+  if(layer&&typeof layer.lvAxisChip==='function'){
+   const original=layer.lvAxisChip;const stop=Error('chip read');layer.lvAxisChip=function(...args:any[]){chips.push(String(args[4]));throw stop;};
+   try{t.native.scene.crosshair={x:10,y:270};layer.ctx=t.recording.ctx;layer.canvas={width:600,height:720};const coords=Object.assign(Object.create(t.coords),{width:300,height:360,dpr:1,xToLogical:()=>0,logicalToX:()=>10,yToPrice:(y:number,scale:any,bounds:any)=>scale.max-(y-bounds.top)/bounds.height*(scale.max-scale.min)});try{layer.render(t.native.scene,coords,t.native.theme,null,null);}catch(error){if(error!==stop)throw error;}}finally{layer.lvAxisChip=original;}
+   expect(chips.length).toBeGreaterThan(0);expect(chips[0].trim()).toMatch(/[KMB]$/);
+  }
+  t.port.remove(id);
+ }finally{t.dispose();}
+});

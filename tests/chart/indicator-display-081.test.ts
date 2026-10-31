@@ -122,23 +122,46 @@ describe('Pivot points standard names its levels and keeps far levels off by def
  });
 });
 
-import {patternMarksNative,PATTERN_LABEL_GAP} from '../../src/chart/indicator-presentation';
+import {patternMarksNative} from '../../src/chart/indicator-presentation';
+import {bubbleRect,clipLineToWindow,layoutPatternBubbles,priceAtPixel,scaleDrawingSet,type LayoutBubble} from '../../src/chart/indicator-pattern-layout';
 describe('pattern labels do not pile up',()=>{
+ const NL=String.fromCharCode(10);
  const bars:Bar[]=Array.from({length:30},(_,i)=>({time:1700000000+i*86400,open:10,high:11,low:9,close:10,volume:1}));
  const style=()=>({visible:true,color:'#089981',width:1,lineStyle:'solid',priceScale:true,legend:true,dataWindow:true}) as never;
  const marks=(markers:object[])=>({marks:{markers,lines:[]}}) as never;
- it('one bar and side share one label; a nearby bubble moves out a lane; bare counts are plain small text',()=>{
+ it('one bar and side share one label; bubbles stay anchored at their bar (laid out at paint); bare counts are plain small text',()=>{
   const out=patternMarksNative('p',marks([
    {index:5,plot:'bullish',text:'EG',tooltip:'Bullish engulfing'},{index:5,plot:'bullish',text:'H',tooltip:'Hammer'},
-   {index:7,plot:'bullish',text:'TB',tooltip:'Tweezer bottom'},{index:5+PATTERN_LABEL_GAP+3,plot:'bullish',text:'LLS',tooltip:'Long lower shadow'},
+   {index:7,plot:'bullish',text:'TB',tooltip:'Tweezer bottom'},{index:14,plot:'bullish',text:'LLS',tooltip:'Long lower shadow'},
    {index:20,plot:'bearish',text:'3',tooltip:'Count 3'},
   ]),bars,style);
-  expect(out.labels.map(label=>label.text)).toEqual(['EG\nH','TB','LLS','3']);
-  expect(out.labels[0].tooltip).toBe('Bullish engulfing\nHammer');
-  expect(out.labels[0]).toMatchObject({yloc:'belowbar'});
-  expect(out.labels[1]).toMatchObject({yloc:'price'});expect(out.labels[1].y).toBeLessThan(9);// second lane, further below the low
-  expect(out.labels[2]).toMatchObject({yloc:'belowbar'});// far enough to reuse the first lane
+  expect(out.labels.map(label=>label.text)).toEqual(['EG'+NL+'H','TB','LLS','3']);
+  expect(out.labels[0].tooltip).toBe('Bullish engulfing'+NL+'Hammer');
+  // No price-space lanes: an outer lane label would widen the price scale. Collisions are resolved in pixels at paint.
+  for(const label of out.labels.slice(0,3))expect(label).toMatchObject({yloc:'belowbar',style:'label_up'});
   expect(out.labels[3]).toMatchObject({style:'none',size:'tiny',textColor:out.labels[3].color});
+ });
+ it('paint-time layout: overlapping bubbles stack outward, the legend is avoided, and nothing leaves the pane',()=>{
+  const above=(key:number,px:number,py=100):LayoutBubble=>({key,px,py,width:30,height:20,side:'above',flipPy:py+60});
+  const result=layoutPatternBubbles([above(0,100),above(1,110),above(2,120),above(3,300)],400);
+  const rects=result.map((row,i)=>bubbleRect([100,110,120,300][i],row.py,30,20,row.side));
+  for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){const a=rects[i],b=rects[j];expect(a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom,`${i}/${j}`).toBe(false);}
+  expect(result[0].moved).toBe(false);expect(result[1].py).toBeLessThan(result[0].py);expect(result[2].py).toBeLessThan(result[1].py);expect(result[3].moved).toBe(false);
+  // A bubble under the legend box moves to the other side of its bar when there is no room above.
+  const legend={left:0,top:0,right:200,bottom:60};const near=layoutPatternBubbles([above(0,50,40)],400,[legend])[0];
+  expect(near.side).toBe('below');const rect=bubbleRect(50,near.py,30,20,near.side);expect(rect.top).toBeGreaterThanOrEqual(legend.bottom);expect(rect.bottom).toBeLessThanOrEqual(400);
+ });
+ it('pixel-to-price inversion and window clipping for the autoscale',()=>{
+  const linear=(price:number)=>400-price*4;expect(priceAtPixel(linear,200,10)).toBeCloseTo(50,8);expect(priceAtPixel(linear,380,60)).toBeCloseTo(5,8);
+  const log=(price:number)=>400-Math.log(price)*50;expect(priceAtPixel(log,400-Math.log(80)*50,20)).toBeCloseTo(80,6);
+  // A ray from an old pivot (bar 0, price 100) down to bar 10 (price 90): only bars 50..60 are visible, so only 50..40 count.
+  expect(clipLineToWindow(0,10,100,90,'right',50,60)).toEqual({x1:50,x2:60,y1:50,y2:40});
+  expect(clipLineToWindow(0,10,100,90,'none',50,60)).toBeNull();
+  const set={lines:[{id:'lv-decoration:["a","pattern:line:0"]',xloc:'bar_index',x1:0,x2:10,y1:100,y2:90,extend:'right',invisible:false},{id:'script-line',xloc:'bar_index',x1:0,x2:10,y1:100,y2:90,extend:'right'}],labels:[]};
+  // The autoscale reads only the visible part of the anchored segment: a ray whose pivots are off screen adds nothing, and
+  // its projection never counts; other (script) drawings are untouched.
+  expect(scaleDrawingSet(set,50,60,0,(_xloc,x)=>x).lines).toEqual([set.lines[1]]);
+  const shown=scaleDrawingSet(set,5,60,0,(_xloc,x)=>x);expect(shown.lines[0]).toMatchObject({x1:5,x2:10,y1:95,y2:90,extend:'none'});expect(shown.lines[1]).toBe(set.lines[1]);
  });
 });
 

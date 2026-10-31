@@ -24,6 +24,10 @@
 //    DRAWING_TEXT_WRAP_WIDTH (lvWrapWidth), and their hit box follows the wrapped text.
 //  * Regression trend: Upper and Lower deviation inputs (default 2, the native fixed band) and the fit statistic shown as
 //    Pearson's R (the signed correlation of close with bar index, the reading a regression trend reports; lvFitLabel).
+//  * Third round: Fib speed resistance fan lines (including the vertical 0 time line) and the Trend-based fib extension levels
+//    follow the drawn direction; Gann box time divisions carry their ratio labels; Gann fan angles are written in the classic
+//    time x price notation (1/2 is the steep 63.75 degree line); Price note and Price label write their price with the
+//    instrument tick (lvPriceTag, read by the LV-VELA-DRAWING-FIXES-1 painter).
 //  * Default level additions (new drawings only; saved levels never change): Trend-based fib extension 0.236, 0.786, 1.272,
 //    3.618 and 4.236; Fib time zones 55 and 89.
 //
@@ -183,12 +187,26 @@ function defineFibFan():DrawingTypeMeta{
  Object.defineProperties(LvFibFan.prototype,FIXED);
  return meta(base,init=>new LvFibFan(init));
 }
+/** Gann fan angle labels in the classic time x price notation: "a/b" is a units of time per b units of price, so 1/1 is the
+ *  45 degree line, 1/2 the steep line rising two price units per time unit (63.75 degrees), 2/1 the shallow one (26.25 degrees),
+ *  out to 1/8 (82.5) and 8/1 (7.5). Sources: W. D. Gann's angle table as given by Investopedia "Gann Angles" and "Gann Fan"
+ *  (1x2 = 63.75, 2x1 = 26.25, 1x8 = 82.5, 8x1 = 7.5 degrees), the notation the Gann square in this app uses. The native fan
+ *  writes the price-per-time ratio instead (2/1 on the steep line), so its default labels are swapped here. A label the user
+ *  typed is kept; only a native default label is rewritten, so saved drawings keep their geometry and now read correctly. */
+export function classicGannFanLabel(ratio:number,label:string|undefined,nativeDefaults:ReadonlyMap<number,string>):string{
+ const text=label??String(ratio);
+ return nativeDefaults.get(ratio)===text&&/^\d+\/\d+$/.test(text)?text.split('/').reverse().join('/'):text;
+}
 function defineGannFan():DrawingTypeMeta{
- const base=pinned('gannfan',['entryLines','hitTest']);
+ const base=pinned('gannfan',['entryLines','hitTest','defaultLevels']);
  const Base=base.ctor as unknown as new(init:Init)=>FibModel;
  const sample=new Base(probeInit([{time:100,price:500},{time:200,price:600}]));
  const rows=sample.entryLines(LINEAR);if(!rows||!rows.length||Math.round(rows[0].x2)!==LINEAR.width+2||rows[0].numberX!==205)fail('gann fan geometry changed');
+ const nativeDefaults=new Map(sample.defaultLevels().map(lv=>[lv.ratio,lv.label??String(lv.ratio)]));
+ if(nativeDefaults.get(2)!=='2/1'||nativeDefaults.get(0.5)!=='1/2')fail('gann fan default labels changed');
  class LvGannFan extends Base{
+  /** New drawings store the classic labels. */
+  defaultLevels(){return super.defaultLevels().map(lv=>({...lv,label:classicGannFanLabel(lv.ratio,lv.label,nativeDefaults)}));}
   entryLines(proj:Projector){
    const [a,b]=this.anchors;const O=px(this,proj,a);if(!O||!b)return null;
    const xb=proj.xOf(b.time),dp=b.price-a.price,left=xb<O[0],out:Entry[]=[];
@@ -197,13 +215,41 @@ function defineGannFan():DrawingTypeMeta{
     const ty=proj.yOf(a.price+dp*lv.ratio,this.paneId);if(ty==null)continue;
     const [x1,y1,x2,y2]=directedRay(O[0],O[1],xb,ty,proj.width,proj.height);
     const nx=left?xb-5:xb+5;
-    out.push({color:lv.color,x1,y1,x2,y2,numberText:lv.label??String(lv.ratio),numberX:nx,numberY:ty,numberAlign:left?'right':'left',labelX:nx,labelY:ty});
+    out.push({color:lv.color,x1,y1,x2,y2,numberText:classicGannFanLabel(lv.ratio,lv.label,nativeDefaults),numberX:nx,numberY:ty,numberAlign:left?'right':'left',labelX:nx,labelY:ty});
    }
    return out;
   }
  }
  Object.defineProperties(LvGannFan.prototype,FIXED);
  return meta(base,init=>new LvGannFan(init));
+}
+
+/** Fib speed resistance fan: from the first point through each fraction of the advance on the second point's bar (price lines)
+ *  and through each fraction of the time span on the second point's price (time lines), every line in the drawn direction, so
+ *  the vertical 0 time line also starts at the first point. The 1 time line is the 1 price line. Labels as the native fan. */
+export function fibSpeedFanLines(model:{anchors:readonly Anchor[];paneId:string;levels:readonly Level[]},proj:Projector):Entry[]|null{
+ const [a,b]=model.anchors;if(!a||!b)return null;
+ const y1=proj.yOf(a.price,model.paneId),y2=proj.yOf(b.price,model.paneId);if(y1==null||y2==null)return null;
+ const x1=proj.xOf(a.time),x2=proj.xOf(b.time),dx=x2-x1,dy=y2-y1,right=dx>=0,out:Entry[]=[];
+ for(const lv of model.levels){
+  if(!lv.enabled)continue;
+  const pex=x1+dx,pey=y1+dy*lv.ratio,pr=directedRay(x1,y1,pex,pey,proj.width,proj.height);
+  out.push({color:lv.color,...(lv.label?{label:lv.label}:{}),x1:pr[0],y1:pr[1],x2:pr[2],y2:pr[3],numberText:String(lv.ratio),numberX:right?pex+5:pex-5,numberY:pey,numberAlign:right?'left':'right',labelX:pex,labelY:pey});
+  if(lv.ratio===1)continue;
+  const tex=x1+dx*lv.ratio,tey=y1+dy,tr=directedRay(x1,y1,tex,tey,proj.width,proj.height);
+  out.push({color:lv.color,...(lv.label?{label:lv.label}:{}),x1:tr[0],y1:tr[1],x2:tr[2],y2:tr[3],numberText:String(lv.ratio),numberX:tex,numberY:tey+(dy>=0?12:-12),numberAlign:'center',labelX:tex,labelY:tey+12});
+ }
+ return out;
+}
+function defineFibSpeedFan():DrawingTypeMeta{
+ const base=pinned('fibspeedfan',['entryLines','hitTest']);
+ const Base=base.ctor as unknown as new(init:Init)=>FibModel;
+ const rows=new Base(probeInit([{time:100,price:500},{time:200,price:600}])).entryLines(LINEAR);
+ // Pin: drawn left to right, the native 0 price line runs flat from the first point to the right edge.
+ if(!rows||!rows.length||rows[0].x1!==100||rows[0].y1!==500||rows[0].y2!==500||!(rows[0].x2>=LINEAR.width))fail('fib speed fan geometry changed');
+ class LvFibSpeedFan extends Base{entryLines(proj:Projector){return fibSpeedFanLines(this,proj);}}
+ Object.defineProperties(LvFibSpeedFan.prototype,FIXED);
+ return meta(base,init=>new LvFibSpeedFan(init));
 }
 
 // ---------------------------------------------------------------- bar-space time levels
@@ -240,6 +286,15 @@ export function barSpaceVerticals(rows:Entry[],levels:readonly Level[],xa:number
   return{...row,x1:x,x2:x,numberX:x,labelX:x};
  });
 }
+/** Gann box time divisions labelled with their ratio like the price divisions, centred just below the box. */
+export function labelledVerticals(rows:Entry[],levels:readonly Level[]):Entry[]{
+ const enabled=levels.filter(lv=>lv.enabled);let k=0;
+ return rows.map(row=>{
+  if(row.numberText!==''||row.x1!==row.x2||row.y1===row.y2||k>=enabled.length)return row;
+  const lv=enabled[k++];
+  return{...row,numberText:lv.label??String(lv.ratio),numberX:row.x1,numberY:Math.max(row.y1,row.y2)+10,numberAlign:'center'};
+ });
+}
 function defineGannGrid(type:'gannbox'|'gannsquare'):DrawingTypeMeta{
  const base=pinned(type,['entryLines','hitTest']);
  const Base=base.ctor as unknown as new(init:Init)=>FibModel;
@@ -249,7 +304,8 @@ function defineGannGrid(type:'gannbox'|'gannsquare'):DrawingTypeMeta{
  class LvGannGrid extends Base{
   entryLines(proj:Projector){
    const rows=super.entryLines(proj),[a,b]=this.anchors;if(!rows||!a||!b)return rows;
-   return barSpaceVerticals(rows,this.levels,proj.xOf(a.time),proj.xOf(b.time));
+   const fixed=barSpaceVerticals(rows,this.levels,proj.xOf(a.time),proj.xOf(b.time));
+   return type==='gannbox'?labelledVerticals(fixed,this.levels):fixed;
   }
  }
  Object.defineProperties(LvGannGrid.prototype,FIXED);
@@ -332,17 +388,19 @@ function defineFibExtensionTrend():DrawingTypeMeta{
    const levels=super.defaultLevels(),color=(ratio:number)=>[...levels].sort((p,q)=>Math.abs(p.ratio-ratio)-Math.abs(q.ratio-ratio))[0]?.color??'#787b86';
    return[...levels,...TREND_EXTENSION_ADDED_LEVELS.filter(r=>!levels.some(lv=>lv.ratio===r)).map(ratio=>({ratio,color:color(ratio),enabled:true}))].sort((p,q)=>p.ratio-q.ratio);
   }
-  /** Levels project the A-B move from C (price C + r * (B - A)) and run from C to the right, one A-B bar span long (to the
-   *  pane edge with Extend right). While only A and B are placed, nothing is projected yet. */
+  /** Levels project the A-B move from C (price C + r * (B - A)) and run from C in the drawn direction (A to B), one A-B bar
+   *  span long (to the pane edge with Extend right): drawn right to left they run to the left of C, like rays, pitchforks and
+   *  fans. While only A and B are placed, nothing is projected yet. */
   entryLines(proj:Projector){
    const [a,b,c]=this.anchors;if(!a||!b||!c)return null;
    const xa=proj.xOf(a.time),xb=proj.xOf(b.time),xc=proj.xOf(c.time);
    if(![xa,xb,xc].every(Number.isFinite))return null;
-   const x1=xc,x2=(this.style as {extendRight?:boolean}).extendRight?proj.width:xc+Math.max(40,Math.abs(xb-xa)),move=b.price-a.price,out:Entry[]=[];
+   const dir=xb<xa?-1:1,extend=(this.style as {extendRight?:boolean}).extendRight;
+   const x1=xc,x2=extend?(dir>0?proj.width:0):xc+dir*Math.max(40,Math.abs(xb-xa)),move=b.price-a.price,out:Entry[]=[];
    for(const lv of this.levels){
     if(!lv.enabled)continue;
     const price=c.price+lv.ratio*move,y=proj.yOf(price,this.paneId);if(y==null)continue;
-    out.push({color:lv.color,...(lv.label?{label:lv.label}:{}),x1,y1:y,x2,y2:y,numberText:`${lv.ratio} (${formatDrawingPrice(price,this)})`,numberX:x1+4,numberY:y-7,numberAlign:'left',labelX:(x1+x2)/2,labelY:y-7});
+    out.push({color:lv.color,...(lv.label?{label:lv.label}:{}),x1,y1:y,x2,y2:y,numberText:`${lv.ratio} (${formatDrawingPrice(price,this)})`,numberX:x1+4*dir,numberY:y-7,numberAlign:dir>0?'left':'right',labelX:(x1+x2)/2,labelY:y-7});
    }
    return out;
   }
@@ -389,6 +447,21 @@ function defineDatePriceRange():DrawingTypeMeta{
  }
  Object.defineProperties(LvDatePriceRange.prototype,FIXED);
  return meta(base,init=>new LvDatePriceRange(init));
+}
+
+/** Price note and Price label: the pinned price in the instrument tick decimals (MetaTrader "Price label": symbol digits), read
+ *  by the LV-VELA-DRAWING-FIXES-1 painter through lvPriceTag; labelText (the approximate hit box) uses the same text. */
+interface PriceTagModel extends NativeModel{labelText():string}
+function definePriceTag(type:'pricenote'|'pricelabel'):DrawingTypeMeta{
+ const base=pinned(type,['labelText','schema']);
+ const Base=base.ctor as unknown as new(init:Init)=>PriceTagModel;
+ if(new Base(probeInit([{time:0,price:450}])).labelText()!=='450.00')fail(type+' text changed');
+ class LvPriceTag extends Base{
+  lvPriceTag():string{const p=this.anchors[0]?.price;return p==null?'':formatDrawingPrice(p,this);}
+  labelText():string{const p=this.anchors[0]?.price;return p==null?super.labelText():formatDrawingPrice(p,this);}
+ }
+ Object.defineProperties(LvPriceTag.prototype,FIXED);
+ return meta(base,init=>new LvPriceTag(init));
 }
 
 // ---------------------------------------------------------------- fib arcs
@@ -502,6 +575,7 @@ export const DRAWING_FIXES_081_MODULE:LvDrawingToolModule=defineLvDrawingToolMod
   ...(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork'] as const).map(kind=>replace(kind,()=>definePitchfork(kind))),
   replace('fibfan',defineFibFan),
   replace('gannfan',defineGannFan),
+  replace('fibspeedfan',defineFibSpeedFan),
   replace('fibtimezones',defineFibTimeZones),
   replace('gannbox',()=>defineGannGrid('gannbox')),
   replace('gannsquare',()=>defineGannGrid('gannsquare')),
@@ -509,6 +583,8 @@ export const DRAWING_FIXES_081_MODULE:LvDrawingToolModule=defineLvDrawingToolMod
   replace('fibextension',defineFibExtension),
   {type:'fibextensiontrend',base:'fibextensiontrend',define:defineFibExtensionTrend,replacesNative:true,requiresPaintHook:true},
   replace('datepricerange',defineDatePriceRange),
+  replace('pricenote',()=>definePriceTag('pricenote')),
+  replace('pricelabel',()=>definePriceTag('pricelabel')),
   replace('fibarcs',defineFibArcs),
   replace('ray',defineRay),
   replace('infoline',defineInfoLine),

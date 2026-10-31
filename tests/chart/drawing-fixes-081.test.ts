@@ -32,7 +32,7 @@ const barAt=(x:number)=>Math.round(x/10*1000)/1000;
 
 describe('registration',()=>{
  it('every 0.8.1 fix replaced its native registration',()=>{
-  expect(drawingFixStatus().map(row=>[row.type,row.state])).toEqual(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork','fibfan','gannfan','fibtimezones','gannbox','gannsquare','parallelchannel','fibextension','fibextensiontrend','datepricerange','fibarcs','ray','infoline','headshoulders','regressionchannel','elliottimpulse','elliottcorrection','callout','comment','note'].map(type=>[type,'registered']));
+  expect(drawingFixStatus().map(row=>[row.type,row.state])).toEqual(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork','fibfan','gannfan','fibspeedfan','fibtimezones','gannbox','gannsquare','parallelchannel','fibextension','fibextensiontrend','datepricerange','pricenote','pricelabel','fibarcs','ray','infoline','headshoulders','regressionchannel','elliottimpulse','elliottcorrection','callout','comment','note'].map(type=>[type,'registered']));
  });
 });
 
@@ -116,8 +116,10 @@ describe('BUG 3: time levels are counted in bars',()=>{
  it('Gann box and Gann square time divisions are bar fractions of the box',()=>{
   for(const type of ['gannbox','gannsquare']){
    const model=make(type,[{time:bar(3),price:100},{time:bar(7),price:200}]);
-   const verticals=model.entryLines(proj()).filter((row:any)=>row.numberText===''&&row.x1===row.x2&&row.y1!==row.y2).map((row:any)=>barAt(row.x1));
-   expect(verticals).toEqual(model.levels.filter((lv:any)=>lv.enabled).map((lv:any)=>Math.round((3+4*lv.ratio)*1000)/1000));
+   // The vertical rows (the Gann box now labels them with their ratio, 0.8.1 SPEC-1; the square keeps them unlabelled).
+   const rows=model.entryLines(proj()).filter((row:any)=>row.x1===row.x2&&row.y1!==row.y2),enabled=model.levels.filter((lv:any)=>lv.enabled);
+   expect(rows.map((row:any)=>barAt(row.x1))).toEqual(enabled.map((lv:any)=>Math.round((3+4*lv.ratio)*1000)/1000));
+   expect(rows.map((row:any)=>row.numberText)).toEqual(type==='gannbox'?enabled.map((lv:any)=>lv.label??String(lv.ratio)):enabled.map(()=>''));
   }
  });
  it('Modified Schiff and Inside pitchfork use the bar midpoint of the pivot leg; the channel middle handle sits at the bar midpoint',()=>{

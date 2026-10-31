@@ -145,8 +145,11 @@ const BEFORE={
 // 0.8.1 round 2/3: the pale cyan default drawing colour becomes the drawing blue (contrast on light charts), the regression
 //   trend gains deviation inputs, Bars pattern starts above the series. portCatalog, registered and all move. Previous:
 //   portCatalog bf45eb26, registered b3f5ed6e, all 4acfb579.
+// 0.8.1 drawing spec fixes (lane F-draw): new Gann fan drawings store the classic time x price angle labels (the ratio 2
+//   line reads 1/2). Only registered (the gannfan sample levels) and all move. Proof: dropping the Gann fan defaultLevels
+//   override reproduces the previous registered pin exactly. Previous: all e2678e5a, registered 54b17759.
 const PINNED={
- all:'e2678e5a70efb6fd880e900f4f1520f4a3dcc7d4ffc614a29b37afb3a595f12d',
+ all:'eb1efd056ab0496cfc7d7e33f1d3285fa09682f3acd2f00230bfa4279bc2ef61',
  catalog:'9ae61aaf59ca2288523b80d5ffb464032ac193f3916ded797dcb097b03ec8587',
  factoryDefinitions:'815d67cb786de19aeab78dba31d5ce4a963e3939dd6ef25e7ace9e0daac31646',
  factoryUnapplied:'4b2595e051490540ce2fc1861a4543f70b709b4a94a52a6533169ed612eca403',
@@ -155,7 +158,7 @@ const PINNED={
  dialogUnavailable:'a816dd28be2ae041ca2b1069c6fe9df848d19e02d110b4662f26e94477b5ff51',
  lvStatus:'fadb0efa2df48518660b5a5da223dacf433e0d13e5c6158fcab58ff0966f12d1',
  portCatalog:'ca36cfb7bf3a15eeec6a587c1d3cf1b083fce9cd8f8ab9811fd3d52fb98ecf7b',
- registered:'54b17759b98a5e9f31ab59b27d1fe175a9cef899968ba7804e12be5c650e6a6d',
+ registered:'4555c86aacab1a05ca2bf473c27a6cc4bcc56ae0fb47c7c2c0194b5eac61f006',
 } as const;
 
 describe('per-tool registry snapshot (baseline, re-pinned at each integration)',()=>{

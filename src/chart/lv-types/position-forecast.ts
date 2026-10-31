@@ -14,16 +14,20 @@ import type {LvPaintTheme} from '../lv-paint-hook';
 import type {Init,Projector} from '../lv-drawing-pin';
 import {defineLvDrawingToolModule} from './contract';
 import {anchorPx,defineSegmentTool,segmentToolUnapplied,SEGMENT_BASE,type Point,type SegmentToolModel,type SegmentToolSpec} from './segment-tool-base';
-import {approxTextWidth,formatPlatePrice,inRect,lineHeight,paintPlate,strokePath,type Rect} from './paint-helpers';
+import {approxTextWidth,inRect,lineHeight,paintPlate,strokePath,type Rect} from './paint-helpers';
+import {drawingPriceDecimals,formatDrawingPrice} from '../drawing-fixes/price-format';
 
 export const LV_POSITION_FORECAST='lvpositionforecast';
 const PLATE_PX=12,PLATE_GAP=14,PLATE_TEXT='#ffffff';
 
-/** Target plate lines: signed change and percent, then the bar count when known (LV wording). */
-export function forecastLabels(from:number,to:number,bars:number|null):string[]{
+/** Target plate lines: signed change and percent, then the bar count when known (LV wording). The change is written with the
+ *  instrument tick decimals of `model`'s chart (0.8.1 drawing price text, ../drawing-fixes/price-format.ts), so EURUSD reads
+ *  +0.00230, not +0.0023. */
+export function forecastLabels(from:number,to:number,bars:number|null,model?:object):string[]{
  const change=to-from,sign=change>0?'+':change<0?'-':'';
  const percent=from!==0?Math.abs(change/from*100).toFixed(2)+'%':'';
- const lines=[sign+formatPlatePrice(Math.abs(change))+(percent?' ('+sign+percent+')':'')];
+ const decimals=drawingPriceDecimals(model,Math.max(Math.abs(from),Math.abs(to)));
+ const lines=[Number.isFinite(change)?sign+Math.abs(change).toFixed(decimals)+(percent?' ('+sign+percent+')':''):''];
  if(bars!=null&&Number.isFinite(bars))lines.push(Math.round(Math.abs(bars))+' bars');
  return lines;
 }
@@ -49,7 +53,7 @@ function defineForecast():DrawingTypeMeta{
    labels(proj:Projector){
     const a=this.anchors[0],b=this.anchors[1];
     const bars=a&&b&&typeof proj.barsBetween==='function'?proj.barsBetween(a.time,b.time):null;
-    return{source:[a?formatPlatePrice(a.price):''],target:a&&b?forecastLabels(a.price,b.price,bars):null};
+    return{source:[a?formatDrawingPrice(a.price,this):''],target:a&&b?forecastLabels(a.price,b.price,bars,this):null};
    }
    plates(proj:Projector):Plates|null{
     const a=anchorPx(this,proj,0);if(!a)return null;

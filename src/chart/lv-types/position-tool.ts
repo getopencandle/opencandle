@@ -24,7 +24,9 @@
 //  * Ticks use the chart instrument tick size from a registered chart context, else 0.01 (the tick size every LV data source declares).
 //  * P&L walks the chart bars from the entry time: the trade opens on the first bar that trades through the entry, closes at the
 //    stop or the target (the stop first when one bar reaches both), and when the box ends first it closes at the last close inside
-//    the box ("Closed P&L"). While the trade is open and the box still runs, the middle plate reads "Open P&L".
+//    the box ("Closed P&L"). While the trade is open and the box still runs, the middle plate reads "Open P&L". While no bar
+//    has traded through the entry (the order is still waiting, or the box ended first) it reads "Not filled" instead of a
+//    zero P&L (0.8.1).
 //  * Always show stats off shows the plates only while the drawing is selected (the hook has no hover state). Without a chart
 //    context (tests, an unwired chart) the plates always show.
 // Fail closed: when the pin or the paint hook is missing, the native `position` registration stays untouched.
@@ -100,6 +102,8 @@ export function positionTrade(bars:readonly PositionBar[]|null|undefined,levels:
 
 const money=(value:number)=>finiteOr(value).toFixed(2);
 const ratio=(value:number)=>String(Number(finiteOr(value).toFixed(2)));
+/** Middle plate wording while no bar has traded through the entry. */
+export const POSITION_NOT_FILLED='Not filled';
 export interface PositionLabelOptions{readonly compact:boolean;readonly priceDecimals:number;readonly precision:number}
 export interface PositionLabels{readonly target:readonly string[];readonly stop:readonly string[];readonly middle:readonly string[]}
 /** Plate text. Full mode names every value; compact mode drops the names and puts the middle plate on one line (our own wording). */
@@ -108,13 +112,14 @@ export function positionLabels(stats:PositionStats,trade:PositionTrade,options:P
  const side=(s:PositionSide)=>`${s.offset.toFixed(d)} (${s.percent.toFixed(2)}%) ${s.ticks}`;
  const qty=stats.qty.toFixed(Math.min(POSITION_PRECISION_MAX,Math.max(0,Math.trunc(options.precision))));
  const pl=trade.state==='closed'?'Closed P&L':'Open P&L';
- const pnl=trade.state==='open'||trade.state==='closed'?money(trade.pnl):trade.state==='waiting'?money(0):null;
+ // The trade state as the middle plate leads with it: the P&L of a filled trade, "Not filled" while the entry was never traded.
+ const status=trade.state==='open'||trade.state==='closed'?`${pl}: ${money(trade.pnl)}`:trade.state==='waiting'?POSITION_NOT_FILLED:null;
  if(options.compact){
   return{target:[`${side(stats.target)}, ${money(stats.target.amount)}`],stop:[`${side(stats.stop)}, ${money(stats.stop.amount)}`],
-   middle:[[pnl===null?null:`${pl}: ${pnl}`,`Qty: ${qty}`,`R/R: ${ratio(stats.rr)}`].filter(Boolean).join(', ')]};
+   middle:[[status,`Qty: ${qty}`,`R/R: ${ratio(stats.rr)}`].filter(Boolean).join(', ')]};
  }
  return{target:[`Target: ${side(stats.target)}, Amount: ${money(stats.target.amount)}`],stop:[`Stop: ${side(stats.stop)}, Amount: ${money(stats.stop.amount)}`],
-  middle:[pnl===null?`Qty: ${qty}`:`${pl}: ${pnl}, Qty: ${qty}`,`Risk/reward ratio: ${ratio(stats.rr)}`]};
+  middle:[status===null?`Qty: ${qty}`:`${status}, Qty: ${qty}`,`Risk/reward ratio: ${ratio(stats.rr)}`]};
 }
 
 // ---------------------------------------------------------------- chart context (root wiring)

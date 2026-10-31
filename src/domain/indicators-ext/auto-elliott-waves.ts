@@ -13,6 +13,8 @@ import {AUTO_TREND_PIVOT_RULES} from './auto-trendlines-pivot';
  *  - swing pivots reuse the Auto trendlines constants (AUTO_TREND_PIVOT_RULES): a pivot needs `radius` bars each side
  *    (Small 5, Large 25) and the alternating Zig Zag keeps a reversal only when it moves more than `deviation` (Small 2, Large 5)
  *    x ATR(14, RMA) from the previous pivot, so a swing is confirmed only with its full right side (no repainting of old swings);
+ *  - a swing that ends a drawn wave is frozen: a later more extreme same-side pivot starts a new leg (from the opposite extreme
+ *    between them) rather than moving it, so a drawn endpoint never moves on a longer history;
  *  - waves are counted greedily from the oldest swing: the first six alternating swings that satisfy the impulse rules above
  *    are 0-1-2-3-4-5 (wave 5 must pass the end of wave 3); the next three swings form A-B-C when A goes against the impulse,
  *    B ends between the end of A and the end of the impulse, and C passes the end of A; counting continues after the last used swing;
@@ -26,7 +28,7 @@ export interface ElliottPivot {index:number;price:number;high:boolean}
 export interface ElliottWave {label:string;kind:'impulse'|'corrective';up:boolean;from:ElliottPivot;to:ElliottPivot}
 
 /** Confirmed alternating swings. Exposed for tests. */
-export function elliottSwings(bars:readonly Bar[],size:typeof SWING_SIZES[number]):ElliottPivot[]{
+export function elliottSwings(bars:readonly Bar[],size:typeof SWING_SIZES[number],corrective=true):ElliottPivot[]{
  const n=bars.length,start=Math.max(0,n-HORIZON),family=size==='Small'?'small':'large',radius=AUTO_TREND_PIVOT_RULES.radius[family],multiple=AUTO_TREND_PIVOT_RULES.deviation[family],length=AUTO_TREND_PIVOT_RULES.atrLength;
  const atr:(number|null)[]=new Array(n).fill(null);let seed=0,previous:number|null=null;
  for(let i=0;i<n;i++){
@@ -46,7 +48,16 @@ export function elliottSwings(bars:readonly Bar[],size:typeof SWING_SIZES[number
    if(high?!isHigh:!isLow)continue;
    const point:ElliottPivot={index:i,price:high?bars[i].high:bars[i].low,high},last=swings[swings.length-1];
    if(!last){swings.push(point);continue;}
-   if(last.high===high){if(high?point.price>=last.price:point.price<=last.price)swings[swings.length-1]=point;continue;}
+   if(last.high===high){
+    if(!(high?point.price>=last.price:point.price<=last.price))continue;
+    // A swing that already ends a drawn wave is frozen: the more extreme pivot starts a new leg from the opposite extreme
+    // between them instead of moving the drawn endpoint. An undrawn last swing simply moves to the more extreme pivot.
+    if(countElliottWaves(swings,corrective).some(wave=>wave.to===last)){
+     let turn=last.index+1;for(let j=turn+1;j<i;j++)if(high?bars[j].low<bars[turn].low:bars[j].high>bars[turn].high)turn=j;
+     if(turn<i){swings.push({index:turn,price:high?bars[turn].low:bars[turn].high,high:!high});swings.push(point);}
+    }else swings[swings.length-1]=point;
+    continue;
+   }
    if(Math.abs(point.price-last.price)>multiple*(atr[last.index]??a))swings.push(point);
   }
  }
@@ -93,11 +104,12 @@ export const AUTO_ELLIOTT_DEFINITION:CatalogDefinition={id:AUTO_ELLIOTT_ID,name:
  unknownDefaults:['Swing size initial Small, Show corrective waves initial on, the greedy counting order, the A-B-C acceptance rule and colors are OpenCandle-defined.'],
  policies:[
   'OpenCandle-defined detection from confirmed swings only: a swing needs its full right side, so a label never sits on an unfinished swing. Only the newest 5000 bars are searched.',
+  'A drawn wave endpoint never moves. When price makes a more extreme pivot on the same side before a qualifying reversal, a new leg starts from the extreme between the two pivots; a swing that ends no drawn wave yet moves to the more extreme pivot.',
   'Auto Elliott waves is visual-only: no plot values, alerts or strategy signals.',
  ],
  calculate(ctx){
   const n=ctx.bars.length,empty=():NumericSeries=>new Array(n).fill(null);
-  const waves=countElliottWaves(elliottSwings(ctx.bars,ctx.str('swingSize') as typeof SWING_SIZES[number]),ctx.bool('showCorrective'));
+  const corrective=ctx.bool('showCorrective'),waves=countElliottWaves(elliottSwings(ctx.bars,ctx.str('swingSize') as typeof SWING_SIZES[number],corrective),corrective);
   const plot=(up:boolean)=>up?'bullish' as const:'bearish' as const;
   const lines:PatternLine[]=waves.map(w=>({plot:plot(w.up),from:{index:w.from.index,price:w.from.price},to:{index:w.to.index,price:w.to.price}}));
   // A wave's label sits outside price action at its end pivot: above a peak (an up wave ends at a high), below a trough.

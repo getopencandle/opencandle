@@ -74,7 +74,7 @@ export function planHigherTimeframe(bars:readonly Bar[],chartResolution:string|n
 }
 export const SESSION_TIMEFRAME_POLICIES=[
  'Higher-timeframe bars follow New York trading sessions: a day is one New York trading date, a week runs Monday to Sunday by New York date, and a month is a New York calendar month. Holidays, early closes and daylight saving changes come from the NYSE calendar (2015 to 2028; other years count weekdays only). Intraday timeframes anchor at the session segments (09:30 regular open).',
- 'A day, week or month is confirmed on the chart bar that reaches the close of its last trading session: the regular close (13:00 on an early close), or the after-hours close when the chart has extended-hours bars. When that bar is not loaded it is confirmed on the first chart bar of a later period, never on an earlier bar.',
+ 'A day, week or month is confirmed on the chart bar that reaches the close of its last trading session: the regular close (13:00 on an early close), or the after-hours close once the chart has an extended-hours bar on or before that period. A later date never changes the close of an earlier period. When that bar is not loaded it is confirmed on the first chart bar of a later period, never on an earlier bar.',
  'No value is moved to a bar before the information that produced it. Absent periods are not filled.',
 ];
 const sessionDate=(date:string,days:number)=>new Date(Date.parse(date+'T00:00:00Z')+days*DAY*1000).toISOString().slice(0,10);
@@ -92,7 +92,9 @@ function planSessionTimeframe(bars:readonly Bar[],chart:IntervalSpec,spec:Interv
  if(!intraday&&!(chart.unit==='day'&&chart.multiplier===1))return null;
  if(spec.unit==='second'||spec.unit==='day'&&spec.multiplier!==1)return null;
  if(spec.unit==='minute'&&!intraday)return null;
- const n=bars.length,dates:string[]=new Array(n),ends:number[]=new Array(n);let extended=false;
+ // A bar is on an extended-hours chart once that bar or an earlier one lies outside the regular session. Read causally, so a
+ // later date never reclassifies (and so never re-times) an earlier day's close.
+ const n=bars.length,dates:string[]=new Array(n),ends:number[]=new Array(n),extendedAt:boolean[]=new Array(n);let extended=false;
  for(let i=0;i<n;i++){
   const time=bars[i].time;if(!Number.isSafeInteger(time)||i>0&&time<=bars[i-1].time)return {ok:false,code:'RESAMPLE_UNAVAILABLE',message:'Indicator timeframe '+spec.id+' needs chart bars in increasing time order.'};
   if(intraday){
@@ -100,18 +102,19 @@ function planSessionTimeframe(bars:readonly Bar[],chart:IntervalSpec,spec:Interv
    let end=time+chart.seconds!;if(chart.unit==='minute'){const own=usEquitySessionBucket(time,chart.multiplier);if(own.start===time)end=own.end;}ends[i]=end;
    const day=usSessionDay(clock.date),open=newYorkWallTime(clock.date,day.open),close=newYorkWallTime(clock.date,day.close);if(end<=open||time>=close)extended=true;
   }else dates[i]=newYorkClock(time+DAY/2).date;
+  extendedAt[i]=extended;
  }
- const closeOf=(date:string)=>{const day=usSessionDay(date);return newYorkWallTime(date,intraday&&extended?day.postClose:day.close);};
- if(!intraday)for(let i=0;i<n;i++)ends[i]=closeOf(dates[i]);
+ const closeOf=(date:string,i:number)=>{const day=usSessionDay(date);return newYorkWallTime(date,intraday&&extendedAt[i]?day.postClose:day.close);};
+ if(!intraday)for(let i=0;i<n;i++)ends[i]=closeOf(dates[i],i);
  const MONDAY=Date.parse('1969-12-29T00:00:00Z')/1000,MONTH0=1970*12;
  const period=(i:number):{key:number;end:number;start:number}=>{
   const date=dates[i];
   if(spec.unit==='minute'){const own=usEquitySessionBucket(bars[i].time,spec.multiplier);return {key:own.start,start:own.start,end:own.end};}
-  if(spec.unit==='day')return {key:Date.parse(date+'T00:00:00Z')/1000,start:bars[i].time,end:closeOf(date)};
-  if(spec.unit==='week'){const span=7*spec.multiplier,key=Math.floor((Date.parse(date+'T00:00:00Z')/1000-MONDAY)/(span*DAY)),first=new Date((MONDAY+key*span*DAY)*1000).toISOString().slice(0,10);return {key,start:bars[i].time,end:closeOf(lastTradingDate(first,sessionDate(first,span-1)))};}
+  if(spec.unit==='day')return {key:Date.parse(date+'T00:00:00Z')/1000,start:bars[i].time,end:closeOf(date,i)};
+  if(spec.unit==='week'){const span=7*spec.multiplier,key=Math.floor((Date.parse(date+'T00:00:00Z')/1000-MONDAY)/(span*DAY)),first=new Date((MONDAY+key*span*DAY)*1000).toISOString().slice(0,10);return {key,start:bars[i].time,end:closeOf(lastTradingDate(first,sessionDate(first,span-1)),i)};}
   const index=Number(date.slice(0,4))*12+Number(date.slice(5,7))-1,key=MONTH0+Math.floor((index-MONTH0)/spec.multiplier)*spec.multiplier;
   const iso=(value:number)=>String(Math.floor(value/12)).padStart(4,'0')+'-'+String(value%12+1).padStart(2,'0')+'-01',first=iso(key),last=sessionDate(iso(key+spec.multiplier),-1);
-  return {key,start:bars[i].time,end:closeOf(lastTradingDate(first,last))};
+  return {key,start:bars[i].time,end:closeOf(lastTradingDate(first,last),i)};
  };
  const output:Bar[]=[],buckets:HigherTimeframeBucket[]=[];let current:{key:number}|null=null;
  for(let i=0;i<n;i++){

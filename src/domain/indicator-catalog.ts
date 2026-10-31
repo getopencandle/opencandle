@@ -93,6 +93,9 @@ export interface CatalogContext {bars:readonly Bar[];source:readonly (number|nul
  diagnostic?(message:string):void}
 export interface CatalogDefinition {
  id:CatalogIndicatorId;name:string;acronym:string;overlay:boolean;requiresVolume?:boolean;
+ /** The kind reads every timestamped row, including rows with missing volume, and decides availability itself (a
+  *  wall-clock window holding an unknown volume is unavailable), so those rows are not removed before it runs. */
+ keepsVolumeGaps?:boolean;
  /** Extra search terms (indicator picker and quick search); never displayed. */
  keywords?:readonly string[];
  /** True when the Source input feeds one series that may also be another indicator's plot. */

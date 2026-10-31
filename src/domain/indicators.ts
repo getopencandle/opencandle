@@ -516,7 +516,7 @@ export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[
       // whole-series volume requirement, since their geometry is tied to every chart bar.
       const compactable=!definition.profile&&!definition.viewport&&!definition.finerBars&&!definition.dailyHistory&&!definition.projects&&!definition.pattern&&!definition.tradingSessions&&!definition.secondSymbol;
       if(definition.requiresVolume&&volumeGaps&&!compactable)throw new Error('This base indicator requires available nonnegative source volume.');
-      const kept=definition.requiresVolume&&volumeGaps?volumes.flatMap((value,i)=>value===null?[]:[i]):null;
+      const kept=definition.requiresVolume&&volumeGaps&&!definition.keepsVolumeGaps?volumes.flatMap((value,i)=>value===null?[]:[i]):null;
       const hasSource=definition.inputs.some(input=>input.key==='source'),fullSeries:readonly (number|null)[]=!hasSource?[]:reference?options.sourceValues!.map(value=>finite(value)?value:null):sourceValues(bars,source),series=kept&&hasSource?kept.map(i=>fullSeries[i]):fullSeries,calcBars=kept?kept.map(i=>bars[i]):bars;
       const resolution=options.resolution??null,calendar=options.calendar??null;
       if(resolution!==null&&(typeof resolution!=='string'||resolution.length>40)||calendar!==null&&calendar!=='us-equity'&&calendar!=='utc')throw new Error('The chart resolution or session calendar supplied to the calculation is invalid.');
@@ -532,7 +532,7 @@ export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[
       case 'ema': plot('ema', 'EMA', emaSmaSeed(values, num('length', 9))); break;
       case 'rsi': plot('rsi', 'RSI', rsi(values, num('length', 14))); result.policies.push('Flat RSI with zero gain and loss is unavailable, not an invented midpoint.'); break;
       case 'macd': { const m = macd(values, num('fast', 12), num('slow', 26), num('signal', 9), (inputs.oscillatorType ?? 'EMA') as 'EMA' | 'SMA', (inputs.signalType ?? 'EMA') as 'EMA' | 'SMA'); plot('macd', 'MACD', m.line); plot('signal', 'Signal', m.signal); plot('histogram', 'Histogram', m.histogram); break; }
-      case 'bb': { const b = bollingerBands(values, num('length', 20), num('multiplier', 2), (inputs.basisType ?? 'SMA') as MovingAverageType, volumes); plot('basis', 'Basis', b.basis); plot('upper', 'Upper', b.upper); plot('lower', 'Lower', b.lower); result.policies.push('Population standard deviation; independent reference comparison pending.'); break; }
+      case 'bb': { const b = bollingerBands(values, num('length', 20), num('multiplier', 2), (inputs.basisType ?? 'SMA') as MovingAverageType, volumes); plot('basis', 'Basis', b.basis); plot('upper', 'Upper', b.upper); plot('lower', 'Lower', b.lower); result.policies.push('Population standard deviation; independent reference comparison pending.','Basis MA type changes only the middle line: the bands are the basis plus or minus the standard deviation of the source over the same Length window around its simple average (TA-Lib BBANDS convention).'); break; }
       case 'vwap': {
         const bands=indicatorVwapBandSettings(inputs),keys=anchorKeys(bars,String(inputs.anchor??'Session'),vwapAnchorZone(inputs.timezone,options),options.corporateActions),base=vwap(bars,keys,(inputs.source??'hlc3') as PriceSource);plot('vwap','VWAP',base);
         // Standard Deviation mode (src/domain/vwap-stdev-bands.ts).

@@ -98,8 +98,8 @@ describe(' oscillators (SYNTHETIC)',()=>{
   close(values('crsi',fromCloses([10,11,12,11.5,12]),{rsiLength:1,streakLength:1,rankLength:2}),[null,null,null,0,(100+100+50)/3]);
  });
  it('Detrended price oscillator: not centered and centered',()=>{
-  // n 2 -> k = 2; SMA2 = -, 2, 4, 6, 8
-  close(values('dpo',fromCloses([1,3,5,7,9]),{length:2}),[null,null,null,5,5]);
+  // n 2 -> k = 2; SMA2 = -, 2, 4, 6, 8. Not centered: close 2 bars ago less the current SMA (1 - 4, 3 - 6, 5 - 8).
+  close(values('dpo',fromCloses([1,3,5,7,9]),{length:2}),[null,null,-3,-3,-3]);
   close(values('dpo',fromCloses([1,3,5,7,9]),{length:2,centered:true}),[-3,-3,-3,null,null]);
  });
  it('Fisher transform (Ehlers): smoothed normalized midpoint, trigger = prior Fisher',()=>{

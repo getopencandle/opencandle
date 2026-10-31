@@ -229,12 +229,14 @@ const definitions:CatalogDefinition[]=[
   warmup:value=>Math.max(value('rsiLength')+1,value('streakLength')+2,value('rankLength')+2),work:(count,value)=>count*(value('rankLength')+32)},
  {id:'dpo',name:'Detrended price oscillator',acronym:'DPO',overlay:false,sourceSeries:true,inputs:[{key:'length',title:'Period',defval:21,...LENGTH},{key:'centered',title:'Centered',type:'bool',defval:false},SOURCE],
   plots:[{id:'dpo',label:'DPO',color:TEAL,width:1}],guides:ZERO,
-  provenance:[{url:LV+'textbook-detrended-price-oscillator',facts:'DPO compares price with an n-period simple moving average displaced by n / 2 + 1 periods: centered, DPO at bar t = price(t) - SMA(t + n/2 + 1); not centered, DPO = price - SMA from n/2 + 1 bars earlier.'}],
+  provenance:[{url:LV+'textbook-detrended-price-oscillator',facts:'DPO compares price with an n-period simple moving average displaced by n / 2 + 1 periods: centered, DPO at bar t = price(t) - SMA(t + n/2 + 1); not centered, DPO at bar t = price(t - n/2 - 1) - SMA(t), the price n/2 + 1 periods ago less the current SMA.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Period 21 and Centered off are OpenCandle-defined.'],
   policies:['The displacement is floor(n / 2) + 1. Centered values need later bars, so the latest displacement bars are unavailable (they fill in as bars close).'],
   calculate({source,tk,num,bool}){const n=num('length'),k=Math.floor(n/2)+1,mean=tk.sma(source,n),centered=bool('centered');
-   return {dpo:source.map((value,i)=>{const j=centered?i+k:i-k,average=j>=0&&j<source.length?mean[j]:null;return finite(value)&&finite(average)?zero(value-average):null;})};},
-  warmup:value=>value('length')+Math.floor(value('length')/2)+1,work:count=>count*8},
+   // Not centered (StockCharts): the price k bars ago minus the current SMA. Centered: that value drawn k bars to the left,
+   // which is the current price minus the SMA k bars later.
+   return {dpo:source.map((_,i)=>{const price=centered?source[i]:i>=k?source[i-k]:null,average=centered?(i+k<source.length?mean[i+k]:null):mean[i];return finite(price)&&finite(average)?zero(price-average):null;})};},
+  warmup:value=>Math.max(value('length'),Math.floor(value('length')/2)+2),work:count=>count*8},
  {id:'eom',name:'Ease of movement',acronym:'EOM',overlay:false,requiresVolume:true,inputs:[{key:'length',title:'Length',defval:14,...LENGTH},{key:'divisor',title:'Divisor',type:'int',defval:10000,min:1,max:1000000000,step:1}],
   plots:[{id:'eom',label:'EOM',color:TEAL,width:1}],guides:ZERO,
   provenance:[{url:LV+'arms-ease-of-movement',facts:'Richard Arms: distance moved = (H + L)/2 - (prior H + prior L)/2; box ratio = (volume / divisor) / (H - L); EMV = distance / box ratio, smoothed by an n-period simple moving average (14).'}],

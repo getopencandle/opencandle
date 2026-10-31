@@ -43,10 +43,11 @@ export function standardErrorAt(values:readonly (number|null)[],index:number,n:n
 export function hammingWeights(n:number):number[]{return n<=1?[1]:Array.from({length:n},(_,k)=>0.54-0.46*Math.cos(2*Math.PI*k/(n-1)));}
 /** Sum of the volume of the bars opened within the 24 hours up to and including each bar (bar open times, seconds). */
 export function rolling24hVolume(bars:readonly Bar[]):NumericSeries{
- let start=0,sum=0,missing=0;const out:NumericSeries=[];
+ // A missing or negative volume is unknown (the dispatcher's volume rule).
+ const known=(value:number)=>finite(value)&&value>=0;let start=0,sum=0,missing=0;const out:NumericSeries=[];
  for(let i=0;i<bars.length;i++){
-  const volume=bars[i].volume;if(finite(volume))sum+=volume;else missing++;
-  while(start<i&&bars[start].time<=bars[i].time-86400){const old=bars[start].volume;if(finite(old))sum-=old;else missing--;start++;}
+  const volume=bars[i].volume;if(known(volume))sum+=volume;else missing++;
+  while(start<i&&bars[start].time<=bars[i].time-86400){const old=bars[start].volume;if(known(old))sum-=old;else missing--;start++;}
   out.push(missing?null:zero(sum));
  }
  return out;
@@ -62,7 +63,7 @@ const definitions:readonly CatalogDefinition[]=[
   policies:['Each line is the OpenCandle Rank correlation index of the Source over its length (the same calculation). A flat window is unavailable.'],
   calculate({source,num}){const line=(key:string)=>{const n=num(key);return source.map((_,i)=>rciAt(source,i,n));};return {short:line('shortLength'),middle:line('middleLength'),long:line('longLength')};},
   warmup:value=>Math.max(value('shortLength'),value('middleLength'),value('longLength')),work:(count,value)=>count*(value('shortLength')+value('middleLength')+value('longLength'))*12},
- {id:'vol24h',name:'24-hour volume',acronym:'24h Vol',overlay:false,requiresVolume:true,
+ {id:'vol24h',name:'24-hour volume',acronym:'24h Vol',overlay:false,requiresVolume:true,keepsVolumeGaps:true,
   inputs:[],
   plots:[{id:'volume',label:'24-hour volume',kind:'histogram',color:C.teal,width:1}],
   provenance:[{url:LIST,facts:'"24-hour Volume" is a built-in: the volume traded over the trailing 24 hours.'}],

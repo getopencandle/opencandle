@@ -314,7 +314,7 @@ def build_cases(B):
     case('chop-14', 'chop', {}, {'chop': 100 * np.log10(wsum(tr(b), 14) / (highest(h, 14) - lowest(l, 14))) / math.log10(14)}, 'author', 'E. W. Dreiss, Choppiness index')
     case('coppock', 'coppock', {}, {'coppock': wma(roc(c, 14) + roc(c, 11), 10)}, 'author', 'Edwin Coppock (1962)')
     case('crsi', 'crsi', {}, {'crsi': connors(c)}, 'author', 'Connors Research, ConnorsRSI (2012)')
-    case('dpo-21', 'dpo', {}, {'dpo': c - shift(sma(c, 21), 11)}, 'author', SC + 'detrended-price-oscillator-dpo (not centered)')
+    case('dpo-21', 'dpo', {}, {'dpo': shift(c, 11) - sma(c, 21)}, 'author', SC + 'detrended-price-oscillator-dpo (not centered: the close 21/2 + 1 = 11 bars ago less the current SMA 21)')
     emv = 10000 * change(hl2) * (h - l) / v
     case('eom-14', 'eom', {}, {'eom': sma(np.where(h == l, 0, emv), 14)}, 'author', 'Richard Arms, Ease of movement (box ratio = (V/10000)/(H-L)), SMA 14')
     case('fisher-9', 'fisher', {}, fisher(hl2, 9), 'author', 'John Ehlers, Using the Fisher Transform (Stocks & Commodities, Nov 2002): values beyond +/-0.99 are set to +/-0.999',

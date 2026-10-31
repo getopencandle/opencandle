@@ -568,7 +568,7 @@
     "dpo-21"
    ],
    "timing": "2a-2f",
-   "source": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/detrended-price-oscillator-dpo (not centered)"
+   "source": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/detrended-price-oscillator-dpo (not centered: the close 21/2 + 1 = 11 bars ago less the current SMA 21)"
   },
   {
    "id": "eom",

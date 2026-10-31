@@ -377,6 +377,8 @@ export const DRAWING_SPECS:readonly DrawingSpec[]=[
   labels:[{text:'Spec text',near:[33,700],tol:20}],exactTexts:['Spec text'],fills:1,noMirror:'text reads left to right from its point'},
  {id:'DW.ANNOTATION.PRICE_NOTE',type:'pricenote',anchorCount:[2,2],anchors:[[30,450],[36,650]],source:'Price note: a pointer from the price point to a label that shows that price in the instrument precision (MetaTrader "Price label": symbol digits).',
   segments:[seg([30,450],[36,650])],labels:[{text:'450.00',near:[36,650],tol:20}],exactTexts:['450.00'],noMirror:'text reads left to right from its point'},
+ {id:'DW.ANNOTATION.PRICE_NOTE',variant:'fx tick 0.00001',type:'pricenote',anchorCount:[2,2],anchors:[[30,1.08235],[36,1.08240]],scale:'fx',source:'A EURUSD price note shows all 5 decimals of its price point.',
+  exactTexts:['1.08235'],noMirror:'text reads left to right from its point'},
  {id:'DW.ANNOTATION.PIN',type:'lvpin',anchorCount:[1,1],anchors:[[33,600]],text:'Spec text',source:'Pin: a marker on the point with its note text.',
   segments:[seg([33,600],[33,619],{extend:'cover'})],labels:[{text:'Spec text',near:[33,645],tol:20}],exactTexts:['Spec text'],noMirror:'one point; the note reads left to right'},
  {id:'DW.ANNOTATION.TABLE',type:'lvtable',anchorCount:[1,1],anchors:[[28,750]],source:'Table: a grid of cells whose top-left corner is the point (default 2 x 2 content).',

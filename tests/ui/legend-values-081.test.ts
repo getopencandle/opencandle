@@ -2,6 +2,7 @@ import {describe,expect,it} from 'vitest';
 import type {Bar} from '../../src/domain/types';
 import {indicatorLegendTexts} from '../../src/chart/legend-pane-model';
 import {buildDataWindow,indicatorPlotTextAt,type DataWindowIndicatorInput} from '../../src/ui/data-window-model';
+import {buildTableView} from '../../src/ui/table-view-model';
 
 // 0.8.1: the main legend (App.tsx legendRow) and the data window read a plot through one function, indicatorPlotTextAt:
 // values[bar - offset], formatted with the instance precision and symbol tick size. SYNTHETIC values.
@@ -39,5 +40,15 @@ describe('legend values match the data window (SYNTHETIC)',()=>{
   const reading={kind:'sma' as never,offset:3,precision:5 as const};
   expect(indicatorPlotTextAt(sma,2,reading,series.tickSize)).toBe('∅');
   expect(indicatorPlotTextAt(sma,null,reading,series.tickSize)).toBe(indicatorPlotTextAt(sma,9,reading,series.tickSize));
+ });
+ it('table view, legend and data window show identical text for an offset and precision case',()=>{
+  const row={id:'sma-1',kind:'sma',offset:3,presentation:{precision:5 as const}},study={id:'sma-1',kind:'sma' as const,visible:true,offset:3,precision:5 as const};
+  const table=buildTableView({series,bars,timezone:'UTC',indicators:[{...study,plots:[{id:'plot',label:'Plot',color:'#000',dataWindow:true,values:sma}]}]});
+  const column=table.columns.findIndex(col=>col.key==='sma-1:plot');expect(column).toBeGreaterThan(0);
+  for(const tableRow of table.rows){
+   const at=bars.findIndex(b=>b.time===tableRow.time),cell=tableRow.cells[column];
+   expect(cell,String(at)).toBe(windowText(sma,study,at));expect([cell]).toEqual(legendText(sma,row,at,series.tickSize));
+  }
+  expect(table.rows.find(r=>r.time===bars[7].time)!.cells[column]).toBe('1.16346');
  });
 });

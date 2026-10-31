@@ -5,6 +5,7 @@ import {scriptBarIds} from './script-input';
 import type {EngineFeed} from '../strategy-report/feedback';
 import {currentScriptRequestResolver,declaresScriptRequests,resolveScriptRequests,type ScriptDatasetResolverExtras,type ScriptRequestBase,type ScriptRequestDeclaration,type ScriptRequestResolver} from './script-requests';
 import {resolveScriptSymbols,resolveScriptTimeframes,type ScriptSeriesFeed,type ScriptSymbolDeclaration,type ScriptTimeframeDeclaration} from './script-series';
+import {closedChartRows} from '../chart/indicator-history-lookup';
 export type ScriptResult=Extract<Awaited<ReturnType<LVBridge['executeScript']>>,{ok:true}>['value'];
 export type ScriptInputValue=number|string|boolean;
 export type ScriptInputDeclaration=NonNullable<ScriptResult['declarations']>['inputs'][number];
@@ -68,7 +69,8 @@ export async function executeScriptOnBars(input:{source:string;bars:readonly Bar
    // Higher timeframes come from these bars; symbols only from loaded datasets (no feed is opened).
    if(declarations.timeframes.length){
     if(!input.request)throw new Error('This script reads higher timeframes. Those need a chart with a time interval, which is not available here.');
-    const resolved=resolveScriptTimeframes(declarations.timeframes,bars,input.request.base.resolution,resolver?.calendarFor?.(input.request.base)??null);timeframes=resolved.feeds;requestNote+=' · timeframes: '+resolved.labels.join('; ');
+    // A live or replay forming last bar is not closed, so its higher-timeframe bar stays invisible (wait for the close).
+    const resolved=resolveScriptTimeframes(declarations.timeframes,bars,input.request.base.resolution,resolver?.calendarFor?.(input.request.base)??null,closedChartRows(bars,input.request.base.resolution,input.request.base.datasetId));timeframes=resolved.feeds;requestNote+=' · timeframes: '+resolved.labels.join('; ');
    }
    if(declarations.symbols.length){
     if(!input.request||!resolver)throw new Error('This script reads other loaded symbols. Those need a chart and loaded data, which are not available here.');

@@ -31,7 +31,7 @@ const placement=(defval:'Left'|'Right'):CatalogInput=>({key:'placement',title:'P
 const SESSION:CatalogInput={key:'session',title:'Session',type:'string',defval:'Extended',options:PROFILE_SESSIONS};
 const ANCHOR:CatalogInput={key:'anchor',title:'Anchor',type:'string',defval:'Auto',options:AUTO_ANCHORS};
 const LENGTH:CatalogInput={key:'length',title:'Length',type:'int',defval:20,min:1,max:5000,step:1};
-const PERIOD:CatalogInput={key:'period',title:'Period',type:'string',defval:'Day',options:PROFILE_PERIODS};
+const PERIOD:CatalogInput={key:'period',title:'Period',type:'string',defval:'Auto',options:PROFILE_PERIODS};
 /** The extras. Titles, keys and the defaults (all off) are our own choice; no capture of these options exists. */
 const DEVELOPING_POC:CatalogInput={key:'developingPoc',title:'Developing POC',type:'bool',defval:false};
 const DEVELOPING_VA:CatalogInput={key:'developingVa',title:'Developing VA',type:'bool',defval:false};
@@ -152,7 +152,7 @@ export const VP_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
  {id:'pvp',name:'Periodic volume profile',acronym:'PVP',overlay:true,requiresVolume:true,segmented:true,profile:true,
   inputs:[ROWS_LAYOUT,ROW_SIZE,VOLUME,VALUE_AREA,PERIOD,placement('Left'),WIDTH,...EXTRAS],plots:PLOTS,continuousPlots:CONTINUOUS,
   provenance:PROVENANCE,
-  unknownDefaults:[UNKNOWN_SHARED,'Period Day (choices Session, Day, Week, Month), Placement Left, the Period, Placement and Width titles and the acronym PVP are OpenCandle-defined. Each histogram is measured from its period\'s first or last bar edge, as a percentage of the period width.'],
+  unknownDefaults:[UNKNOWN_SHARED,'Period Auto (choices Auto, Session, Day, Week, Month; Auto is Day on intraday charts, Month on 1D, Quarter on 1W, Year on longer charts), Placement Left, the Period, Placement and Width titles and the acronym PVP are OpenCandle-defined. Each histogram is measured from its period\'s first or last bar edge, as a percentage of the period width.'],
   policies:[...VOLUME_PROFILE_POLICIES,...VP_EXTRA_POLICIES,...R38_POLICIES,'OpenCandle-defined periods: US equities use New York trading dates, Monday weeks and months (the R23 pivot calendar); Session keeps only regular-session bars of each trading date, Day includes pre-market and after-hours bars. Daily bars and UTC feeds: Session equals Day.',R37_POLICIES[1],CAUSAL_POLICY],
   calculate:periodic,warmup:()=>1,work:causalWork},
  {id:'svp',name:'Session volume profile',acronym:'SVP',overlay:true,requiresVolume:true,segmented:true,profile:true,

@@ -1,14 +1,20 @@
 import type {DrawingBox,DrawingLabel,DrawingLine} from '@luxalgo/vela';
 import type {TradingSessionRecord} from '../domain/indicators-ext/trading-sessions';
 import {indicatorColorOpacity} from './indicator-opacity';
+import {TRADING_SESSION_DRAW_LIMIT} from '../domain/indicators-ext/trading-sessions-catalog';
 export interface TradingSessionDisplay {showNames:boolean;showOpenClose:boolean;showRange:boolean;showAverage:boolean;visible:(window:number)=>boolean;labelInverted?:boolean|null}
 const scalar=(value:number)=>Number.isFinite(value)?Number(value.toPrecision(8)).toString():'Unavailable';
 /** Original native geometry. Labels anchor at the numeric bound that projects to the visual box bottom.
  * Every identity belongs to its study instance. */
 export function tradingSessionShapes(records:readonly Readonly<TradingSessionRecord>[],display:TradingSessionDisplay,id:(role:string)=>string):{boxes:DrawingBox[];labels:DrawingLabel[];lines:DrawingLine[]}{
  const boxes:DrawingBox[]=[],labels:DrawingLabel[]=[],lines:DrawingLine[]=[];
+ // Only the latest TRADING_SESSION_DRAW_LIMIT sessions of each window are drawn (the common 500-box chart-study limit), so
+ // a long intraday history with all three windows on stays within the native geometry budget. Statistics cover every session.
+ const drawn=new Map<number,number>(),shown=records.filter(record=>record.available&&display.visible(record.window));
+ const keep=new Set<Readonly<TradingSessionRecord>>();
+ for(let i=shown.length-1;i>=0;i--){const record=shown[i],count=drawn.get(record.window)??0;if(count>=TRADING_SESSION_DRAW_LIMIT)continue;drawn.set(record.window,count+1);keep.add(record);}
  for(const record of records){
-  if(!record.available||!display.visible(record.window))continue;
+  if(!keep.has(record))continue;
   const key=`session:${record.window}:${record.day}`,left=record.from*1000,right=record.to*1000,color=record.color;
   boxes.push({id:id(key+':box'),paneId:'',xloc:'bar_time',left,right,top:record.high,bottom:record.low,extend:'none',bgColor:indicatorColorOpacity(color,15),borderColor:indicatorColorOpacity(color,70),borderWidth:1,borderStyle:'solid',textSize:'small',hAlign:'center',vAlign:'center',wrap:false,fontFamily:'default',bold:false,italic:false});
   const guide=(role:string,price:number,style:'dashed'|'dotted')=>lines.push({id:id(key+':'+role),paneId:'',xloc:'bar_time',x1:left,y1:price,x2:right,y2:price,extend:'none',color,invisible:false,width:1,style,arrowLeft:false,arrowRight:false});

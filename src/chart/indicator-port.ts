@@ -4,7 +4,7 @@ import {closedTimeframeContextFacts,captureOriginalClosedTimeframeContext,closed
 import {nyseDailyChartInterval,planNyseDailyTimeframe} from '../domain/indicator-resample';
 import {planNysePeriodTimeframe} from '../domain/nyse-mtf-alert-source';
 import type {PrimarySourceBasis,PrimarySourceFrame,PrimarySourcePlan} from './seasonality-source';
-import {captureSeasonalityDailyContext,seasonalityDailyContextMode} from './source-context';
+import {captureSeasonalityDailyContext,seasonalityDailyContextMode,localCandleContextFacts} from './source-context';
 import type {SeasonalityResult} from '../domain/indicators-ext/seasonality-types';
 import {seasonalityCompletionCutoff} from '../domain/indicators-ext/seasonality-catalog';
 import {seasonalityAlignedResult} from './seasonality-presentation';
@@ -34,7 +34,7 @@ import type { Bar } from '../domain/types';
 import { requireVolume } from './contracts';
 import {createAnalysisPublication,AnalysisPublicationError,isAnalysisPublicationFailure,type AnalysisPublicationHost} from './analysis-publication';
 import type {IndicatorPrecision} from './indicator-settings';
-import {indicatorValueSuffix} from './indicator-number-format';
+import {indicatorValueSuffix,isVolumeUnitKind} from './indicator-number-format';
 import {createPaneRegistry,type PaneRegistry} from './pane-registry';
 import {readIndicatorOwnScale,indicatorNativeScaleSupported,indicatorScaleSides,readIndicatorScalePlacement,setIndicatorScalePlacement,INDICATOR_SCALE_GAPS,INDICATOR_SCALE_GROUP_GAP,indicatorScaleGroupsSupported,readIndicatorScaleGroup,readIndicatorPaneId,indicatorScaleChoices,type IndicatorScaleChoice,VOLUME_OVERLAY_MARGINS,setIndicatorScaleMargins,type IndicatorScaleSide} from './indicator-scale';
 import {registerIndicatorDisplayPort,type IndicatorDisplayPlot} from './indicator-display-source';
@@ -347,8 +347,15 @@ export function createIndicatorPortWithPrimarySource(options:OwnedIndicatorPortO
  const built=buildIndicatorPort(options.chart,options.panes,options.calculationBars,options.inputBars,options.claimNative,options.presentationContext,options.publication,options.vwap,options.primaryHost,options.calendar===true);
  if(!built.primary){built.port.dispose();throw Error('The original candle source control was not constructed.');}return Object.freeze({port:built.port,primary:built.primary});
 }
+/** A newly added price overlay that draws lines (moving averages, typical price, bands, ...) paints above the candles, as
+ *  on common charting platforms; Vela mounts every indicator behind the price by default. Volume, profiles and session boxes
+ *  stay behind. The key sits between the candles (0) and user drawings (1 and up). A restored instance keeps its saved order. */
+export const SEASONALITY_EXAMPLE_MESSAGE='Seasonality needs an imported daily or monthly file, or a live data source. Example data is not supported.';
+export const NEW_OVERLAY_Z=0.5;
+function raiseNewOverlay(kind:IndicatorId):boolean{const definition=catalogDefinition(kind);return kind!=='volume'&&!definition?.profile&&!definition?.tradingSessions;}
 function buildIndicatorPort(chart:Vela,panes:PaneRegistry=createPaneRegistry(chart),calculationBars:(bars:readonly Bar[])=>Bar[]=bars=>bars.map(bar=>({...bar})),inputBars?:()=>readonly Bar[],claimNative?:ClaimNativeDescriptor,presentationContextInput?:(owner?:IndicatorPresentationOwner)=>IndicatorPresentationContext,publicationHost?:AnalysisPublicationHost,vwapHost?:VwapIndicatorHost,primaryHost?:OwnedPrimarySourceHost,calendarEnabled=false){
  const ownedPrimary:{value:OwnedPrimarySourceControl|null}={value:null};
+ const placeOverlayAboveCandles=(nativeId:string)=>{const renderer=(chart as unknown as {renderer?:{set?:(key:string,value:unknown)=>void}}).renderer;try{renderer?.set?.('seriesOrder',{id:nativeId,z:NEW_OVERLAY_Z});}catch{/* a renderer without series ordering keeps its default stack */}};
  const built=createBuiltinPresentationPort(chart as unknown as object,publicationHost,inputBars,scalar=>{
   const prefix=`lv-domain-port-${++portSequence}`;const instances=new Map<string,{model:DomainRenderingIndicator;type:string;descriptor?:NativeIndicatorDescriptor;release?:()=>void;scalarEvaluator?:DomainRenderingIndicator['evaluate']}>();
   const scalarHooks=new WeakMap<DomainRenderingIndicator,BuiltinModelHooks>();
@@ -775,6 +782,9 @@ function buildIndicatorPort(chart:Vela,panes:PaneRegistry=createPaneRegistry(cha
      const sourceBasis=primaryHost.capture(),live=sourceBasis&&captureSeasonalityDailyContext(sourceBasis.context,2015,2028,sourceBasis.execution);localOwner();
      if(!sourceBasis&&primaryHost.sourceMode){const mode=primaryHost.sourceMode();if(mode&&seasonalityDailyContextMode(mode.context,mode.execution)){mode.assertCurrent();localOwner();throw Error('The selected chart style has no supported original native frame for live daily-history Seasonality. Use Candles or Heikin Ashi.');}}
      if(live){sourceBasis!.assertCurrent();sourceBasis!.assertSessionCurrent?.();live.assertCurrent();if(sourceBasis!.session!=='regular'&&sourceBasis!.session!=='extended')throw Error('The selected live chart session is unavailable.');}
+     // Seasonality reads an owned local daily/monthly document or live daily history; generated example prices are neither,
+     // so say that plainly instead of asking for a completion declaration the example data cannot satisfy.
+     if(!live&&sourceBasis?.context.fixture===true&&!localCandleContextFacts(sourceBasis.context))throw Error(SEASONALITY_EXAMPLE_MESSAGE);
      const cutoff=live?live.facts.closedThrough:seasonalityCompletionCutoff(get('closedThrough'))!;
      request={calendar:live?'nyse':get('calendar') as PrimarySourceRequest['calendar'],session:live?sourceBasis!.session!:get('session') as PrimarySourceRequest['session'],dateLabels:live?'calendar-midnight':get('dateLabels') as PrimarySourceRequest['dateLabels'],closedThrough:cutoff,startYear:get('startYear') as number,endYear:get('endYear') as number,excludedMonths:get('excludedMonths') as string,includeDevelopingInSummaries:get('includeDevelopingInSummaries') as boolean,meanRow:get('meanRow') as boolean,deviationRow:get('deviationRow') as boolean,positiveFrequencyRow:get('positiveFrequencyRow') as boolean,projectionGeometry:get('projectionGeometry') as boolean,signal:new AbortController().signal};localOwner();
     }
@@ -1008,7 +1018,7 @@ function buildIndicatorPort(chart:Vela,panes:PaneRegistry=createPaneRegistry(cha
       instances.get(id)!.descriptor=descriptor;
       registerNativeIndicator(descriptor);
       const entry=instances.get(id)!;
-      try{entry.release=claimNative?.(descriptor);const handle=chart.addNativeIndicator(type);if(disposed||instances.get(id)!==entry||model.removed)throw new InputEditRetired(Error('Indicator add entry replaced'));if(model.initialRetirement){model.initialRetirement.acceptHandle(handle);model.handle=handle;changed();model.seasonalityReady?.();model.timeframeReady?.();return id;}model.handle=handle;const desired=pendingPanes.get(id);if(desired&&rendererPane(model)){pendingPanes.delete(id);placing(()=>bindPane(model,desired));applyPinnedScale(id,model);}
+      try{entry.release=claimNative?.(descriptor);const handle=chart.addNativeIndicator(type);if(disposed||instances.get(id)!==entry||model.removed)throw new InputEditRetired(Error('Indicator add entry replaced'));if(model.initialRetirement){model.initialRetirement.acceptHandle(handle);model.handle=handle;changed();model.seasonalityReady?.();model.timeframeReady?.();return id;}model.handle=handle;if(saved?.paneId===undefined&&overlayKinds.has(kind)&&raiseNewOverlay(kind))placeOverlayAboveCandles(handle.id);const desired=pendingPanes.get(id);if(desired&&rendererPane(model)){pendingPanes.delete(id);placing(()=>bindPane(model,desired));applyPinnedScale(id,model);}
       // A restored-hidden native instance never starts or emits, so the pending pane binding above has
       // nothing to bind yet; the core's hidden-row mount places it now, and its saved pane binds here.
       if(!settings.visible){model.handle.setVisible(false);/* a pin restored on a hidden indicator waits for its Show (update), so a refusal while hidden does not drop it */if(pinnedScale.has(id))pendingPins.add(id);const hiddenPane=pendingPanes.get(id);if(hiddenPane&&rendererPane(model)){pendingPanes.delete(id);placing(()=>bindPane(model,hiddenPane));/* the core's hidden-row mount reported a move into a fresh pane (indicator:moved) before the bind relabelled it, so the saved logical pane is recorded again; otherwise the next save gives the hidden indicator a new pane and a reload splits a shared pane */logicalByInstance.set(id,hiddenPane);applyPinnedScale(id,model);}}model.seasonalityReady?.();model.timeframeReady?.();changed();recomputeDependents(id);return id;}
@@ -1137,7 +1147,7 @@ function buildIndicatorPort(chart:Vela,panes:PaneRegistry=createPaneRegistry(cha
   // Pending profile retries are kept. Data studies also recalculate when ready history is corrected or
   // replaced, so chart bars need not change before their values and source dependents refresh.
   nativeUnsubscribes.push(subscribeScriptRequestResolver(()=>{if(disposed)return;for(const {model} of [...instances.values()]){const definition=catalogDefinition(model.settings.kind),dataStudy=definition?.finerBars||definition?.dailyHistory;if(!finerPending.has(model.settings.id)&&!dataStudy||model.removed||!model.ctx||!model.settings.visible||model.recoveryError)continue;try{model.compute();recomputeDependents(model.settings.id);}catch{/* the next update tries again; the last diagnostic stays */}}}));
-  releaseDisplay=registerIndicatorDisplayPort(port,chart,()=>{assertActive();return [...instances.values()].filter(({model,descriptor})=>!model.removed&&!model.recoveryError&&model.settings.visible&&!!model.handle&&!!descriptor).map(({model,type,descriptor})=>({id:model.settings.id,rendererId:model.handle!.id,type,descriptor:descriptor!,instance:model,input:model.displayInput,series:model.displaySeries,plots:model.display,precision:model.displayPrecision,valueSuffix:indicatorValueSuffix(model.settings.kind)}));});
+  releaseDisplay=registerIndicatorDisplayPort(port,chart,()=>{assertActive();return [...instances.values()].filter(({model,descriptor})=>!model.removed&&!model.recoveryError&&model.settings.visible&&!!model.handle&&!!descriptor).map(({model,type,descriptor})=>({id:model.settings.id,rendererId:model.handle!.id,type,descriptor:descriptor!,instance:model,input:model.displayInput,series:model.displaySeries,plots:model.display,precision:model.displayPrecision,valueSuffix:indicatorValueSuffix(model.settings.kind),compact:isVolumeUnitKind(model.settings.kind)}));});
   liveDailyPortModes.set(port,id=>{
    if(disposed||!primaryHost)return false;const target=id===undefined?null:instances.get(id);if(id!==undefined&&(!target||target.model.removed||target.model.settings.kind!=='seasonality'))return false;
    const mode=primaryHost.sourceMode?primaryHost.sourceMode():primaryHost.capture();if(!mode||!seasonalityDailyContextMode(mode.context,mode.execution))return false;mode.assertCurrent();return !disposed&&(id===undefined||instances.get(id)===target&&target!.model.settings.kind==='seasonality'&&!target!.model.removed);

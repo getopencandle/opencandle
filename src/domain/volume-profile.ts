@@ -17,7 +17,7 @@ export const PROFILE_VOLUME_MODES=['Up/Down','Total','Delta'] as const;
 export type ProfileVolumeMode=typeof PROFILE_VOLUME_MODES[number];
 export const PROFILE_PLACEMENTS=['Left','Right'] as const;
 export type ProfilePlacement=typeof PROFILE_PLACEMENTS[number];
-export const PROFILE_PERIODS=['Session','Day','Week','Month'] as const;
+export const PROFILE_PERIODS=['Auto','Session','Day','Week','Month'] as const;
 export type ProfilePeriod=typeof PROFILE_PERIODS[number];
 /** More rows than this in one profile are refused with a diagnostic instead of drawing thousands of boxes. */
 export const PROFILE_MAX_ROWS=2000;
@@ -210,8 +210,16 @@ export function visibleProfileSpan(bars:readonly Bar[],range:{from:number;to:num
 /** Period groups for the Periodic volume profile: contiguous index runs [from, to] that share a period key. Session on
  *  US equity intraday bars keeps only regular-session bars; on daily bars, or a UTC calendar, Session equals Day. */
 export function profilePeriods(bars:readonly Bar[],period:ProfilePeriod,options:{resolution?:string|null;calendar?:PivotCalendar|null}={}):{from:number;to:number}[]{
- if(!PROFILE_PERIODS.includes(period))throw new Error('Period must be Session, Day, Week or Month.');
+ if(!PROFILE_PERIODS.includes(period))throw new Error('Period must be Auto, Session, Day, Week or Month.');
+ if(period==='Auto')return periodRuns(bars,autoProfileTimeframe(bars,options.resolution),false,options);
  return periodRuns(bars,period==='Week'?'Weekly':period==='Month'?'Monthly':'Daily',period==='Session',options);
+}
+/** Auto period of the Periodic volume profile: one profile per trading day on intraday charts, per month on 1D up to 1W,
+ *  per quarter on 1W up to 1M and per year on longer charts, so every profile spans enough bars to read (a daily chart with
+ *  Day periods drew one-bar-wide profiles). Same ladder as the Auto anchor of the Auto anchored volume profile. */
+function autoProfileTimeframe(bars:readonly Bar[],resolution:string|null|undefined):RunTimeframe{
+ const period=autoAnchorPeriod(bars,resolution);
+ return period==='Session'?'Daily':period==='Week'?'Weekly':period==='Month'?'Monthly':period==='Quarter'?'Quarterly':'Yearly';
 }
 /** True when the bars are daily or longer: the declared resolution, else a smallest spacing of 20 hours or more. */
 function barsAreDaily(bars:readonly Bar[],resolution:string|null|undefined):boolean{

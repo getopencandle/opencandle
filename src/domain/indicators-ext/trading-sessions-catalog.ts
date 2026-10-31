@@ -3,13 +3,18 @@ import {tradingSessions,validateTradingWindow,type TradingWindow} from './tradin
 export const TRADING_SESSION_IDS=['tradingsessions'] as const;
 export type TradingSessionId=typeof TRADING_SESSION_IDS[number];
 const FAMILIES=['Tokyo','London','New York'],COLORS=['#2962ff','#ff6d00','#089981'];
+/** Default windows are the three cash-market sessions in their own exchange clocks (JPX 09:00-15:00 Tokyo, LSE 08:00-16:30
+ *  London, NYSE 09:30-16:00 New York), so a fresh study draws boxes on any intraday chart whatever the symbol's exchange. */
+const DEFAULT_WINDOWS=[{start:'09:00',end:'15:00',zone:'Asia/Tokyo'},{start:'08:00',end:'16:30',zone:'Europe/London'},{start:'09:30',end:'16:00',zone:'America/New_York'}];
+/** Sessions drawn per window on the chart, newest first (statistics cover every session). */
+export const TRADING_SESSION_DRAW_LIMIT=500;
 export const TRADING_SESSION_PLOTS=['session1','session2','session3'] as const;
 const inputs:CatalogInput[]=FAMILIES.flatMap((name,index)=>{const prefix='session'+(index+1);return[
- {key:prefix+'Enabled',title:name+' enabled',type:'bool' as const,defval:false},
+ {key:prefix+'Enabled',title:name+' enabled',type:'bool' as const,defval:true},
  {key:prefix+'Name',title:name+' name',type:'string' as const,defval:name},
- {key:prefix+'Start',title:name+' start (HH:mm)',type:'string' as const,defval:''},
- {key:prefix+'End',title:name+' end (HH:mm)',type:'string' as const,defval:''},
- {key:prefix+'Zone',title:name+' time zone (blank uses exchange)',type:'string' as const,defval:''},
+ {key:prefix+'Start',title:name+' start (HH:mm)',type:'string' as const,defval:DEFAULT_WINDOWS[index].start},
+ {key:prefix+'End',title:name+' end (HH:mm)',type:'string' as const,defval:DEFAULT_WINDOWS[index].end},
+ {key:prefix+'Zone',title:name+' time zone (blank uses exchange)',type:'string' as const,defval:DEFAULT_WINDOWS[index].zone},
  {key:prefix+'Color',title:name+' color (hex)',type:'string' as const,defval:COLORS[index]},
  ];});
 inputs.push(...[{key:'showNames',title:'Session names'},{key:'showOpenClose',title:'Open and close guides'},{key:'showRange',title:'Range in ticks'},{key:'showAverage',title:'Average close'}].map(item=>({...item,type:'bool' as const,defval:true})));
@@ -26,7 +31,7 @@ export const TRADING_SESSION_DEFINITIONS:readonly CatalogDefinition[]=Object.fre
  id:'tradingsessions',name:'Trading sessions',acronym:'TS',overlay:true,tradingSessions:true,inputs:Object.freeze(inputs),
  plots:TRADING_SESSION_PLOTS.map((id,index)=>({id,label:`${index+1}. Session average`,color:COLORS[index],width:1})),
  provenance:[{url:'public-indicator-definition:trading-sessions',facts:'Configurable intraday windows, boxes, names, open/close, tick range and close average.'}],
- unknownDefaults:['Exact reference clock, color and toggle defaults are unresolved. OpenCandle starts with three disabled windows and blank clocks; names, palette, enabled display toggles, widget styling and geometry styling are explicit OpenCandle choices.'],
+ unknownDefaults:['Exact reference clock, color and toggle defaults are unresolved. OpenCandle starts with the Tokyo, London and New York cash sessions enabled in their own exchange time zones; names, palette, enabled display toggles, widget styling and geometry styling are explicit OpenCandle choices.'],
  policies:['Configure times before enabling a window. Clock membership is start-inclusive/end-exclusive; equal times mean a full local day. Included supplied bars contribute their whole OHLC.','Geometry describes observed historical sessions; average scalar values use only their observed prefix. Missing observations are never manufactured and an invalid price makes its session decoration unavailable.','This is a chart-only visual study. Background alert capture refuses it. Typed time and zone fields are functional controls; quarter-hour picker styling and exact default/pixel comparisons remain unresolved.'],
  calculate,warmup:()=>1,work:count=>count*120,
 }]);

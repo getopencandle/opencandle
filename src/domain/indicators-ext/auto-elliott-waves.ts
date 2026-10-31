@@ -100,7 +100,8 @@ export const AUTO_ELLIOTT_DEFINITION:CatalogDefinition={id:AUTO_ELLIOTT_ID,name:
   const waves=countElliottWaves(elliottSwings(ctx.bars,ctx.str('swingSize') as typeof SWING_SIZES[number]),ctx.bool('showCorrective'));
   const plot=(up:boolean)=>up?'bullish' as const:'bearish' as const;
   const lines:PatternLine[]=waves.map(w=>({plot:plot(w.up),from:{index:w.from.index,price:w.from.price},to:{index:w.to.index,price:w.to.price}}));
-  const markers:PatternMarker[]=waves.map(w=>({index:w.to.index,plot:plot(w.up),text:w.label,tooltip:`${w.kind==='impulse'?'Impulse':'Corrective'} wave ${w.label} (${w.up?'up':'down'})`}));
+  // A wave's label sits outside price action at its end pivot: above a peak (an up wave ends at a high), below a trough.
+  const markers:PatternMarker[]=waves.map(w=>({index:w.to.index,plot:plot(w.up),position:w.to.high?'above' as const:'below' as const,text:w.label,tooltip:`${w.kind==='impulse'?'Impulse':'Corrective'} wave ${w.label} (${w.up?'up':'down'})`}));
   ctx.marks?.({markers,lines});
   return {bullish:empty(),bearish:empty()};
  },

@@ -15,6 +15,10 @@ export function formatIndicatorNumber(value:number,precision:number):string{
  return text;
 }
 
+/** Kinds whose values are volume units (shares or contracts, often millions): automatic precision shows them abbreviated
+ *  (K, M, B) in the legend, data window, price-scale labels and pane axis, the way Volume itself reads. Display only. */
+export const VOLUME_UNIT_KINDS:ReadonlySet<string>=new Set(['volume','obv','efi','ad','chaikinosc','klinger','pvt','netvol','cvd','volumedelta','updownvolume']);
+export function isVolumeUnitKind(kind:string):boolean{return VOLUME_UNIT_KINDS.has(kind);}
 /** Display suffix a kind's values carry (a percent format type -> "%"). Display only. */
 export function indicatorValueSuffix(kind:string):string{return catalogDefinition(kind)?.valueSuffix??'';}
 /** Fixed-decimal text with the kind's display suffix; the stored and calculated numbers are never changed. */

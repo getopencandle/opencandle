@@ -39,7 +39,9 @@ export const AUTO_TRENDLINES_DEFINITION:CatalogDefinition={id:AUTO_TRENDLINES_ID
   const result=calculateAutoTrendlinesPivot(ctx.bars,{sourceKey:'chart',lineSize,barsToBreakout:ctx.num('barsToBreakout'),showPivots:ctx.bool('showPivots')});
   if(result.status!=='ready'){ctx.diagnostic?.(result.diagnostic);ctx.marks?.({markers:[],lines:[]});return {bullish:empty(),bearish:empty()};}
   const plot=(side:'support'|'resistance')=>side==='support'?'bullish' as const:'bearish' as const;
-  const lines:PatternLine[]=result.scene.lines.map(line=>({plot:plot(line.side),from:{index:line.from.index,price:line.from.price},to:{index:line.endIndex,price:line.endPrice}}));
+  // An unbroken line is a ray through its two pivots (drawn on to the right edge), so its projection never stretches the
+  // price scale; a broken line ends at its breakout bar.
+  const lines:PatternLine[]=result.scene.lines.map(line=>line.breakoutIndex===null?{plot:plot(line.side),from:{index:line.from.index,price:line.from.price},to:{index:line.to.index,price:line.to.price},extendRight:true}:{plot:plot(line.side),from:{index:line.from.index,price:line.from.price},to:{index:line.endIndex,price:line.endPrice}});
   const markers:PatternMarker[]=result.scene.pivots.map(pivot=>({index:pivot.index,plot:plot(pivot.side),text:pivot.family==='large'?'L':'S',tooltip:`${FAMILY_TEXT[pivot.family]} ${pivot.side} pivot`}));
   ctx.marks?.({markers,lines});
   return {bullish:empty(),bearish:empty()};

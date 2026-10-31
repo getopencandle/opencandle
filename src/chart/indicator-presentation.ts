@@ -5,7 +5,8 @@ import {assertProfilePrimarySource,assertCurrentProfilePrimarySource,type Profil
 import {sessionRequestSource} from './source-context';
 import type {NativeIndicatorOutput,LineLikeSeries,PriceLine,Fill,DrawingLabel,DrawingLine,DrawingBox,Background,CandleSeries,CandleBarColor} from '@luxalgo/vela';
 import type {Bar} from '../domain/types';
-import type {IndicatorResult} from '../domain/indicators';
+import {vwapAnchorKeys,vwapAnchorZone,type IndicatorResult} from '../domain/indicators';
+import {twapPeriodKey} from '../domain/indicators-ext/ind1028-catalog';
 import {assertIndicatorBatchBudget,validateIndicatorSettings,indicatorPlotIds,type IndicatorInstanceSettings,type IndicatorPlotStyle,pointPaletteColors} from './indicator-settings';
 import {defaultPlotStyle,indicatorDisplayTime,renderIndicatorSeries} from './indicator-rendering';
 import {indicatorColorOpacity} from './indicator-opacity';
@@ -22,6 +23,7 @@ import {VP_DETAIL_NOTICE_IDS} from '../domain/indicators-ext/vp-catalog';
 import {VP_FILL_DEFAULTS,isVpFillId,type VpFillId} from './indicator-settings';
 import {indicatorTimeframeOf} from './indicator-timeframe';
 import {volumeDeltaCandleSeries,upDownDeltaLines} from './volume-delta-presentation';
+import {isSwingMarkerKind,swingMarkerLabels,SWING_MARKER_POLICY} from './swing-marker-presentation';
 import {PATTERN_MARKS_POLICY} from '../domain/indicators-ext/patterns-catalog';
 import {RSI_ZONE_GUIDES,defaultIndicatorPresentation} from './indicator-settings';
 import {RSI_DIVERGENCE_LABELS,RSI_DIVERGENCE_PLOT_OF,rsiDivergenceSettings,rsiDivergencePivotPrice,rsiDivergenceIsBullish} from '../domain/rsi-divergence';
@@ -50,6 +52,29 @@ export const POINT_PALETTE_POLICY='Per-bar colors come from the calculated value
 export const RSI_MA_PALETTE_POLICY='The RSI-based MA uses the rising color where it is above its previous value and the falling color otherwise (equal values and the first value after a gap are falling). Colors are chart display only.';
 export const RSI_DIVERGENCE_DECORATION_POLICY='Divergence lines on the price pane join the two price pivots (wick, or candle body with Candle body only); a divergence background marks the later pivot bar. Both are chart display only and appear only once the divergence is confirmed.';
 export const INDICATOR_TRACKING_POLICY='Tracking strokes use the exact latest supplied endpoint, independent of display offset. Automatic labels require the separately owned OpenCandle indicator display helper.';
+export const ANCHOR_RESET_POLICY='The line breaks where the anchor period resets: no stroke joins the last value of one period to the first value of the next.';
+/** Bar indices (above 0) where an anchored average starts a new period, or null when the kind has no calendar anchor. */
+export function anchoredResets(settings:IndicatorInstanceSettings,bars:readonly Bar[],context?:IndicatorPresentationContext):number[]|null{
+ if(settings.kind!=='vwap'&&settings.kind!=='twap'||bars.length<2)return null;
+ let keys:string[];
+ try{
+  if(settings.kind==='twap')keys=bars.map(bar=>twapPeriodKey(bar.time,String(catalogInputValue(catalogDefinition('twap')!,settings.inputs,'anchor')),context?.calendar==='us-equity'?'America/New_York':'UTC'));
+  else keys=vwapAnchorKeys(bars,String(settings.inputs.anchor??'Session'),vwapAnchorZone(settings.inputs.timezone,{exchangeZone:context?.exchangeZone,calendar:context?.calendar}),null);
+ }catch{return null;}// Event anchors need corporate-action dates the display does not hold; the line stays joined.
+ const out:number[]=[];for(let i=1;i<keys.length;i++)if(keys[i]!==keys[i-1])out.push(i);return out;
+}
+/** Pivot points: each visible level is named (P, R1, S1, ...) at the left end of every period segment, in its own color. */
+export function pivotLevelLabels(instanceId:string,result:IndicatorResult,bars:readonly Bar[],plotStyle:(id:string)=>IndicatorPlotStyle):DrawingLabel[]{
+ const labels:DrawingLabel[]=[];
+ for(const plot of result.series){
+  const style=plotStyle(plot.id);if(!style.visible)continue;const color=indicatorColorOpacity(style.color,style.opacity??100);
+  for(let i=0;i<plot.values.length&&i<bars.length;i++){
+   const value=plot.values[i];if(value===null||!Number.isFinite(value)||plot.values[i-1]===value)continue;
+   labels.push({id:indicatorDecorationId(instanceId,`pivot:${plot.id}:${bars[i].time}`),paneId:'',xloc:'bar_time',x:bars[i].time*1000,y:value,yloc:'price',text:plot.label,style:'label_right',color:'rgba(0,0,0,0)',textColor:color,size:'small',textAlign:'right',tooltip:`${plot.label} ${value}`,fontFamily:'default',noFill:true} as DrawingLabel);
+  }
+ }
+ return labels;
+}
 export function validateIndicatorPresentationContext(context:IndicatorPresentationContext|undefined):void{
  if(context!==undefined){assertIndicatorRecord(context);if(context.requestSource!==undefined){sessionRequestSource(context.requestSource);}if(context.profileSource!==undefined){assertProfilePrimarySource(context.profileSource);}if(Object.keys(context).some(key=>key!=='resolution'&&key!=='hideOverlay'&&key!=='calendar'&&key!=='tickSize'&&key!=='instrument'&&key!=='datasetId'&&key!=='requestSource'&&key!=='profileSource'&&key!=='exchangeZone'&&key!=='style'&&key!=='paneInverted')||context.paneInverted!==undefined&&context.paneInverted!==null&&typeof context.paneInverted!=='boolean'||context.exchangeZone!==undefined&&!(typeof context.exchangeZone==='string'&&context.exchangeZone.length>0&&context.exchangeZone.length<=80)||context.style!==undefined&&!(typeof context.style==='string'&&context.style.length>0&&context.style.length<=40)||context.datasetId!==undefined&&!(typeof context.datasetId==='string'&&context.datasetId.length>0&&context.datasetId.length<=4096)||context.tickSize!==undefined&&!(typeof context.tickSize==='number'&&Number.isFinite(context.tickSize)&&context.tickSize>0)||context.instrument!==undefined&&!(typeof context.instrument==='string'&&context.instrument.length>0&&context.instrument.length<=4096)||!Object.hasOwn(context,'resolution')||context.hideOverlay!==undefined&&typeof context.hideOverlay!=='boolean'||context.calendar!==undefined&&context.calendar!=='us-equity'&&context.calendar!=='utc'||context.resolution!==null&&(typeof context.resolution!=='string'||context.resolution.length>40))throw new Error('Indicator presentation requires an exact bounded declared resolution.');}
 }
@@ -87,6 +112,8 @@ export function renderIndicatorPresentation(settings:IndicatorInstanceSettings,r
   const plot=result.series[index],style=plotStyle(plot.id),native=series[index];
   // A pattern kind's 0/1 signal plots are never stroked or scaled; the markers below draw them.
   if(patternKind||catalogDefinition(settings.kind)?.tradingSessions){native.visible=false;native.display={pane:false,priceScale:false,legend:style.legend,dataWindow:style.dataWindow};continue;}
+  // Swing points (fractals, pivot highs/lows) draw as labels beside the bar below; the sparse cross plot stays readable only.
+  if(isSwingMarkerKind(settings.kind)){native.display={...native.display,pane:false,priceScale:false};continue;}
   // OHLC scalars remain in the legend/data window, while a native candle paints the path.
   if(catalogDefinition(settings.kind)?.volumeDelta||settings.kind==='updownvolume'&&plot.id==='delta'){native.display={...native.display,pane:false};}
   const directionalVolume=settings.kind==='volume'&&plot.id==='volume'&&presentation?.volumePalette!==undefined&&presentation.volumePalette.mode!=='uniform';
@@ -140,6 +167,11 @@ export function renderIndicatorPresentation(settings:IndicatorInstanceSettings,r
   result.series.forEach((plot,index)=>{const points=series[index].points;if(definition.continuousPlots?.includes(plot.id)){for(const i of starts)if(plot.values[i-1]!==null&&plot.values[i]!==null)points[i].color=SEGMENT_BREAK_COLOR;return;}for(let i=1;i<plot.values.length;i++){const a=plot.values[i-1],b=plot.values[i];if(a!==null&&b!==null&&a!==b)points[i].color=SEGMENT_BREAK_COLOR;}});
   policies.push(SEGMENT_POLICY);
  }
+ // Anchored averages (VWAP, TWAP) restart at each anchor period: the stroke into a period's first bar is transparent, so
+ // the line breaks at the reset instead of drawing a vertical connector from the old period's level to the new one.
+ const resets=anchoredResets(settings,bars,context);
+ if(resets){for(const native of series)for(const i of resets){const a=native.points[i-1],b=native.points[i];if(a&&b&&a.value!==null&&b.value!==null)b.color=SEGMENT_BREAK_COLOR;}policies.push(ANCHOR_RESET_POLICY);}
+ const levelLabels=settings.kind==='pivots'?pivotLevelLabels(settings.id,result,bars,plotStyle):[];
  const zoneBoxes:DrawingBox[]=[];
  if(presentation){
   for(const [id,guide]of Object.entries(presentation.guides))if(guide!.visible)priceLines.push({id:indicatorDecorationId(settings.id,`guide:${id}`),paneId:'',price:guide!.value,color:guide!.color,width:guide!.width,lineStyle:guide!.lineStyle});
@@ -212,6 +244,8 @@ export function renderIndicatorPresentation(settings:IndicatorInstanceSettings,r
   const headroom=rsiDivergenceLabelHeadroom(settings.id,labels,series[0]);if(headroom)series.push(headroom);
   if(zoneBoxes.length||labels.length||lines.length||backgrounds.length)return {output:{series,fills,priceLines,...(zoneBoxes.length?{boxes:zoneBoxes}:{}),...(backgrounds.length?{backgrounds}:{}),...(labels.length?{labels}:{}),...(lines.length?{lines}:{})},display:Object.freeze(display),precision,diagnostics,policies};
  }
+ if(levelLabels.length&&settings.offset===0)return {output:{series,fills,priceLines,labels:levelLabels},display:Object.freeze(display),precision,diagnostics,policies};
+ if(isSwingMarkerKind(settings.kind)&&settings.offset===0){const labels=swingMarkerLabels(settings.kind,result,bars,plotStyle,precision,role=>indicatorDecorationId(settings.id,role));policies.push(SWING_MARKER_POLICY);return {output:{series,fills,priceLines,...(labels.length?{labels}:{})},display:Object.freeze(display),precision,diagnostics,policies};}
  if(patternKind){const marks=patternMarksNative(settings.id,result,bars,plotStyle);if(result.marks)policies.push(PATTERN_MARKS_POLICY);return {output:{series:marks.candles?[...series,marks.candles]:series,fills,priceLines,...(marks.labels.length?{labels:marks.labels}:{}),...(marks.lines.length?{lines:marks.lines}:{}),...(marks.boxes.length?{boxes:marks.boxes}:{})},display:Object.freeze(display),precision,diagnostics,policies};}
  return {output:{series,fills,priceLines},display:Object.freeze(display),precision,diagnostics,policies};
 }
@@ -269,18 +303,36 @@ export function rsiDivergenceBackgroundsNative(settings:IndicatorInstanceSetting
  *  at a price), boxes are price zones (border in the plot color, fill at 20% of the plot opacity), and candles
  *  are one native candle series over the bars' own OHLC in their plot's color (hollow = transparent body). */
 export const PATTERN_BOX_FILL_SHARE=0.2;
+/** Pattern label layout (see patternMarksNative). */
+export const PATTERN_LABEL_GAP=6,PATTERN_MAX_LANES=3,PATTERN_LANE_STEP=2;
 export function patternMarksNative(instanceId:string,result:IndicatorResult,bars:readonly Bar[],plotStyle:(id:string)=>IndicatorPlotStyle):{labels:DrawingLabel[];lines:DrawingLine[];boxes:DrawingBox[];candles:CandleSeries|null}{
  const labels:DrawingLabel[]=[],lines:DrawingLine[]=[],boxes:DrawingBox[]=[];const marks=result.marks;if(!marks)return {labels,lines,boxes,candles:null};
  const time=(index:number)=>bars[index]?.time;
  const colorOf=(style:IndicatorPlotStyle)=>indicatorColorOpacity(style.color,style.opacity??100);
+ // Readable markers: markers of one bar and side share one label (texts stacked), bare counts (Sequential 1-8) are small
+ // plain text rather than bubbles, and a text bubble that would sit within PATTERN_LABEL_GAP bars of an earlier one on the
+ // same side moves out to the next lane (one median bar range x PATTERN_LANE_STEP further from the bar) instead of covering it.
+ const merged=new Map<string,{ordinal:number;row:typeof marks.markers[number];texts:string[];tips:string[];color:string;below:boolean}>();
  marks.markers.forEach((row,ordinal)=>{
   const style=plotStyle(row.plot),at=time(row.index);if(!style.visible||at===undefined)return;const position=row.position??(row.plot==='bullish'?'below':'above'),below=position==='below',color=colorOf(style);
-  const yloc=position==='price'?'price' as const:below?'belowbar' as const:'abovebar' as const,y=position==='price'?row.price!:below?bars[row.index].low:bars[row.index].high;
-  labels.push({id:indicatorDecorationId(instanceId,`pattern:marker:${ordinal}`),paneId:'',xloc:'bar_time',x:at*1000,y,yloc,text:row.text,style:row.shape??(below?'label_up':'label_down'),color,textColor:row.shape?color:'#ffffff',size:row.shape?'tiny':'small',textAlign:'center',tooltip:row.tooltip,fontFamily:'default'});
+  const key=position==='price'||row.shape?`solo:${ordinal}`:`${row.index}:${position}`,hit=merged.get(key);
+  if(hit&&hit.color===color){if(row.text)hit.texts.push(row.text);if(row.tooltip)hit.tips.push(row.tooltip);return;}
+  merged.set(hit?`${key}:${ordinal}`:key,{ordinal,row,texts:row.text?[row.text]:[],tips:row.tooltip?[row.tooltip]:[],color,below});
  });
+ const ranges=bars.map(bar=>bar.high-bar.low).filter(value=>Number.isFinite(value)&&value>0).sort((a,b)=>a-b),step=(ranges[ranges.length>>1]??0)*PATTERN_LANE_STEP;
+ const lanes={above:[] as number[],below:[] as number[]};
+ for(const {ordinal,row,texts,tips,color,below} of [...merged.values()].sort((a,b)=>a.row.index-b.row.index||a.ordinal-b.ordinal)){
+  const at=time(row.index)!,position=row.position??(row.plot==='bullish'?'below':'above'),text=texts.join('\n'),count=!row.shape&&/^\d{1,2}$/.test(text)&&text!=='13';// a 13 (countdown completion) keeps its bubble
+  let yloc:'price'|'abovebar'|'belowbar'=position==='price'?'price':below?'belowbar':'abovebar',y=position==='price'?row.price!:below?bars[row.index].low:bars[row.index].high;
+  if(position!=='price'&&!row.shape&&!count&&step>0){
+   const side=below?lanes.below:lanes.above;let lane=side.findIndex(last=>row.index-last>PATTERN_LABEL_GAP);if(lane<0)lane=side.length<PATTERN_MAX_LANES?side.length:side.length-1;side[lane]=row.index;
+   if(lane>0){yloc='price';y=below?bars[row.index].low-lane*step:bars[row.index].high+lane*step;}
+  }
+  labels.push({id:indicatorDecorationId(instanceId,`pattern:marker:${ordinal}`),paneId:'',xloc:'bar_time',x:at*1000,y,yloc,text,style:row.shape??(count?'none':below?'label_up':'label_down'),color,textColor:row.shape||count?color:'#ffffff',size:row.shape||count?'tiny':'small',textAlign:'center',tooltip:tips.join('\n')||undefined,fontFamily:'default'});
+ }
  marks.lines.forEach((row,ordinal)=>{
   const style=plotStyle(row.plot),from=time(row.from.index),to=time(row.to.index);if(!style.visible||from===undefined||to===undefined)return;
-  lines.push({id:indicatorDecorationId(instanceId,`pattern:line:${ordinal}`),paneId:'',xloc:'bar_time',x1:from*1000,y1:row.from.price,x2:to*1000,y2:row.to.price,extend:'none',color:colorOf(style),invisible:false,width:Math.max(1,Math.min(4,Math.round(style.width))),style:style.lineStyle,arrowLeft:false,arrowRight:false});
+  lines.push({id:indicatorDecorationId(instanceId,`pattern:line:${ordinal}`),paneId:'',xloc:'bar_time',x1:from*1000,y1:row.from.price,x2:to*1000,y2:row.to.price,extend:row.extendRight?'right':'none',color:colorOf(style),invisible:false,width:Math.max(1,Math.min(4,Math.round(style.width))),style:style.lineStyle,arrowLeft:false,arrowRight:false});
  });
  (marks.boxes??[]).forEach((row,ordinal)=>{
   const style=plotStyle(row.plot),from=time(row.from.index),to=time(row.to.index);if(!style.visible||from===undefined||to===undefined)return;
@@ -288,10 +340,12 @@ export function patternMarksNative(instanceId:string,result:IndicatorResult,bars
  });
  let candles:CandleSeries|null=null;
  if(marks.candles?.length){
-  const rows:CandleSeries['bars']=[],colors:CandleBarColor[]=[];
+  // One row per chart bar: the renderer reads candle series by bar index, so a skipped bar keeps a NaN placeholder
+  // (never painted, read out or scaled) instead of shifting every later candle left.
+  const rows:CandleSeries['bars']=bars.map(bar=>({time:bar.time*1000,open:NaN,high:NaN,low:NaN,close:NaN})),colors:CandleBarColor[]=bars.map(()=>({color:'rgba(0,0,0,0)',wickColor:'rgba(0,0,0,0)',borderColor:'rgba(0,0,0,0)'}));let known=0;
   for(const row of marks.candles){const style=plotStyle(row.plot),bar=bars[row.index];if(!style.visible||!bar||![bar.open,bar.high,bar.low,bar.close].every(Number.isFinite))continue;const color=colorOf(style);
-   rows.push({time:bar.time*1000,open:bar.open,high:bar.high,low:bar.low,close:bar.close});colors.push({color:row.hollow?'rgba(0,0,0,0)':color,wickColor:color,borderColor:color});}
-  if(rows.length){const first=colors[0].borderColor!;candles={id:`lv-pattern-candles:${JSON.stringify(instanceId)}`,title:'Candles',paneId:'',kind:'candle',visible:true,display:{pane:true,priceScale:false,legend:false,dataWindow:false},bars:rows,barColors:colors,style:{up:first,down:first,wickUp:first,wickDown:first,borderUp:first,borderDown:first}};}
+   rows[row.index]={time:bar.time*1000,open:bar.open,high:bar.high,low:bar.low,close:bar.close};colors[row.index]={color:row.hollow?'rgba(0,0,0,0)':color,wickColor:color,borderColor:color};known++;}
+  if(known){const first=colors.find((_,index)=>Number.isFinite(rows[index].close))!.borderColor!;candles={id:`lv-pattern-candles:${JSON.stringify(instanceId)}`,title:'Candles',paneId:'',kind:'candle',visible:true,display:{pane:true,priceScale:false,legend:false,dataWindow:false},bars:rows,barColors:colors,style:{up:first,down:first,wickUp:first,wickDown:first,borderUp:first,borderDown:first}};}
  }
  return {labels,lines,boxes,candles};
 }

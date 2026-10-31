@@ -1,5 +1,5 @@
 import {validateSeasonalityCatalogInputs} from '../domain/indicators-ext/seasonality-catalog';
-import {validateTradingSessionInputs} from '../domain/indicators-ext/trading-sessions-catalog';
+import {validateTradingSessionInputs,TRADING_SESSION_DRAW_LIMIT} from '../domain/indicators-ext/trading-sessions-catalog';
 import type {InputSchema,InputValue,LineLikeKind,LineStyle} from '@luxalgo/vela';
 import {RSI_MA_NAME,indicatorActivePlotIds,indicatorCalculationWork,indicatorVwapBandSettings,indicatorVwapKernelVersion,VWAP_BAND_DEFAULTS,VWAP_EXCHANGE_ZONE,VOLUME_MA_TYPES,indicatorVolumeMaType,type IndicatorId,type IndicatorInputs} from '../domain/indicators';
 export {VWAP_BAND_INPUT_KEYS,indicatorVwapBandSettings,VWAP_KERNEL_INPUT_KEY,indicatorVwapKernelVersion,VOLUME_MA_TYPES,indicatorVolumeMaType,type VolumeMaType} from '../domain/indicators';
@@ -306,8 +306,9 @@ export function indicatorEstimatedSlots(kind:IndicatorId,barCount:number,inputs:
  validateIndicatorInputs(kind,inputs,true);if(!Number.isSafeInteger(barCount)||barCount<0||barCount>100000)throw new Error('Invalid indicator bar count.');if(presentation!==undefined)validateIndicatorPresentation(kind,presentation);
  if(!Number.isSafeInteger(offset)||Math.abs(offset)>INDICATOR_MAX_OFFSET)throw new Error('Invalid indicator display offset.');
  const active=indicatorActivePlotIds(kind,inputs);let slots=barCount*active.length;const definition=catalogDefinition(kind),sessionWindows=definition?.tradingSessions?[1,2,3].filter(index=>catalogInputValue(definition,inputs,`session${index}Enabled`)===true).length:0;
- // Each bar may be the only observation of a distinct session: account for retained statistics and native geometry conservatively.
- slots+=barCount*sessionWindows*(scope==='calculation'?13:36);
+ // Each bar may be the only observation of a distinct session: account for retained statistics conservatively. Native
+ // geometry (23 more slots per session) is drawn for at most the latest TRADING_SESSION_DRAW_LIMIT sessions of each window.
+ slots+=barCount*sessionWindows*13+(scope==='calculation'?0:Math.min(barCount,TRADING_SESSION_DRAW_LIMIT)*sessionWindows*23);
  if(definition?.seasonality){const get=(key:string)=>catalogInputValue(definition,inputs,key),years=(get('endYear') as number)-(get('startYear') as number)+1,F=years*12+1,T=(years+1+Number(get('meanRow'))+Number(get('deviationRow'))+Number(get('positiveFrequencyRow')))*13;/* Retained pure scene + aligned arrays + native cells/boxes/layout, even without an optional readout lease. */slots+=4*barCount+128*F+64*T+4096;}if(scope==='calculation')return slots;
  const nativeCount=barCount+Math.max(0,offset);slots+=nativeCount*active.length*2;
  for(const id of indicatorFillIds(kind)){if(isVpFillId(id))continue;const fill=presentation?.fills[id],enabled=id==='smoothing'?inputs.smoothingType==='SMA+BB':/^band[123]$/.test(id)?active.includes('upper'+id.at(-1)):true;if(fill?.visible&&enabled&&id!=='bullZone'&&id!=='bearZone')slots+=nativeCount*4;}// An RSI zone is one native box (no numeric slots, like labels)

@@ -105,6 +105,14 @@ export function suppliedSourceId(state:Pick<ChartWorkspace,'imports'>,dataset:Ba
 /** Intraday demo sources (1m, 5m, 15m, 60m) exist only for symbols a chart is using, and are generated on first use. */
 const intradayCache=new Map<string,BarDataset[]>();
 const placeholderSets=new Map<string,BarDataset[]>();
+/** The example dataset of `symbol` at exactly `resolution`, for a second-symbol or script lookup (Correlation, Relative
+ *  strength, Spread, Ratio) on the example screen: the example symbols carry generated bars, so "SPY" on a GME chart reads
+ *  the example SPY series instead of asking for a live feed. Null outside example mode, for other symbols or intervals. */
+export function exampleComponentDataset(symbol:string,resolution:string):BarDataset|null{
+ const key=String(symbol??'').trim().toUpperCase();
+ if(demoDataMode()!=='example'||!demoSymbolAllowed(key))return null;
+ return [demoDataset(key),...demoIntradaySources(key)].find(row=>row.resolution===resolution&&row.bars.length>0)??null;
+}
 export function demoIntradaySources(symbol:string):BarDataset[]{
  if(!demoSymbolAllowed(symbol)){const key=symbol.trim().toUpperCase();let set=placeholderSets.get(key);if(!set){set=DEMO_INTRADAY_RESOLUTIONS.map(resolution=>placeholder(key,resolution));if(placeholderSets.size>=64)placeholderSets.clear();placeholderSets.set(key,set);}return set;}
  return generatedDemoIntraday(symbol);

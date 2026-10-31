@@ -3,7 +3,7 @@ import type {IndicatorId} from '../domain/indicators';
 import {parseInterval} from '../domain/intervals';
 import {demoDataMode} from '../domain/demo-mode';
 import {shortIntervalText} from './interval-display';
-import {formatIndicatorNumber,isIndicatorPrecision,type IndicatorPrecision} from '../chart/indicator-number-format';
+import {formatIndicatorNumber,isIndicatorPrecision,isVolumeUnitKind,type IndicatorPrecision} from '../chart/indicator-number-format';
 import {indicatorAcronyms,indicatorNames} from './indicator-dialog-model';
 import {chartTimeZone,formatChartDateTime,type ChartClockHours} from './chart-time-text';
 import {DEFAULT_TIME_SCALE_SETTINGS,formatTimeScaleDate} from '../chart/time-axis-format';
@@ -126,7 +126,7 @@ export function lastDayChange(bars:readonly Bar[],interval:string,timezone:strin
  for(let index=bars.length-2;index>=0;index--)if(dayKey(bars[index].time,timezone)!==today)return formatChange(last.close,bars[index].close,tickSize);
  return DATA_WINDOW_EMPTY;
 }
-const VOLUME_KINDS=new Set<IndicatorId>(['volume','obv']),PERCENT_KINDS=new Set<IndicatorId>(['rsi','stochastic']);
+const PERCENT_KINDS=new Set<IndicatorId>(['rsi','stochastic']);
 /**
  * Indicator value text. An explicit precision uses the same formatter as the legend
  * (formatIndicatorNumber). Automatic precision is LV policy: volume-unit plots abbreviate,
@@ -147,7 +147,7 @@ export function indicatorPlotTextAt(values:ArrayLike<number|null>,bar:number|nul
 export function formatIndicatorValue(value:number|null|undefined,kind:IndicatorId,precision:IndicatorPrecision,tickSize:number):string{
  if(typeof value!=='number'||!Number.isFinite(value))return DATA_WINDOW_EMPTY;
  if(precision!=='auto'&&isIndicatorPrecision(precision))return formatIndicatorNumber(value,precision);
- if(VOLUME_KINDS.has(kind))return formatVolume(value);
+ if(isVolumeUnitKind(kind))return formatVolume(value);
  if(PERCENT_KINDS.has(kind))return plain(value.toFixed(2));
  return formatPrice(value,tickSize);
 }

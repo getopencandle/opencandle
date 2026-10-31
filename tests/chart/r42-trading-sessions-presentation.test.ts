@@ -12,7 +12,7 @@ const context={resolution:'1m',exchangeZone:'UTC',style:'candles',tickSize:1};
 const prepare=(row=settings())=>{const result=calculateIndicator(row.kind,bars,row.inputs,context);return{result,...renderIndicatorPresentation(row,result,bars,context)};};
 it('registers an explicit chart-only catalog study with unresolved reference defaults',()=>{
  const definition=catalogDefinition('tradingsessions')!;expect(definition.name).toBe('Trading sessions');expect(definition.tradingSessions).toBe(true);expect(definition.unknownDefaults?.join(' ')).toContain('unresolved');
- for(const index of [1,2,3]){expect(indicatorDefaults.tradingsessions[`session${index}Enabled`]).toBe(false);expect(indicatorDefaults.tradingsessions[`session${index}Start`]).toBe('');}
+ for(const [index,start,end,zone] of [[1,'09:00','15:00','Asia/Tokyo'],[2,'08:00','16:30','Europe/London'],[3,'09:30','16:00','America/New_York']] as const){expect(indicatorDefaults.tradingsessions[`session${index}Enabled`]).toBe(true);expect([indicatorDefaults.tradingsessions[`session${index}Start`],indicatorDefaults.tradingsessions[`session${index}End`],indicatorDefaults.tradingsessions[`session${index}Zone`]]).toEqual([start,end,zone]);}
 });
 it('emits an actual observed box, dashed open/close and dotted average with readable statistics',()=>{
  const prepared=prepare(),{output}=prepared;expect(prepared.result.diagnostics).toEqual([]);expect(prepared.diagnostics).toEqual([]);
@@ -40,7 +40,7 @@ it('does not guess the exchange zone and validates enabled configuration before 
 it('accounts for worst-case retained statistics and actual native coordinates without raising budgets',()=>{
  const one=settings().inputs,three={...one,session2Enabled:true,session2Start:'09:00',session2End:'10:00',session3Enabled:true,session3Start:'09:00',session3End:'10:00'};
  expect(indicatorEstimatedSlots('tradingsessions',100,one,undefined,'calculation')).toBe(1600);expect(indicatorEstimatedSlots('tradingsessions',100,one)).toBe(4500);
- expect(()=>assertIndicatorBatchBudget([{kind:'tradingsessions',inputs:three}],100000)).toThrow('local limits');expect(assertIndicatorBatchBudget([{kind:'tradingsessions',inputs:three}],5000).numericSlots).toBe(585000);
+ expect(()=>assertIndicatorBatchBudget([{kind:'tradingsessions',inputs:three}],100000)).toThrow('local limits');expect(assertIndicatorBatchBudget([{kind:'tradingsessions',inputs:three}],5000).numericSlots).toBe(274500);// 5000 x (3 plots + 3 x 13 statistics + 6 native) + 3 windows x 500 drawn sessions x 23
 });
 it('presentation leaves frozen observed geometry and causal numerical results unchanged',()=>{
  const row=settings(),result=calculateIndicator(row.kind,bars,row.inputs,context),before=JSON.stringify(result);renderIndicatorPresentation(row,result,bars,context);expect(JSON.stringify(result)).toBe(before);

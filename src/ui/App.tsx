@@ -60,7 +60,7 @@ import {validatePreparedGridInput} from './grid-prepared-input';
 import {prepareGridFrameHistory} from './grid-frame-baseline';
 import {createFrameFingerprintCalculator} from './frame-fingerprints';
 import {assertHistoricalFrameCompatible,type HistoricalChartFrame} from '../chart/historical-frame';
-import {ensureWorkspaceGrid,patchWorkspace,projectGrid,selectedDataset,workspaceDatasets,focusOnlyChange,allChartsDataset,sameWorkspace,suppliedSourceId,stableDatasetUniverse,withDemoSiblings,gridSourceKey,demoDataset} from './workspace-grid';
+import {ensureWorkspaceGrid,patchWorkspace,projectGrid,selectedDataset,workspaceDatasets,focusOnlyChange,allChartsDataset,sameWorkspace,suppliedSourceId,stableDatasetUniverse,withDemoSiblings,gridSourceKey,demoDataset,exampleComponentDataset} from './workspace-grid';
 import type {ChartSettingsCommit} from '../chart/chart-settings-session';
 import {restoreChartSettingsDocument} from '../chart/chart-settings-document';
 import {validatePriceScaleSettings,type PriceScaleSettings} from '../chart/price-scale-state';
@@ -1415,6 +1415,8 @@ export function App(){
  }
  function openComponentFeed(symbol:string,resolution:string):LiveHandle{
   const imported=importedComponent(symbol,resolution);if(imported)return staticComponentHandle(imported);
+  // Example screen: an example symbol (SPY, BTC, ...) reads its generated series, so two-symbol studies work without a live feed.
+  const example=exampleComponentDataset(symbol,resolution);if(example)return staticComponentHandle(example);
   if(symbolMathComponentSource(symbol)==='coinbase'){
    if(!liveDataOf(current.current).coinbase)throw new Error('Coinbase live data is turned off. Open Data sources to turn it on.');
    const provider=liveProviderFor(COINBASE_PROVIDER_ID);if(!provider)throw new Error('Live data needs the desktop app.');return provider.open(symbol,resolution);

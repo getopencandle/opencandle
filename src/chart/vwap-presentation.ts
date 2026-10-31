@@ -4,7 +4,7 @@ import type {Bar} from '../domain/types';
 import {VWAP_WORKER_LIMITS} from '../vwap/types';
 import {assertIndicatorBatchBudget,indicatorPlotIds,validateIndicatorSettings,type IndicatorInstanceSettings} from './indicator-settings';
 import {defaultPlotStyle,validatedIndicatorDisplayTime} from './indicator-rendering';
-import {appendIndicatorEndpointPresentation,indicatorDecorationId,INDICATOR_TRACKING_POLICY,renderIndicatorPresentation,validateIndicatorPresentationContext,type IndicatorNativePresentation,type IndicatorPresentationContext} from './indicator-presentation';
+import {anchoredResets,ANCHOR_RESET_POLICY,SEGMENT_BREAK_COLOR,appendIndicatorEndpointPresentation,indicatorDecorationId,INDICATOR_TRACKING_POLICY,renderIndicatorPresentation,validateIndicatorPresentationContext,type IndicatorNativePresentation,type IndicatorPresentationContext} from './indicator-presentation';
 import type {IndicatorDisplayPlot} from './indicator-display-source';
 
 /** Opaque internal receipt; its public shape is never publication authority. */
@@ -113,6 +113,9 @@ export function createVwapPresentationPreparation(host:Host):VwapPresentationPre
       appendIndicatorEndpointPresentation(settings.id,plot,point,style,data(plot.values,String(rows-1)) as number|null,point.style.color,point.style.color,display,priceLines);
      }
      prepared!.display=Object.freeze(display);
+     // Same anchor-reset breaks as the generic builder (renderIndicatorPresentation): no stroke joins two VWAP periods.
+     const resets=anchoredResets(settings,bars as readonly Bar[],host.context);
+     if(resets){for(let index=0;index<plots.length;index++){const points=native[index].points;for(const i of resets){const a=points[i-1],b=points[i];if(a&&b&&a.value!==null&&b.value!==null)b.color=SEGMENT_BREAK_COLOR;}}prepared!.policies.push(ANCHOR_RESET_POLICY);}
      if(priceLines.some(line=>line.id.includes('track:')))prepared!.policies.push(INDICATOR_TRACKING_POLICY);
     }
     boundResult=result;phase='complete';receipt=Object.freeze({type:'owned-vwap-presentation'});

@@ -92,7 +92,9 @@ async function readChartText(page){
   const alerts=[...document.querySelectorAll('[role=alert]')].map(n=>n.textContent?.trim()).filter(Boolean);
   const status=document.querySelector('.statusbar output')?.textContent?.trim()??'';
   const allText=panel?.innerText??'';
-  return {legend,panes,alerts,status,allText};});
+  /* Hover text of legend rows (an Unavailable value explains itself in its title). */
+  const legendTitles=[...document.querySelectorAll('.lv-legend-row [title],.lv-legend-row[title]')].map(n=>n.getAttribute('title')?.trim()).filter(Boolean);
+  return {legend,legendTitles,panes,alerts,status,allText};});
 }
 
 async function mainPaneRect(page){
@@ -221,7 +223,7 @@ async function runItem(ctx,item){
   const shot=await stableShot(page,panel,item.kind==='indicator'?9000:3000);
   record.file='img/'+item.slug+'.png';fs.writeFileSync(path.join(OUT,record.file),shot);
   const after=await readChartText(page);
-  Object.assign(record,{legend:after.legend,status:after.status,alerts:after.alerts});record.panes.after=after.panes;
+  Object.assign(record,{legend:after.legend,status:after.status,alerts:after.alerts});if(after.legendTitles?.length)record.notes.push(...after.legendTitles.map(t=>'legend title: '+t));record.panes.after=after.panes;
   // Legend rows, the price scale and the time axis change for almost anything; the plot count leaves them out.
   const skip=await page.evaluate(()=>{const panel=document.querySelector('.chart-panel');if(!panel)return [];const p=panel.getBoundingClientRect();
    const rows=[...document.querySelectorAll('.lv-legend-row,.lv-legend-toggler')].map(n=>n.getBoundingClientRect()).filter(r=>r.width>0).map(r=>({x:r.left-p.left-4,y:r.top-p.top-4,w:r.width+8,h:r.height+8}));

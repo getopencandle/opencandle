@@ -122,7 +122,7 @@ describe(' indicator kinds (SYNTHETIC)',()=>{
   const vrvp=catalogDefinition('vrvp')!,pvp=catalogDefinition('pvp')!;
   expect(vrvp.name).toBe('Visible range volume profile');expect(pvp.name).toBe('Periodic volume profile');
   expect(Object.fromEntries(vrvp.inputs.map(row=>[row.key,row.defval]))).toEqual({rowsLayout:'Number Of Rows',rowSize:24,volume:'Up/Down',valueAreaVolume:70,placement:'Right',widthPct:30,developingPoc:false,developingVa:false,extendPocRight:false,rowValues:false});// Four extras, all off
-  expect(Object.fromEntries(pvp.inputs.map(row=>[row.key,row.defval]))).toEqual({rowsLayout:'Number Of Rows',rowSize:24,volume:'Up/Down',valueAreaVolume:70,period:'Day',placement:'Left',widthPct:30,developingPoc:false,developingVa:false,extendPocRight:false,rowValues:false});
+  expect(Object.fromEntries(pvp.inputs.map(row=>[row.key,row.defval]))).toEqual({rowsLayout:'Number Of Rows',rowSize:24,volume:'Up/Down',valueAreaVolume:70,period:'Auto',placement:'Left',widthPct:30,developingPoc:false,developingVa:false,extendPocRight:false,rowValues:false});
   expect(vrvp.plots.map(row=>[row.id,row.visible])).toEqual([['poc',true],['vah',false],['val',false],['devPoc',undefined],['devVah',undefined],['devVal',undefined]]);// developing plots (shown; empty while their input is off)
   expect(vrvp.viewport).toBe(true);expect(pvp.viewport).toBeUndefined();
   for(const definition of [vrvp,pvp])expect(definition.unknownDefaults!.join(' ')).toMatch(/OpenCandle-defined/);

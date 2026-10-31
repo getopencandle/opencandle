@@ -13,8 +13,10 @@ export function presentAutoTrendlines(value:unknown,options:AutoTrendPresentatio
   const lines:DrawingLine[]=[],labels:DrawingLabel[]=[];meter.reserve(result.scene.lines.length*12+result.scene.pivots.length*8);
   // Namespace components are length-prefixed to prevent instance/key delimiter aliases.
   const id=(kind:string,key:string)=>`lv-auto:${options.instanceId.length}:${options.instanceId}:${kind}:${key}`;
-  for(const line of result.scene.lines){meter.work(112);const extended=line.extended,end=extended?line.endIndex:line.to.index,endPrice=extended?line.endPrice:line.to.price;
-   lines.push(Object.freeze({id:id('line',line.key),paneId:options.paneId,xloc:'bar_index',x1:line.from.index,y1:line.from.price,x2:end,y2:endPrice,extend:extended&&line.breakoutIndex===null?'right':'none',color:line.side==='support'?options.supportColor:options.resistanceColor,invisible:false,width:options.width,style:options.lineStyle,arrowLeft:false,arrowRight:false}));
+  // An unbroken extended line is a ray through its two pivots (extend right), so only the pivot prices feed the pane
+  // autoscale: the projection is drawn to the edge but never stretches the price scale. A broken line ends at its breakout.
+  for(const line of result.scene.lines){meter.work(112);const extended=line.extended,ray=extended&&line.breakoutIndex===null,end=extended&&!ray?line.endIndex:line.to.index,endPrice=extended&&!ray?line.endPrice:line.to.price;
+   lines.push(Object.freeze({id:id('line',line.key),paneId:options.paneId,xloc:'bar_index',x1:line.from.index,y1:line.from.price,x2:end,y2:endPrice,extend:ray?'right':'none',color:line.side==='support'?options.supportColor:options.resistanceColor,invisible:false,width:options.width,style:options.lineStyle,arrowLeft:false,arrowRight:false}));
   }
   for(const pivot of result.scene.pivots){meter.work(96);const support=pivot.side==='support';labels.push(Object.freeze({id:id('pivot',pivot.key),paneId:options.paneId,xloc:'bar_index',x:pivot.index,y:pivot.price,yloc:'price',text:support?'\u25b3':'\u25bd',style:'none',textColor:support?options.supportColor:options.resistanceColor,size:'tiny',textAlign:'center',fontFamily:'default',noFill:true,tooltip:`${support?'Support':'Resistance'} pivot confirmed after ${pivot.confirmedAt-pivot.index} observations.`}));}
   meter.work(24);return Object.freeze({status:'ready',lines:Object.freeze(lines),labels:Object.freeze(labels),sourceKey:result.scene.sourceKey,asOfIndex:result.scene.asOfIndex,usage:meter.usage()});

@@ -12,7 +12,7 @@ import {labelTextColor,publishReservedAxisRanges} from './axis-labels';
 
 type Row=Record<string,any>;
 type Method=(this:any,...args:any[])=>any;
-type DisplayRow=Pick<IndicatorDisplayOwner,'id'|'rendererId'|'plots'|'precision'|'valueSuffix'>&{series:readonly object[]};
+type DisplayRow=Pick<IndicatorDisplayOwner,'id'|'rendererId'|'plots'|'precision'|'valueSuffix'|'compact'>&{series:readonly object[]};
 export interface IndicatorDisplayOptions {labelsVisible:boolean;valuesVisible:boolean}
 /** setNameLabels: "Indicators and financials name labels" (default off). */
 export interface IndicatorDisplayController {setOptions(options:IndicatorDisplayOptions):void;setNameLabels(on:boolean):void;diagnostics():ChartDiagnostic[];dispose():void}
@@ -140,7 +140,7 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
      let text:string;const precision=precisionFor(row);
      if(script){const valueShown=baseline===null?value:(value/baseline-(mode==='percent'?1:0))*100;if(!Number.isFinite(valueShown))throw Error('Script scale value cannot be represented.');text=script.frame.format.format(valueShown);if(mode==='percent')text=(!text.startsWith('-')?'+':'')+text+'%';}
      else if(mode==='percent'||mode==='indexed'){const transformed=(value/baseline!-(mode==='percent'?1:0))*100;if(!Number.isFinite(transformed)){add('Indicator percent/indexed value is not representable.');continue;}if(precision==='auto')text=mode==='percent'?(transformed>=0?'+':'-')+Math.abs(transformed).toFixed(2)+'%':transformed.toFixed(2);else{text=formatIndicatorNumber(transformed,precision);text=(mode==='percent'&&!text.startsWith('-')?'+':'')+text+(mode==='percent'?'%':'');}}
-     else text=precision!=='auto'?formatIndicatorNumber(value,precision)+(row.valueSuffix??''):!column&&axisFormat==='volume'?compact(value):Reflect.apply(format,host,[value,formattedPane]);
+     else text=precision!=='auto'?formatIndicatorNumber(value,precision)+(row.valueSuffix??''):!column&&axisFormat==='volume'||row.compact===true?compact(value):Reflect.apply(format,host,[value,formattedPane]);
      assertCurrent();
      if(typeof text!=='string'||!text||text.length>128)throw Error('Indicator automatic label text is unavailable.');
      // The name label reads the plot title the legend and Data Window show (our own length cap).
@@ -314,7 +314,18 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
   ctx.save();try{paintLabels(ctx,coords,finite(dataWidth,'axis origin'));}catch(error){lastDiagnostics=[diagnostic(error instanceof Error?error.message:String(error))];}finally{ctx.restore();}for(const failure of failures)report(failure);return result;
   }finally{painting=false;}
  };
- const axesPaint:Method=function(ctx:CanvasRenderingContext2D,incoming:unknown,coords:Row,theme:unknown,dataWidth:number,paneList:unknown){assertOwner(this,chrome);if(incoming!==scene||own(host,'coords')!==coords||own(chrome,'ctx')!==ctx)throw Error('Indicator display axis scene, coordinates or canvas identity changed.');if(painting)throw Error('Indicator display painter is already in progress.');painting=true;try{pendingAxisFailures=[];ctx.save();try{const axes=precisionAxes('master',coords,finite(dataWidth,'axis origin'));return axes.length?withIndicatorTickPrecision(ctx,coords,axes,()=>assertOwner(this,chrome),(context,coordinates)=>Reflect.apply(originalAxes,chrome,[context,incoming,coordinates,theme,dataWidth,paneList])):Reflect.apply(originalAxes,chrome,[ctx,incoming,coords,theme,dataWidth,paneList]);}catch(error){pendingAxisFailures=[error];report(error);}finally{ctx.restore();}}finally{painting=false;}};
+ /** For one axis paint, an indicator pane whose master-scale indicators are all volume-unit kinds (OBV, EFI, A/D, ...)
+  *  reads its ticks abbreviated like the Volume pane. Returns the undo; the renderer recomputes the format every frame. */
+ function compactAxisPanes():()=>void{
+  const changed:Row[]=[];
+  try{
+   const compactIds=new Set(source.read().filter(row=>row.compact===true).map(row=>row.rendererId)),byPane=new Map<string,boolean>();
+   for(const [id,model] of models){if(own(model,'ownScale',true)===true)continue;const paneId=own(model,'paneId');if(typeof paneId!=='string')continue;byPane.set(paneId,(byPane.get(paneId)??true)&&compactIds.has(id as string));}
+   for(const [paneId,all] of byPane){const pane=panes.get(paneId);if(!all||!pane||own(pane,'kind')==='price'||own(pane,'axisFormat',true)!==undefined)continue;(pane as Record<string,unknown>).axisFormat='volume';changed.push(pane);}
+  }catch{/* labels keep the renderer's own format */}
+  return()=>{for(const pane of changed)if((pane as Record<string,unknown>).axisFormat==='volume')(pane as Record<string,unknown>).axisFormat=undefined;};
+ }
+ const axesPaint:Method=function(ctx:CanvasRenderingContext2D,incoming:unknown,coords:Row,theme:unknown,dataWidth:number,paneList:unknown){assertOwner(this,chrome);if(incoming!==scene||own(host,'coords')!==coords||own(chrome,'ctx')!==ctx)throw Error('Indicator display axis scene, coordinates or canvas identity changed.');if(painting)throw Error('Indicator display painter is already in progress.');painting=true;try{pendingAxisFailures=[];ctx.save();try{const axes=precisionAxes('master',coords,finite(dataWidth,'axis origin')),restore=compactAxisPanes();try{return axes.length?withIndicatorTickPrecision(ctx,coords,axes,()=>assertOwner(this,chrome),(context,coordinates)=>Reflect.apply(originalAxes,chrome,[context,incoming,coordinates,theme,dataWidth,paneList])):Reflect.apply(originalAxes,chrome,[ctx,incoming,coords,theme,dataWidth,paneList]);}finally{restore();}}catch(error){pendingAxisFailures=[error];report(error);}finally{ctx.restore();}}finally{painting=false;}};
  const readout:Method=function(model:Row,index:number,pane:unknown,surface:unknown){assertOwner(this,host);if(surface==='legend'&&!current.valuesVisible)return [];if(reading)throw Error('Indicator readout formatting is already in progress.');reading=true;const before=current;try{const result=surface==='legend'||surface==='dataWindow'?formattedReadout(model,index,pane,surface):Reflect.apply(originalReadout,host,[model,index,pane,surface]);assertOwner(this,host);if(current!==before)throw Error('Indicator display options changed during readout.');return result;}catch(error){report(error);return [];}finally{reading=false;}};
  Object.defineProperty(chrome,'drawMergedScaleColumns',{configurable:true,writable:true,value:paint});
  try{Object.defineProperty(chrome,'drawPriceAxes',{configurable:true,writable:true,value:axesPaint});Object.defineProperty(host,'readoutRowsFor',{configurable:true,writable:true,value:readout});if(originalLeft)Object.defineProperty(chrome,'lvDrawLeftScale',{configurable:true,writable:true,value:leftPaint});}catch(error){active=false;const cleanup:unknown[]=[];for(const [owner,key,expected]of [[chrome,'drawMergedScaleColumns',paint],[chrome,'drawPriceAxes',axesPaint],[host,'readoutRowsFor',readout],[chrome,'lvDrawLeftScale',leftPaint]] as const){try{if(!Object.hasOwn(owner,key))continue;if(own(owner,key)!==expected)throw Error('Indicator display installation preserved a foreign method: '+key);delete owner[key];}catch(failure){cleanup.push(failure);}}if(cleanup.length)throw new AggregateError([error,...cleanup],'Indicator display installation and cleanup failed.');throw error;}

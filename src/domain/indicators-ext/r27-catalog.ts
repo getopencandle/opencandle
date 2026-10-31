@@ -9,6 +9,25 @@ import {pivotCalendar,pivotPeriodKey,zigzagPivots,type PivotTimeframe} from './r
  * prefix (original author or textbook). Every name, input title, default, color and width is
  * our own choice and listed in `unknownDefaults`. Calculations are original code.
  */
+/** True for second and minute charts (hour intervals are minute multiples). */
+function isIntradayChart(resolution:string|null|undefined):boolean{
+ try{const spec=typeof resolution==='string'?parseInterval(resolution):null;return spec?.kind==='time'&&(spec.unit==='second'||spec.unit==='minute');}catch{return false;}
+}
+/** Average daily range on an intraday chart: each trading day's high - low from its intraday bars; at a bar, the simple
+ *  average of the last `length` days completed before the bar's own day (null until that many days have completed). */
+export function intradayAverageDailyRange(bars:readonly Bar[],length:number,calendar:'us-equity'|'utc'):NumericSeries{
+ const out:(number|null)[]=Array(bars.length).fill(null),ranges:number[]=[];let key:string|null=null,high=-Infinity,low=Infinity,sum=0;
+ for(let i=0;i<bars.length;i++){
+  const bar=bars[i],next=pivotPeriodKey(bar.time,'Daily',calendar);
+  if(next!==key){
+   if(key!==null&&high>=low){ranges.push(high-low);sum+=high-low;if(ranges.length>length)sum-=ranges[ranges.length-1-length];}
+   key=next;high=-Infinity;low=Infinity;
+  }
+  if(finite(bar.high)&&finite(bar.low)){high=Math.max(high,bar.high);low=Math.min(low,bar.low);}
+  if(ranges.length>=length)out[i]=sum/length;
+ }
+ return out;
+}
 export const R27_INDICATOR_IDS=['rvat','maribbon','bbpb','bbw','autofib','adr','chop','coppock','crsi','dpo','eom','fisher','klinger','kst','mass','mcginley','netvol','ppo','rvgi','rvi','smiergodic','tsi','vo','vortex','alligator','fractals','woodiescci','ad','chaikinosc','pvt','bop','bbpower'] as const;
 export type R27IndicatorId=typeof R27_INDICATOR_IDS[number];
 
@@ -175,8 +194,12 @@ const definitions:CatalogDefinition[]=[
  {id:'adr',name:'Average daily range',acronym:'ADR',overlay:false,inputs:[{key:'length',title:'Length',defval:14,...LENGTH}],plots:[{id:'adr',label:'ADR',color:BLUE,width:1}],
   provenance:[named('Average daily range'),{url:LV+'textbook-average-daily-range',facts:'Average daily range = simple moving average of high - low over n bars.'}],
   unknownDefaults:[UNKNOWN,'Length 14 is OpenCandle-defined.'],
-  policies:['ADR uses the chart\'s own bars: on an intraday chart it averages the bar ranges, not daily ranges (use the indicator timeframe 1D for daily ranges).'],
-  calculate({bars,tk,num}){return {adr:tk.sma(bars.map(bar=>finite(bar.high)&&finite(bar.low)?bar.high-bar.low:null),num('length'))};},
+  policies:['On daily and longer charts ADR averages the bar ranges. On intraday charts it averages the high - low ranges of the last Length completed trading days (New York dates on US-equity charts, UTC dates otherwise), built from the loaded intraday bars; the value is constant through each day and the developing day never counts.'],
+  calculate({bars,tk,num,chart}){
+   const length=num('length');
+   if(!isIntradayChart(chart?.resolution))return {adr:tk.sma(bars.map(bar=>finite(bar.high)&&finite(bar.low)?bar.high-bar.low:null),length)};
+   return {adr:intradayAverageDailyRange(bars,length,pivotCalendar(bars,chart?.resolution,chart?.calendar))};
+  },
   warmup:value=>value('length'),work:count=>count*8},
  {id:'chop',name:'Choppiness index',acronym:'CHOP',overlay:false,inputs:[{key:'length',title:'Length',defval:14,...LENGTH_2}],plots:[{id:'chop',label:'CHOP',color:BLUE,width:1}],
   guides:[{id:'upper',value:61.8,color:GREY},{id:'lower',value:38.2,color:GREY}],band:'guides',fill:{color:BLUE,opacity:10},

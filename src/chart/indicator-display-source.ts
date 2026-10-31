@@ -5,6 +5,8 @@ export interface IndicatorDisplayPlot {id:string;nativeId:string;value:number;co
 export interface IndicatorDisplayOwner {
  id:string;rendererId:string;type:string;descriptor:NativeIndicatorDescriptor;instance:object;
  input:readonly unknown[]|null;series:readonly SeriesSpec[];plots:readonly IndicatorDisplayPlot[];precision?:IndicatorPrecision;valueSuffix?:string;
+ /** Volume-unit values (OBV, EFI, A/D, ...): automatic labels and the pane axis read abbreviated (K, M, B). */
+ compact?:boolean;
 }
 interface Registration {chart:object;read:()=>readonly IndicatorDisplayOwner[];active:boolean}
 const registrations=new WeakMap<object,Registration>();

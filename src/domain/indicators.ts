@@ -452,6 +452,8 @@ export function vwapAnchorZone(timezone:unknown,options:Pick<IndicatorCalculatio
  const exchange=options.exchangeZone;if(options.calendar==='utc'||typeof exchange!=='string'||!exchange.trim())return 'UTC';
  try{new Intl.DateTimeFormat('en',{timeZone:exchange});return exchange;}catch{return 'UTC';}
 }
+/** The VWAP period key of every bar (a key change is an anchor reset). Display code uses it to break the line at a reset. */
+export function vwapAnchorKeys(bars: readonly Bar[], anchor: string, timezone: string, events?: readonly VwapEventDate[] | null): string[] { return anchorKeys(bars, anchor, timezone, events); }
 function anchorKeys(bars: readonly Bar[], anchor: string, timezone: string, events?: readonly VwapEventDate[] | null): string[] {
   // Dividends and Splits periods start at the corporate-action ex-dates (vwap-event-anchors.ts).
   if (isVwapEventAnchor(anchor)) return vwapEventAnchorKeys(bars, anchor, events);

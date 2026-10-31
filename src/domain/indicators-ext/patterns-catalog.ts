@@ -23,7 +23,9 @@ export type PatternMarkShape=typeof PATTERN_MARK_SHAPES[number];
  *  bullish/bearish/neutral. `position` 'above'/'below' the bar or 'price' (at `price`); absent = below for
  *  bullish, above otherwise. */
 export interface PatternMarker {index:number;plot:string;text:string;tooltip:string;position?:'above'|'below'|'price';price?:number;shape?:PatternMarkShape}
-export interface PatternLine {plot:string;from:{index:number;price:number};to:{index:number;price:number}}
+/** A line between two bars. `extendRight` makes it a ray through both points (an unbroken trendline), so only its two
+ *  anchor prices reach the pane autoscale, never the projection. */
+export interface PatternLine {plot:string;from:{index:number;price:number};to:{index:number;price:number};extendRight?:boolean}
 /** A price zone between two bars (Gaps). `extendRight` continues it past `to` (an open zone). */
 export interface PatternBox {plot:string;from:{index:number;price:number};to:{index:number;price:number};extendRight?:boolean}
 /** A candle over the bar's own OHLC in its plot's color; hollow = border only (Bollinger bars). */
@@ -232,7 +234,7 @@ export function validPatternMarks(value:PatternMarks,bars:number,plots:readonly 
  for(const row of boxes)if(!plots.includes(row.plot)||!point(row.from)||!point(row.to)||row.to.index<row.from.index)bad();
  for(const row of candles)if(!ok(row.index)||!plots.includes(row.plot))bad();
  const marker=(row:PatternMarker):PatternMarker=>Object.freeze({index:row.index,plot:row.plot,text:row.text,tooltip:row.tooltip,...(row.position!==undefined?{position:row.position}:{}),...(row.position==='price'?{price:row.price}:{}),...(row.shape!==undefined?{shape:row.shape}:{})});
- return Object.freeze({markers:Object.freeze(value.markers.map(marker)),lines:Object.freeze(value.lines.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to}}))),
+ return Object.freeze({markers:Object.freeze(value.markers.map(marker)),lines:Object.freeze(value.lines.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to},...(row.extendRight?{extendRight:true}:{})}))),
   ...(value.boxes?{boxes:Object.freeze(boxes.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to},...(row.extendRight?{extendRight:true}:{})})))}:{}),
   ...(value.candles?{candles:Object.freeze(candles.map(row=>Object.freeze({index:row.index,plot:row.plot,...(row.hollow?{hollow:true}:{})})))}:{})});
 }

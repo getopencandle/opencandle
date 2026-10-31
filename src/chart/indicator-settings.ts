@@ -1,7 +1,7 @@
 import {validateSeasonalityCatalogInputs} from '../domain/indicators-ext/seasonality-catalog';
 import {validateTradingSessionInputs} from '../domain/indicators-ext/trading-sessions-catalog';
 import type {InputSchema,InputValue,LineLikeKind,LineStyle} from '@luxalgo/vela';
-import {RSI_MA_NAME,indicatorActivePlotIds,indicatorCalculationWork,indicatorVwapBandSettings,indicatorVwapKernelVersion,VWAP_BAND_DEFAULTS,VOLUME_MA_TYPES,indicatorVolumeMaType,type IndicatorId,type IndicatorInputs} from '../domain/indicators';
+import {RSI_MA_NAME,indicatorActivePlotIds,indicatorCalculationWork,indicatorVwapBandSettings,indicatorVwapKernelVersion,VWAP_BAND_DEFAULTS,VWAP_EXCHANGE_ZONE,VOLUME_MA_TYPES,indicatorVolumeMaType,type IndicatorId,type IndicatorInputs} from '../domain/indicators';
 export {VWAP_BAND_INPUT_KEYS,indicatorVwapBandSettings,VWAP_KERNEL_INPUT_KEY,indicatorVwapKernelVersion,VOLUME_MA_TYPES,indicatorVolumeMaType,type VolumeMaType} from '../domain/indicators';
 import {supportedColor} from './color-validation';
 import {VWAP_BAND_MODES} from '../domain/vwap-stdev-bands';
@@ -135,7 +135,8 @@ export function validateIndicatorInputs(kind:IndicatorId,inputs:unknown,stored=f
   const reference=key==='source'&&INDICATOR_SOURCE_KINDS.includes(kind)?parseIndicatorSource(value):null;
   if(typeof value==='string'&&value.length>(reference?620:200))throw new Error(`Oversized input: ${key}`);
   if(field.options&&!field.options.includes(String(value))&&!reference)throw new Error(`Unsupported input option: ${key}`);
-  if(key==='timezone')new Intl.DateTimeFormat('en',{timeZone:String(value)});
+  // 'Exchange' (VWAP_EXCHANGE_ZONE) anchors sessions in the source exchange zone (kernel 1); stored zones are kept as saved.
+  if(key==='timezone'&&value!==VWAP_EXCHANGE_ZONE)new Intl.DateTimeFormat('en',{timeZone:String(value)});
  }
  if(!crossField)return;
  if(kind==='vwap'){indicatorVwapKernelVersion(inputs);indicatorVwapBandSettings(inputs);}

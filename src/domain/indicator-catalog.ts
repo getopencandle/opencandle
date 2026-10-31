@@ -284,13 +284,14 @@ export const CATALOG_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
   provenance:[{url:HELP+'supertrend',facts:'Basic bands = hl2 +/- multiplier x ATR; final upper band takes the basic band when it is lower than the prior final band or the prior close was above it, otherwise carries forward (mirror rule for the lower band); trend is down while the prior ATR is not yet calculated; after an upper-band Supertrend the trend is up when close > upper band, otherwise down when close < lower band; Supertrend plots the lower band in an uptrend and the upper band in a downtrend; green uptrend, red downtrend.'}],
   unknownDefaults:['ATR length 10 and Factor 3 are OpenCandle placeholders: the public definition does not document the defaults.','The ATR averaging method is not stated in the article; OpenCandle uses the Wilder average (as the OpenCandle ATR default).'],
   policies:['ATR = Wilder average of true range (first true range = high - low).'],
-  calculate({bars,tk,num}){const atr=tk.rma(tk.trueRange(bars),num('atrLength')),factor=num('factor'),up:NumericSeries=[],down:NumericSeries=[];let upper:number|null=null,lower:number|null=null,previous:number|null=null;
-   bars.forEach((bar,i)=>{const a=atr[i];if(!finite(a)||![bar.high,bar.low,bar.close].every(finite)){up.push(null);down.push(null);upper=lower=previous=null;return;}
-    const mid=(bar.high+bar.low)/2,basicUpper=mid+factor*a,basicLower=mid-factor*a,priorClose=i?bars[i-1].close:NaN,priorAtr=i?atr[i-1]:null;
+  calculate({bars,tk,num}){const atr=tk.rma(tk.trueRange(bars),num('atrLength')),factor=num('factor'),up:NumericSeries=[],down:NumericSeries=[];let upper:number|null=null,lower:number|null=null,previous:number|null=null,lastClose=NaN;
+   // A missing bar (or its missing ATR) is a gap only: the final bands, the trend and the prior close carry across it.
+   bars.forEach((bar,i)=>{const a=atr[i],priorClose=lastClose;if(finite(bar.close))lastClose=bar.close;if(!finite(a)||![bar.high,bar.low,bar.close].every(finite)){up.push(null);down.push(null);return;}
+    const mid=(bar.high+bar.low)/2,basicUpper=mid+factor*a,basicLower=mid-factor*a;
     const priorUpper=upper,priorLower=lower;
     upper=priorUpper===null||basicUpper<priorUpper||priorClose>priorUpper?basicUpper:priorUpper;
     lower=priorLower===null||basicLower>priorLower||priorClose<priorLower?basicLower:priorLower;
-    let trendUp:boolean;if(!finite(priorAtr)||previous===null)trendUp=false;else if(previous===priorUpper)trendUp=bar.close>upper;else trendUp=!(bar.close<lower);
+    let trendUp:boolean;if(previous===null)trendUp=false;else if(previous===priorUpper)trendUp=bar.close>upper;else trendUp=!(bar.close<lower);
     const value=trendUp?lower:upper;previous=value;up.push(trendUp?value:null);down.push(trendUp?null:value);});
    return {upTrend:up,downTrend:down};},
   warmup:value=>value('atrLength'),work:count=>count*48},
@@ -317,7 +318,7 @@ export const CATALOG_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
   plots:[{id:'basis',label:'Basis',color:'#ff6a00',width:1},{id:'upper',label:'Upper',color:'#0094ff',width:1},{id:'lower',label:'Lower',color:'#0094ff',width:1}],band:'plots',fill:{color:'#0094ff',opacity:5},
   provenance:[{url:HELP+'envelope-env',facts:'Basis = moving average of Source over Length; upper = basis + basis x percent; lower = basis - basis x percent (example 20-period SMA, 10%); Length default 20; Source default Close; Exponential selects the MA.'},{url:F+'env.std',facts:'name Envelope, short title Env.'},{url:F+'env.input.percent',facts:'inputs in order Length 20 (1..2000), Percent 10 (float, unbounded), Source close, Exponential false.'},{url:F+'env.plot.envbasis',facts:'Basis #ff6a00, Upper/Lower #0094ff, width 1.'},{url:F+'env.fill.areaBackground',facts:'#0094ff transparency 95.'}],
   policies:['One Percent offsets both bands. A saved pre-fix instance with different upper and lower percentages keeps them until Percent is edited.'],
-  calculate({source,tk,num,bool,has}){const basis=(bool('exponential')?tk.ema:tk.sma)(source,num('length')),u=(has('upperPercent')?num('upperPercent'):num('percent'))/100,d=(has('lowerPercent')?num('lowerPercent'):num('percent'))/100;return {basis,upper:basis.map(value=>finite(value)?value*(1+u):null),lower:basis.map(value=>finite(value)?value*(1-d):null)};},
+  calculate({source,tk,num,bool,has}){const basis=(bool('exponential')?tk.emaSmaSeed:tk.sma)(source,num('length')),u=(has('upperPercent')?num('upperPercent'):num('percent'))/100,d=(has('lowerPercent')?num('lowerPercent'):num('percent'))/100;return {basis,upper:basis.map(value=>finite(value)?value*(1+u):null),lower:basis.map(value=>finite(value)?value*(1-d):null)};},
   warmup:value=>value('length'),work:count=>count*80},
  {id:'lsma',name:'Least squares moving average',acronym:'LSMA',overlay:true,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:25,...LENGTH},{key:'regressionOffset',title:'Regression offset',type:'int',defval:0,min:-100000,max:100000,step:1},SOURCE],plots:[{id:'lsma',label:'LSMA'}],
   provenance:[{url:F+'lsma.std',facts:'name Least squares moving average, short title LSMA (inputs and styles not cached).'},{url:HELP+'least-squares-moving-average',facts:'A linear regression is fitted to Source over Length on each bar; Length default 25, Offset default 0, Source default close; overlay.'},{url:AC,facts:'least squares moving average: length 25, offset 0.'}],

@@ -202,6 +202,7 @@ const definitions:CatalogDefinition[]=[
   provenance:[{url:LV+'hull-options-futures-derivatives',facts:'John C. Hull: volatility estimate = sample standard deviation of log returns ln(close / prior close) over n periods, annualized by the square root of the number of periods per year (252 trading days).'}],
   unknownDefaults:[UNKNOWN,'Periods per year 252 is the textbook trading-day count; the reference annualization is unverified.'],
   policies:['HV = 100 x sample standard deviation (n - 1) of ln(close / prior close) over Length x sqrt(Periods per year). A missing or nonpositive close makes its return unavailable.'],
+  // Sample (n - 1) deviation and 252 per Hull; 24/7 markets set Periods per year (365) themselves, so saved instances never move.
   calculate({bars,num}){const n=num('length'),factor=Math.sqrt(num('periodsPerYear')),c=closes(bars),r=c.map((value,i)=>i&&finite(value)&&finite(c[i-1])&&value>0&&c[i-1]>0?Math.log(value/c[i-1]):null);
    return {hv:r.map((_,i)=>{const m=windowMoments(r,i,n);return m===null?null:zero(100*Math.sqrt(m.ss/(n-1))*factor);})};},
   warmup:value=>value('length')+1,work:(count,value)=>count*value('length')*2},
@@ -214,7 +215,8 @@ const definitions:CatalogDefinition[]=[
   warmup:value=>Math.max(value('fast'),value('middle'),value('slow'))+1,work:(count,value)=>count*(value('fast')+value('middle')+value('slow'))*2},
  {id:'trix',name:'TRIX',acronym:'TRIX',overlay:false,inputs:[{key:'length',title:'Length',defval:18,...LENGTH}],plots:[{id:'trix',label:'TRIX',color:RED,width:1}],guides:[{id:'zero',value:0,color:'#787b86'}],
   provenance:[{url:LV+'hutson-trix-1983',facts:'Jack Hutson (1983): TRIX = 1-period percent rate of change of a triple exponential moving average of the close.'}],unknownDefaults:[UNKNOWN,'Length 18 is OpenCandle-defined (Hutson used 15).'],
-  policies:['TRIX = 100 x (E3 - prior E3) / prior E3, E3 = EMA(EMA(EMA(close))). The EMAs use the OpenCandle first-value seed, so early values are close to zero rather than unavailable. A zero prior E3 is unavailable.'],
+  policies:['TRIX = 100 x (E3 - prior E3) / prior E3, E3 = EMA(EMA(EMA(close))). The EMAs use the SMA seed (StockCharts, TA-Lib), so TRIX starts once the third EMA is seeded. A zero prior E3 is unavailable.'],
+  // x 100 is Hutson's percent rate of change (TASC 1983); some tools scale by 10000 instead.
   calculate({bars,tk,num}){const n=num('length'),e3=tk.ema(tk.ema(tk.ema(closes(bars),n),n),n);return {trix:e3.map((value,i)=>{const prior=i?e3[i-1]:null;return finite(value)&&finite(prior)&&prior!==0?zero(100*(value-prior)/prior):null;})};},
   warmup:value=>3*value('length')-1,work:count=>count*16},
  {id:'cmo',name:'Chande momentum oscillator',acronym:'ChandeMO',overlay:false,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:9,...LENGTH},SOURCE],plots:[{id:'cmo',label:'ChandeMO',color:BLUE,width:1}],guides:[{id:'zero',value:0,color:'#787b86'}],
@@ -233,6 +235,7 @@ const definitions:CatalogDefinition[]=[
   plots:[{id:'upper',label:'Upper',color:BLUE,width:1},{id:'basis',label:'Linear regression',color:RED,width:1},{id:'lower',label:'Lower',color:BLUE,width:1}],band:'plots',fill:{color:BLUE,opacity:10},
   provenance:[{url:LV+'textbook-least-squares-channel',facts:'Ordinary least-squares line of the source against bar position over the last Count bars; the channel is the line +/- k standard deviations of the residuals (standard deviation channel).'}],unknownDefaults:[UNKNOWN],
   policies:['Only the latest Count bars carry values (the channel is refitted on each new bar). With fewer than Count bars loaded, the channel fits all loaded bars (at least 2; OpenCandle-defined). Residual deviation uses the population (n) estimator. A missing value in the window makes the whole channel unavailable.'],
+  // Population (n) residual deviation is kept: published standard deviation channels differ (n or n - 1) and saved channels stay put.
   calculate({source,num}){const count=source.length,n=Math.min(num('length'),count),empty=()=>source.map(()=>null as number|null),basis=empty(),upper=empty(),lower=empty();
    if(n>=2){const start=count-n;let sx=0,sy=0,sxx=0,sxy=0,ok=true;for(let k=0;k<n;k++){const y=source[start+k];if(!finite(y)){ok=false;break;}sx+=k;sy+=y;sxx+=k*k;sxy+=k*y;}
     if(ok){const slope=(n*sxy-sx*sy)/(n*sxx-sx*sx),intercept=(sy-slope*sx)/n;let ss=0;for(let k=0;k<n;k++)ss+=((source[start+k] as number)-(intercept+slope*k))**2;const deviation=Math.sqrt(ss/n);
@@ -248,12 +251,12 @@ const definitions:CatalogDefinition[]=[
   warmup:value=>value('length'),work:(count,value)=>count*value('length')},
  {id:'dema',name:'Double EMA',acronym:'DEMA',overlay:true,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:9,...LENGTH},SOURCE],plots:[{id:'dema',label:'DEMA',color:'#43a047',width:1}],
   provenance:[{url:LV+'mulloy-dema-1994',facts:'Patrick Mulloy (1994): DEMA = 2 x EMA(source, n) - EMA(EMA(source, n), n).'}],unknownDefaults:[UNKNOWN],
-  policies:['EMAs use the OpenCandle first-value seed, so DEMA starts on the first bar.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib), so DEMA starts on bar 2 x (Length - 1).'],
   calculate({source,tk,num}){const n=num('length'),e1=tk.ema(source,n),e2=tk.ema(e1,n);return {dema:e1.map((value,i)=>finite(value)&&finite(e2[i])?2*value-(e2[i] as number):null)};},
   warmup:value=>2*value('length')-1,work:count=>count*12},
  {id:'tema',name:'Triple EMA',acronym:'TEMA',overlay:true,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:9,...LENGTH},SOURCE],plots:[{id:'tema',label:'TEMA',color:RED,width:1}],
   provenance:[{url:LV+'mulloy-tema-1994',facts:'Patrick Mulloy (1994): TEMA = 3 x EMA1 - 3 x EMA2 + EMA3, EMA2 = EMA(EMA1), EMA3 = EMA(EMA2).'}],unknownDefaults:[UNKNOWN],
-  policies:['EMAs use the OpenCandle first-value seed, so TEMA starts on the first bar.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib), so TEMA starts on bar 3 x (Length - 1).'],
   calculate({source,tk,num}){const n=num('length'),e1=tk.ema(source,n),e2=tk.ema(e1,n),e3=tk.ema(e2,n);return {tema:e1.map((value,i)=>finite(value)&&finite(e2[i])&&finite(e3[i])?3*value-3*(e2[i] as number)+(e3[i] as number):null)};},
   warmup:value=>3*value('length')-2,work:count=>count*16},
  {id:'zigzag',name:'Zig zag',acronym:'ZZ',overlay:true,inputs:[{key:'depth',title:'Depth',defval:10,...LENGTH},{key:'deviation',title:'Price deviation for reversals (%)',type:'float',defval:5,min:0.1,max:100,step:0.1,storedMin:0.001}],plots:[{id:'zigzag',label:'Zig zag',color:BLUE,width:2}],
@@ -271,7 +274,7 @@ const definitions:CatalogDefinition[]=[
   warmup:()=>2,work:count=>count*16},
  {id:'efi',name:'Elder force index',acronym:'EFI',overlay:false,requiresVolume:true,inputs:[{key:'length',title:'Length',defval:13,...LENGTH}],plots:[{id:'efi',label:'EFI',color:RED,width:1}],guides:[{id:'zero',value:0,color:'#787b86'}],
   provenance:[{url:LV+'elder-trading-for-a-living-1993',facts:'Alexander Elder: force index = (close - prior close) x volume, smoothed by a 13-period EMA.'}],unknownDefaults:[UNKNOWN,'Length 13 is the author default.'],
-  policies:['The first bar has no prior close and is unavailable; the EMA uses the OpenCandle first-value seed from the second bar.'],
+  policies:['The first bar has no prior close and is unavailable; the EMA uses the SMA seed (StockCharts, TA-Lib) of the first Length raw values.'],
   calculate({bars,tk,num}){const raw=bars.map((bar,i)=>i&&finite(bar.close)&&finite(bars[i-1].close)&&finite(bar.volume)?(bar.close-bars[i-1].close)*bar.volume:null);return {efi:tk.ema(raw,num('length')).map(value=>finite(value)?zero(value):null)};},
   warmup:value=>value('length')+1,work:count=>count*8},
 ];

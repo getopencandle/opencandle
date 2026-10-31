@@ -27,10 +27,11 @@ describe('moving averages (synthetic)',()=>{
   near(series('vwma',B,{length:2,source:'close'},'vwma'),[null,31/3,74/7,38/3,149/11]);// (9x100+11x200)/300 ...
   const gap=B.map((bar,i)=>i===2?{...bar,close:NaN}:bar);near(series('vwma',gap,{length:2,source:'close'},'vwma'),[null,31/3,null,null,149/11]);// missing close: its windows are unavailable
  });
- it('DEMA / TEMA from first-value-seeded EMA3 (alpha 0.5)',()=>{
-  // EMA1 10,11,11,12,14; EMA2 10,10.5,10.75,11.375,12.6875; EMA3 10,10.25,10.5,10.9375,11.8125
-  near(series('dema',C,{length:3,source:'close'},'dema'),[10,11.5,11.25,12.625,15.3125]);
-  near(series('tema',C,{length:3,source:'close'},'tema'),[10,11.75,11.25,12.8125,15.75]);
+ it('DEMA / TEMA from SMA-seeded EMAs (0.8.1: was first-value seeded)',()=>{
+  // Length 3 (alpha 0.5): EMA1 -,-,11,12,14; EMA2 seeds on bar 4 at (11 + 12 + 14) / 3 = 37/3; DEMA = 28 - 37/3.
+  near(series('dema',C,{length:3,source:'close'},'dema'),[null,null,null,null,47/3]);
+  // Length 2 (alpha 2/3): EMA1 -,11,11,37/3,133/9; EMA2 -,-,11,107/9,373/27; EMA3 -,-,-,103/9,1055/81.
+  near(series('tema',C,{length:2,source:'close'},'tema'),[null,null,null,3*37/3-3*107/9+103/9,3*133/9-3*373/27+1055/81]);
  });
  it('ALMA Gaussian weights, m = offset x (n - 1), s = n / sigma',()=>{
   const w=Math.exp(-0.5);// offset 0.5 sigma 3 length 3: m 1, s 1 -> weights w,1,w
@@ -49,11 +50,13 @@ describe('oscillators (synthetic)',()=>{
   near(series('cmo',flat([5,5,5,6]),{length:2,source:'close'},'cmo'),[null,null,null,100]);// no change at all is unavailable
  });
  it('TRIX = 100 x 1-bar change of EMA(EMA(EMA(close)))',()=>{
-  near(series('trix',C,{length:3},'trix'),[null,2.5,100*0.25/10.25,100*0.4375/10.5,8]);
+  // 0.8.1 SMA seed. Length 2: E3 -,-,-,103/9,1055/81 (see TEMA above), so the first TRIX is on bar 4.
+  near(series('trix',C,{length:2},'trix'),[null,null,null,null,100*(1055/81-103/9)/(103/9)]);
  });
  it('Elder force index = EMA((close - prior close) x volume)',()=>{
   near(series('efi',B,{length:1},'efi'),[null,400,-150,1200,-250]);
-  near(series('efi',B,{length:3},'efi'),[null,400,125,662.5,206.25]);
+  // 0.8.1 SMA seed: raw 400, -150, 1200 seed bar 3 at 1450/3; bar 4 = 0.5 x -250 + 0.5 x 1450/3 = 350/3.
+  near(series('efi',B,{length:3},'efi'),[null,null,null,1450/3,350/3]);
  });
 });
 

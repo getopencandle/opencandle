@@ -283,7 +283,7 @@ const definitions:readonly CatalogDefinition[]=[
   plots:SIGNALS('Bullish reversal','Bearish reversal'),
   provenance:[{url:TV_LIST,facts:'"Rob Booker - Reversal" is a built-in.'},{url:LV+'rob-booker-reversal',facts:'Rob Booker\'s reversal setup combines MACD (12, 26, 9) with a slow stochastic (70, 10) at overbought (80) or oversold (20).'}],
   unknownDefaults:['The trigger (MACD line crossing its signal line while the smoothed %K is at or beyond a band) is OpenCandle-defined.',COLORS_LV],
-  policies:[SIGNAL_POLICY,'EMAs use the OpenCandle first-value seed. A flat stochastic window is unavailable.'],
+  policies:[SIGNAL_POLICY,'EMAs use the SMA seed (StockCharts, TA-Lib). A flat stochastic window is unavailable.'],
   calculate:reversal,warmup:value=>Math.max(value('slowLength')+value('signalLength'),value('stochLength')+value('smoothK')),work:(count,value)=>count*(value('stochLength')+24)},
  {id:'rbzivpivots',name:'Rob Booker - Ziv ghost pivots',acronym:'RB Ziv Ghost',overlay:true,
   inputs:[PIVOT_INPUT],

@@ -41,6 +41,7 @@ export function maCrossMarkers(short:readonly (number|null)[],long:readonly (num
  * Multiplier x ATR. A source beyond the previous bar's stop reverses the trend, and the extreme restarts at that source.
  * The first bar with an ATR starts an uptrend. A missing source or ATR is unavailable and keeps the state.
  */
+// No ratchet: Wilder's Volatility System (1978) recomputes SAR = SIC -/+ ARC each bar, so the stop may loosen when ATR widens.
 export function volatilityStop(source:readonly (number|null)[],atr:readonly (number|null)[],multiplier:number):{up:NumericSeries;down:NumericSeries}{
  const up:(number|null)[]=[],down:(number|null)[]=[];
  let started=false,rising=true,extremeValue=0,stop=0;
@@ -97,7 +98,7 @@ const definitions:CatalogDefinition[]=[
   pointPalette:{plot:'zone',colors:CHOP_ZONE_COLORS,labels:CHOP_ZONE_LABELS,state:values=>values('slope').map(chopZoneBucket)},
   provenance:[{url:LV+'textbook-ema-slope-zones',facts:'Chop zone: columns colored by the slope of an exponential moving average, normalized by the recent high-low range, from strongly rising through flat to strongly falling.'}],
   unknownDefaults:[UNKNOWN,'EMA 34 and range 30 are OpenCandle-defined. The slope unit (percent of the range per bar), the eight bucket edges 4, 2, 1, 0.5, -0.5, -1, -2, -4 and the nine colors are OpenCandle-defined and are not claimed to match any reference coloring.'],
-  policies:['Slope = 100 x (EMA - previous EMA) / (highest high - lowest low over Range length). The column is 1 on every bar with a slope. A flat range or a missing value is unavailable. The EMA uses the OpenCandle first-value seed.'],
+  policies:['Slope = 100 x (EMA - previous EMA) / (highest high - lowest low over Range length). The column is 1 on every bar with a slope. A flat range or a missing value is unavailable. The EMA uses the SMA seed (StockCharts, TA-Lib).'],
   calculate({bars,source,tk,num}){const e=tk.ema(source,num('emaLength')),n=num('rangeLength'),h=highs(bars),l=lows(bars);
    const slope=bars.map((_,i)=>{if(!i)return null;const a=e[i],b=e[i-1],hi=extreme(h,i,n,'max'),lo=extreme(l,i,n,'min');if(!finite(a)||!finite(b)||hi===null||lo===null||hi===lo)return null;const value=100*(a-b)/(hi-lo);return Number.isFinite(value)?zero(value):null;});
    return {zone:slope.map(value=>value===null?null:1),slope};},

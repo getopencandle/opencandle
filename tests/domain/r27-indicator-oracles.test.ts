@@ -51,8 +51,8 @@ describe(' volume kinds (SYNTHETIC)',()=>{
   close(values('netvol',b),[null,200,0,-400]);
  });
  it('Volume oscillator: (EMA short - EMA long) / EMA long x 100',()=>{
-  // EMA2 of 100, 200 = 100, 166.667 -> (200 - 166.667) / 166.667 x 100 = 20
-  close(values('vo',[bar(0,1,2,0,1,100),bar(1,1,2,0,1,200)],{shortLength:1,longLength:2}),[0,20]);
+  // 0.8.1 SMA seed: EMA2 of 100, 200 = -, 150 -> (200 - 150) / 150 x 100 = 100/3
+  close(values('vo',[bar(0,1,2,0,1,100),bar(1,1,2,0,1,200)],{shortLength:1,longLength:2}),[null,100/3]);
  });
  it('Ease of movement: midpoint move x range / (volume / divisor), averaged; zero volume is unavailable',()=>{
   const b=[bar(0,10,12,8,10,100),bar(1,12,14,10,12,200),bar(2,12,14,10,12,0)];
@@ -62,8 +62,8 @@ describe(' volume kinds (SYNTHETIC)',()=>{
  it('Klinger oscillator: MetaStock volume force with |2 x (dm/cm - 1)|, EMA(VF, fast) - EMA(VF, slow)',()=>{
   const b=[bar(0,10,12,8,10,100),bar(1,11,13,9,12,100),bar(2,11,12,10,11,200),bar(3,12,14,10,13,100)];
   // hlc3 10, 11.333, 11, 12.333 -> trend +1, -1, +1; dm 4, 4, 2, 4; cm 8, 6, 6
-  // VF 10000, -80000/3, 20000/3; EMA2: 10000, -130000/9, -10000/27 -> KVO 0, -110000/9, 190000/27
-  close(values('klinger',b,{fastLength:1,slowLength:2,signalLength:1}),[null,0,-110000/9,190000/27]);
+  // VF 10000, -80000/3, 20000/3; EMA2 (0.8.1 SMA seed): -, -25000/3, 5000/3 -> KVO -, -55000/3, 5000
+  close(values('klinger',b,{fastLength:1,slowLength:2,signalLength:1}),[null,null,-55000/3,5000]);
  });
  it('Relative volume at time: cumulative and regular, against the same time of day in prior sessions (UTC calendar)',()=>{
   const vols=[100,200,300,100,200,600],b=vols.map((volume,i)=>({time:D0+Math.floor(i/2)*86400+(i%2)*43200,open:10,high:11,low:9,close:10,volume}));
@@ -104,8 +104,10 @@ describe(' oscillators (SYNTHETIC)',()=>{
  });
  it('Fisher transform (Ehlers): smoothed normalized midpoint, trigger = prior Fisher',()=>{
   const b=[bar(0,9,10,8,9),bar(1,11,12,10,11),bar(2,10,11,9,10)];
-  close(values('fisher',b,{length:2}),[null,0.16652232057447272,0.08381116034269476]);
-  close(values('fisher',b,{length:2},'trigger'),[null,null,0.16652232057447272]);
+  // 0.8.1: normalized by the highest / lowest hl2 (Ehlers), not the highest high / lowest low. hl2 9, 11, 10.
+  const v1=0.66*0.5,f1=0.5*Math.log((1+v1)/(1-v1)),v2=0.66*-0.5+0.67*v1,f2=0.5*Math.log((1+v2)/(1-v2))+0.5*f1;
+  close(values('fisher',b,{length:2}),[null,f1,f2]);
+  close(values('fisher',b,{length:2},'trigger'),[null,null,f1]);
  });
  it('Know sure thing: weighted sum of smoothed ROCs, signal SMA',()=>{
   // ROC1 10, ROC2 21 -> 10 + 2 x 21 + 3 x 10 + 4 x 10 = 122
@@ -114,14 +116,14 @@ describe(' oscillators (SYNTHETIC)',()=>{
   close(values('kst',fromCloses([100,110,121]),inputs,'signal'),[null,null,122]);
  });
  it('Mass index: sum of EMA(range) / EMA(EMA(range))',()=>{
-  // ranges 4, 2, 4 -> ratios 1, 6/7, 24/23 -> sums 13/7, 306/161
-  close(values('mass',[bar(0,10,12,8,10),bar(1,10,11,9,10),bar(2,10,12,8,10)],{emaLength:2,sumLength:2}),[null,13/7,306/161]);
+  // 0.8.1 SMA seed. ranges 4, 2, 4, 2: EMA -,3,11/3,23/9; EMA(EMA) -,-,10/3,76/27; ratios -,-,11/10,69/76; sum 2 on bar 3.
+  close(values('mass',[bar(0,10,12,8,10),bar(1,10,11,9,10),bar(2,10,12,8,10),bar(3,10,11,9,10)],{emaLength:2,sumLength:2}),[null,null,null,11/10+69/76]);
  });
  it('McGinley dynamic: MD + (P - MD) / (N x (P / MD)^4), seeded with the first value',()=>{close(values('mcginley',fromCloses([10,12,11]),{length:2}),[10,10.482253086419753,10.69572234770982]);});
  it('Price oscillator: EMA percent difference, signal, histogram',()=>{
-  // EMA2 of 10, 13 = 10, 12 -> (13 - 12) / 12 x 100
-  close(values('ppo',fromCloses([10,13]),{fastLength:1,slowLength:2,signalLength:1}),[0,100/12]);
-  close(values('ppo',fromCloses([10,13]),{fastLength:1,slowLength:2,signalLength:1},'histogram'),[0,0]);
+  // 0.8.1 SMA seed: EMA2 of 10, 13 = -, 11.5 -> (13 - 11.5) / 11.5 x 100
+  close(values('ppo',fromCloses([10,13]),{fastLength:1,slowLength:2,signalLength:1}),[null,150/11.5]);
+  close(values('ppo',fromCloses([10,13]),{fastLength:1,slowLength:2,signalLength:1},'histogram'),[null,0]);
  });
  it('Relative vigor index: symmetric-weighted (C - O) over (H - L)',()=>{
   const b=[bar(0,10,12,9,11),bar(1,11,13,10,12),bar(2,12,12,9,10),bar(3,10,14,10,13)];
@@ -134,10 +136,10 @@ describe(' oscillators (SYNTHETIC)',()=>{
   close(values('rvi',fromCloses([1,3,2,2]),{stdLength:2,smoothLength:1}),[null,100,0,null]);
  });
  it('True strength index and SMI ergodic: double-smoothed momentum ratio',()=>{
-  // changes 2, -1: EMA2 2, 0; |change| EMA2 2, 4/3 -> 100, 0
-  close(values('tsi',fromCloses([1,3,2]),{longLength:2,shortLength:1,signalLength:1}),[null,100,0]);
-  close(values('smiergodic',fromCloses([1,3,2]),{longLength:2,shortLength:1,signalLength:1}),[null,100,0]);
-  close(values('smiergodic',fromCloses([1,3,2]),{longLength:2,shortLength:1,signalLength:1},'oscillator'),[null,0,0]);
+  // 0.8.1 SMA seed. changes 2, -1: EMA2 seeds on bar 2 at 0.5; |change| EMA2 at 1.5 -> 100/3
+  close(values('tsi',fromCloses([1,3,2]),{longLength:2,shortLength:1,signalLength:1}),[null,null,100/3]);
+  close(values('smiergodic',fromCloses([1,3,2]),{longLength:2,shortLength:1,signalLength:1}),[null,null,100/3]);
+  close(values('smiergodic',fromCloses([1,3,2]),{longLength:2,shortLength:1,signalLength:1},'oscillator'),[null,null,0]);
  });
  it('Vortex indicator: sum |H - L1| and |L - H1| over sum TR',()=>{
   const b=[bar(0,10,11,9,10),bar(1,11,12,10,11),bar(2,12,13,10,12)];
@@ -160,7 +162,8 @@ describe(' overlays (SYNTHETIC)',()=>{
  it('Moving average ribbon: four averages of one type',()=>{
   const b=fromCloses([1,2,3,4]);
   close(values('maribbon',b,{length1:1,length2:2,length3:3,length4:4},'ma2'),[null,1.5,2.5,3.5]);
-  close(values('maribbon',b,{length1:1,length2:2,length3:3,length4:4,maType:'EMA'},'ma2'),[1,5/3,23/9,95/27]);
+  // 0.8.1 SMA seed: EMA2 of 1, 2, 3, 4 = -, 1.5, 2.5, 3.5
+  close(values('maribbon',b,{length1:1,length2:2,length3:3,length4:4,maType:'EMA'},'ma2'),[null,1.5,2.5,3.5]);
   close(values('maribbon',b,{length1:1,length2:2,length3:3,length4:4},'ma4'),[null,null,null,2.5]);
  });
  it('Williams alligator: SMMA(hl2) shifted forward, with the shifted tail projected past the last bar',()=>{

@@ -100,7 +100,7 @@ const definitions:readonly CatalogDefinition[]=[
   guides:[{id:'upper',value:40,color:C.guide},{id:'zero',value:0,color:C.guide},{id:'lower',value:-40,color:C.guide}],band:'guides',fill:{color:C.cyan,opacity:5},
   provenance:[{url:HELP+'stochastic-momentum-index',facts:'Stochastic Momentum Index: highestLowestRange = highestHigh - lowestLow; relativeRange = close - (highestHigh + lowestLow) / 2; smi = 200 x (emaEma(relativeRange, lengthD) / emaEma(highestLowestRange, lengthD)) with emaEma = EMA of the EMA; %K length (high/low window) 10, %D length 3; an EMA of the SMI on EMA length; overbought 40 and oversold -40.'}],
   unknownDefaults:['EMA length 3 is OpenCandle-defined (the page states no default). The 0 line, the band fill between 40 and -40 and the input titles\' casing are OpenCandle-defined.',COLORS_LV],
-  policies:['EMAs use the OpenCandle first-value seed. A zero double-smoothed range is unavailable.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib). A zero double-smoothed range is unavailable.'],
   calculate(ctx){const {bars,tk,num}=ctx,n=num('lengthK'),d=num('lengthD'),h=highs(bars),l=lows(bars),c=closes(bars);
    const hh=h.map((_,i)=>extreme(h,i,n,'max')),ll=l.map((_,i)=>extreme(l,i,n,'min'));
    const range=pair(hh,ll,(a,b)=>a-b),rel=c.map((value,i)=>{const a=hh[i],b=ll[i];return finite(value)&&finite(a)&&finite(b)?value-(a+b)/2:null;});
@@ -118,7 +118,7 @@ const definitions:readonly CatalogDefinition[]=[
    const bands=type==='SMA + Bollinger Bands';
    return {rci,ma,bbUpper:ma.map((value,i)=>{if(!bands||!finite(value))return null;const sd=deviation(rci,i,m);return sd===null?null:value+k*sd;}),bbLower:ma.map((value,i)=>{if(!bands||!finite(value))return null;const sd=deviation(rci,i,m);return sd===null?null:value-k*sd;})};},
   warmup:value=>value('length')+value('maLength'),work:(count,value)=>count*(value('length')*12+value('maLength')*4)},
- {id:'trendstrength',name:'Trend strength index',acronym:'TSI',overlay:false,
+ {id:'trendstrength',name:'Trend strength index',acronym:'TSIdx',overlay:false,
   inputs:[{key:'length',title:'Length',defval:14,...LENGTH_2}],
   plots:[{id:'tsi',label:'Trend strength',color:C.up,width:1}],guides:[{id:'zero',value:0,color:C.guide}],
   pointPalette:{plot:'tsi',colors:[C.up,C.down],labels:['Bullish','Bearish'],state:values=>values('tsi').map(value=>value===null?null:value>=0?0:1)},
@@ -157,7 +157,7 @@ const definitions:readonly CatalogDefinition[]=[
   plots:[{id:'cv',label:'Chaikin volatility',color:C.violet,width:1}],guides:[{id:'zero',value:0,color:C.guide}],
   provenance:[{url:CL,facts:'chaikin volatility.periods: default 10 (integer); chaikin volatility.rate of change lookback: default 10 (integer); one line plot and a zero line at 0.'},{url:'lv-defined:chaikin-volatility-textbook',facts:'Marc Chaikin: EMA of (high - low) over Periods; Chaikin volatility = 100 x (EMA - EMA n bars ago) / (EMA n bars ago), n = Rate of change lookback.'}],
   unknownDefaults:['The reference implementation was not read; the formula is the textbook one.',COLORS_LV],
-  policies:['The EMA uses the OpenCandle first-value seed. A zero earlier EMA is unavailable.'],
+  policies:['The EMA uses the SMA seed (StockCharts, TA-Lib). A zero earlier EMA is unavailable.'],
   calculate({bars,tk,num}){const ema=tk.ema(bars.map(bar=>finite(bar.high)&&finite(bar.low)?bar.high-bar.low:null),num('periods')),n=num('lookback');
    return {cv:ema.map((value,i)=>{const prior=i>=n?ema[i-n]:null;return finite(value)&&finite(prior)&&prior!==0?zero(100*(value-prior)/prior):null;})};},
   warmup:value=>value('periods')+value('lookback'),work:count=>count*16},

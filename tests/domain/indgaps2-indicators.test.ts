@@ -140,13 +140,13 @@ describe('Rob Booker - Missed pivot points (SYNTHETIC)',()=>{
 
 describe('Rob Booker - Reversal (SYNTHETIC)',()=>{
  it('MACD crossing its signal line with %K beyond a band',()=>{
-  // Fast 1, slow 3 (alpha 0.5, first-value seed), signal 3. Closes 10 10 10 8 12: EMA3 10 10 10 9 10.5; MACD 0 0 0 -1 1.5;
-  // signal 0 0 0 -0.5 0.5. Bar 3 crosses down, bar 4 crosses up. Stochastic 1/1: %K = 100 (C - L) / (H - L): bar 3 (8.5, 6, 8)
-  // = 80 (>= 80 -> bearish), bar 4 (30, 10, 12) = 10 (<= 20 -> bullish).
-  const bars=[bar(0,10,11,9,10),bar(1,10,11,9,10),bar(2,10,11,9,10),bar(3,8,8.5,6,8),bar(4,12,30,10,12)];
+  // Fast 1, slow 3 (alpha 0.5, 0.8.1 SMA seed as the MACD indicator), signal 3. Closes 10 10 10 10 10 8 12: EMA3 - - 10 10 10 9
+  // 10.5; MACD - - 0 0 0 -1 1.5; signal - - - - 0 -0.5 0.5. Bar 5 crosses down, bar 6 crosses up. Stochastic 1/1:
+  // %K = 100 (C - L) / (H - L): bar 5 (8.5, 6, 8) = 80 (>= 80 -> bearish), bar 6 (30, 10, 12) = 10 (<= 20 -> bullish).
+  const bars=[bar(0,10,11,9,10),bar(1,10,11,9,10),bar(2,10,11,9,10),bar(3,10,11,9,10),bar(4,10,11,9,10),bar(5,8,8.5,6,8),bar(6,12,30,10,12)];
   const result=calc('rbreversal',bars,{fastLength:1,slowLength:3,signalLength:3,stochLength:1,smoothK:1});
-  close(plot(result,'bullish'),[N,0,0,0,1]);close(plot(result,'bearish'),[N,0,0,1,0]);
-  expect(result.marks!.markers.map(row=>[row.index,row.shape])).toEqual([[3,'arrowdown'],[4,'arrowup']]);
+  close(plot(result,'bullish'),[N,N,N,N,N,0,1]);close(plot(result,'bearish'),[N,N,N,N,N,1,0]);
+  expect(result.marks!.markers.map(row=>[row.index,row.shape])).toEqual([[5,'arrowdown'],[6,'arrowup']]);
  });
 });
 

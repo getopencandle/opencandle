@@ -280,7 +280,7 @@ const definitions:CatalogDefinition[]=[
   band:'plots',fill:{color:GREEN,opacity:5},
   provenance:[{url:LV+'textbook-rolling-median-atr-bands',facts:'A rolling median of the price (robust to single outliers), its exponential average, and bands at a multiple of the average true range around the median.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Source hl2, median length 3, ATR 14, multiplier 2, the EMA of the median on the median length, colors and the fill are OpenCandle-defined.'],
-  policies:['An even length takes the mean of the two middle values. The EMA uses the OpenCandle first-value seed. ATR is Wilder\'s RMA of the true range. Bands = median +/- multiplier x ATR.'],
+  policies:['An even length takes the mean of the two middle values. The EMA uses the SMA seed (StockCharts, TA-Lib). ATR is Wilder\'s RMA of the true range. Bands = median +/- multiplier x ATR.'],
   calculate(ctx){const {source,tk,num}=ctx,n=num('length'),median=source.map((_,i)=>windowMedian(source,i,n)),atr=atrOf(ctx,num('atrLength')),m=num('multiplier');
    return {median,ema:tk.ema(median,n),upper:pair(median,atr,(a,b)=>zero(a+m*b)),lower:pair(median,atr,(a,b)=>zero(a-m*b))};},
   warmup:value=>Math.max(value('length'),value('atrLength')),work:(count,value)=>count*(value('length')*4+16)},
@@ -319,7 +319,7 @@ const definitions:CatalogDefinition[]=[
   plots:[...GUPPY_SHORT.map((_,i)=>({id:`short${i+1}`,label:`Short EMA ${i+1}`,color:GUPPY_SHORT_COLORS[i],width:1})),...GUPPY_LONG.map((_,i)=>({id:`long${i+1}`,label:`Long EMA ${i+1}`,color:GUPPY_LONG_COLORS[i],width:1}))],
   provenance:[{url:LV+'guppy-trading-tactics-1997',facts:'Daryl Guppy: a short-term group of exponential averages (3, 5, 8, 10, 12, 15) and a long-term group (30, 35, 40, 45, 50, 60) of the close.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'The twelve lengths are the author values; the source input, titles and the two color ramps are OpenCandle-defined.'],
-  policies:['Each line is an EMA with the OpenCandle first-value seed.'],
+  policies:['Each line is an EMA with the SMA seed (StockCharts, TA-Lib).'],
   calculate({source,tk,num}){const out:Record<string,NumericSeries>={};for(let i=1;i<=6;i++){out[`short${i}`]=tk.ema(source,num(`short${i}`));}for(let i=1;i<=6;i++){out[`long${i}`]=tk.ema(source,num(`long${i}`));}return out;},
   warmup:()=>1,work:count=>count*12*8},
  {id:'sebands',name:'Standard error bands',acronym:'SEB',overlay:true,sourceSeries:true,

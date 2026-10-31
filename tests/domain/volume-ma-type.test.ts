@@ -45,9 +45,12 @@ it('rejects malformed optional values and descriptor tricks before executing acc
  for(const kind of DOMAIN_INDICATORS.filter(kind=>kind!=='volume')){expect(()=>validateIndicatorInputs(kind,{maType:'SMA'})).toThrow();expect(calculateIndicator(kind,bars,{maType:'SMA'}).series).toEqual([]);}
 });
 
-it('retains complete-prefix volume rejection and distinguishes finite WMA overflow from quota failure',()=>{
+it('gaps only the bar with missing volume, refuses a series with no volume, and distinguishes finite WMA overflow from quota failure',()=>{
+ // 0.8.1: a missing or negative volume is unavailable at that bar (the obvStep rule), not the whole series.
  for(const maType of VOLUME_MA_TYPES)for(const volume of [undefined,null,NaN,Infinity,-Infinity,-1]){
-  const input=bars.map(row=>({...row}));input[1].volume=volume as number;const result=calculateIndicator('volume',input,{length:3,maType});expect(result.series).toEqual([]);expect(result.diagnostics).toEqual(['This base indicator requires available nonnegative source volume.']);
+  const input=bars.map(row=>({...row}));input[1].volume=volume as number;const result=calculateIndicator('volume',input,{length:3,maType});expect(result.diagnostics).toEqual([]);
+  expect(result.series[0].values).toEqual([3,null,6,12]);expect(result.series[1].values).toEqual(maType==='EMA'?[3,null,4.5,8.25]:[null,null,null,null]);// windowed MAs gap while the window holds the gap; the EMA skips it
+  const none=calculateIndicator('volume',bars.map(row=>({...row,volume:volume as number})),{length:3,maType});expect(none.series).toEqual([]);expect(none.diagnostics).toEqual(['This base indicator requires available nonnegative source volume.']);
  }
  const huge=bars.slice(0,2).map(row=>({...row,volume:1e308})),result=calculateIndicator('volume',huge,{length:2,maType:'WMA'});expect(indicatorCalculationWork('volume',2,{length:2,maType:'WMA'})).toBe(66);expect(result.series).toEqual([]);expect(result.diagnostics[0]).toContain('ma calculation overflowed');expect(result.diagnostics[0]).not.toContain('estimated operations');
 });

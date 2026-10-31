@@ -117,10 +117,10 @@ describe('Linear regression slope (SYNTHETIC)',()=>{
 describe('Median (SYNTHETIC)',()=>{
  it('rolling median, its EMA and ATR bands',()=>{
   // close source, Length 3: medians i2 med(5,1,3) = 3, i3 med(1,3,8) = 3, i4 med(3,8,9) = 8.
-  // EMA 3 (alpha 0.5, first-value seed): 3, 3, 5.5. TR (ATR 1): 2, 5, 3, 6, 2. Bands = median +/- 2 x ATR.
+  // EMA 3 (0.8.1 SMA seed) of medians 3, 3, 8: seeded on bar 4 at 14/3. TR (ATR 1): 2, 5, 3, 6, 2. Bands = median +/- 2 x ATR.
   const b=fromCloses([5,1,3,8,9]),inputs={source:'close',length:3,atrLength:1,multiplier:2};
   close(values('median',b,inputs,'median'),[N,N,3,3,8]);
-  close(values('median',b,inputs,'ema'),[N,N,3,3,5.5]);
+  close(values('median',b,inputs,'ema'),[N,N,N,N,14/3]);
   close(values('median',b,inputs,'upper'),[N,N,9,15,12]);
   close(values('median',b,inputs,'lower'),[N,N,-3,-9,4]);
   // Even length: the mean of the two middle values. Length 2: (5+1)/2, (1+3)/2, (3+8)/2, (8+9)/2
@@ -161,10 +161,10 @@ describe('BBTrend (SYNTHETIC)',()=>{
 
 describe('Guppy multiple moving average (SYNTHETIC)',()=>{
  it('twelve EMAs with their own lengths',()=>{
-  // Length 1 = the source; EMA 3 (alpha 0.5, first-value seed) of 2,4,8: 2, 3, 5.5.
+  // Length 1 = the source; EMA 3 (0.8.1 SMA seed) of 2,4,8: -, -, 14/3.
   const b=fromCloses([2,4,8]);
   close(values('guppy',b,{short1:1},'short1'),[2,4,8]);
-  close(values('guppy',b,{long1:3},'long1'),[2,3,5.5]);
+  close(values('guppy',b,{long1:3},'long1'),[N,N,14/3]);
   expect(catalogDefinition('guppy')!.plots).toHaveLength(12);
  });
 });

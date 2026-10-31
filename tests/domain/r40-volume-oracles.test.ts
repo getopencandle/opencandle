@@ -19,11 +19,13 @@ describe(' volume studies: independent synthetic numerical oracles',()=>{
   expect(()=>volumeDeltaInterval('1T')).toThrow(/time-based chart/);
   expect(volumeDeltaInterval('5m',true,'15s')).toBe('15s');
  });
- it('Up/Down classifies equal-close dojis up and plots down volume below zero',()=>{
-  // First bucket: up=10+3+2+1=16, down=4; second up=2+5=7, down=6+3+4=13.
-  expect(values('updownvolume','up')).toEqual([16,7,10]);
-  expect(values('updownvolume','down')).toEqual([-4,-13,0]);
-  expect(values('updownvolume','delta')).toEqual([12,-6,10]);
+ it('Up/Down carries the previous direction on equal-close dojis (as Volume delta) and plots down volume below zero',()=>{
+  // 0.8.1 tick rule: dojis at the prior close carry the last direction. First bucket: up=10+1=11, down=4+3+2=9;
+  // second up=5, down=6+2+3+4=15; third up=8+2=10. Delta equals the Volume delta close of each bar.
+  expect(values('updownvolume','up')).toEqual([11,5,10]);
+  expect(values('updownvolume','down')).toEqual([-9,-15,0]);
+  expect(values('updownvolume','delta')).toEqual([2,-10,10]);
+  expect(values('updownvolume','delta')).toEqual(values('volumedelta','close'));
  });
  it('Volume delta inherits direction on unchanged dojis and keeps the full intrabar OHLC path',()=>{
   // First path: 10,6,3,1,2. Second path: -6,-8,-3,-6,-10. Third: 8,10.

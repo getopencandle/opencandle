@@ -72,8 +72,9 @@ function intrabarVolume(ctx:CatalogContext,kind:'updownvolume'|'volumedelta'|'cv
   if(row.close>row.open)sign=1;else if(row.close<row.open)sign=-1;
   else if(prior&&row.close>prior.close)sign=1;else if(prior&&row.close<prior.close)sign=-1;
   signed.push(sign===null?null:sign*row.volume);
-  const direction=row.close>row.open?1:row.close<row.open?-1:prior?row.close>=prior.close?1:-1:null;
-  updown.push(direction===null?null:direction*row.volume);
+  // An unchanged intrabar carries the previous direction (the tick rule's zero tick, Lee and Ready 1991), the same
+  // classification Volume delta and CVD use, so Up/Down volume and Volume delta agree on every intrabar.
+  updown.push(sign===null?null:sign*row.volume);
  }
  let cursor=0,total=0,period:string|null|undefined,unknown=false,missing=0;
  for(let index=0;index<ctx.bars.length;index++){
@@ -144,7 +145,7 @@ export const R40_VOLUME_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
  {id:'updownvolume',name:'Up/Down volume',acronym:'Up/Down Vol',overlay:false,requiresVolume:true,finerBars:true,
   inputs:[CUSTOM,TIMEFRAME],plots:[{id:'up',label:'Up volume',kind:'histogram',color:GREEN,width:2},{id:'down',label:'Down volume',kind:'histogram',color:RED,width:2},{id:'delta',label:'Delta',kind:'cross',color:BLUE,width:2}],guides:[{id:'zero',value:0,color:GREY}],
   provenance:[{url:UPDOWN,facts:'Intrabar volume classified by open/close and previous close; up above zero, down below zero; difference shown as Delta. Automatic intrabar ladder and custom timeframe inputs.'}],unknownDefaults:[UNKNOWN],
-  policies:[POLICY,'An unchanged intrabar compares with the previous close; equal closes count up. Delta is drawn as a short horizontal notch in the prevailing volume color; its half-bar width is an OpenCandle geometry choice.'],
+  policies:[POLICY,'An unchanged intrabar compares with the previous close; equal closes carry the previous direction (the tick rule), as in Volume delta. Delta is drawn as a short horizontal notch in the prevailing volume color; its half-bar width is an OpenCandle geometry choice.'],
   calculate:ctx=>intrabarVolume(ctx,'updownvolume'),warmup:()=>1,work:count=>count*48+3200000},
  {id:'volumedelta',name:'Volume delta',acronym:'Vol Delta',overlay:false,requiresVolume:true,finerBars:true,volumeDelta:true,inputs:[CUSTOM,TIMEFRAME],plots:PLOTS,
   provenance:[{url:DELTA,facts:'Intrabar signed volume accumulates from zero on each chart bar. The path produces open, high, low and close; unchanged intrabar close carries its predecessor direction.'}],unknownDefaults:[UNKNOWN],policies:[POLICY,CANDLE_POLICY],

@@ -25,9 +25,9 @@ describe(' volume studies on the real indicator port (synthetic)',()=>{
  it('draws Up/Down columns on opposite sides of zero and a notch in the prevailing color',()=>{
   uninstall=installScriptRequestResolver(()=>({bars:fine,resolution:'1m',label:'Synthetic 1m',fixture:true}));
   const {port,model}=rig(),id=port.add('updownvolume'),output=model(id).emitted;
-  expect(port.values(id).series.find(item=>item.id==='up')!.values).toEqual([13,0]);
-  expect(port.values(id).series.find(item=>item.id==='down')!.values).toEqual([-4,-6]);
-  expect(output.lines.map((line:any)=>[line.y1,line.y2,line.color])).toEqual([[9,9,'#089981'],[-6,-6,'#f23645']]);
+  expect(port.values(id).series.find(item=>item.id==='up')!.values).toEqual([10,0]);
+  expect(port.values(id).series.find(item=>item.id==='down')!.values).toEqual([-7,-6]);
+  expect(output.lines.map((line:any)=>[line.y1,line.y2,line.color])).toEqual([[3,3,'#089981'],[-6,-6,'#f23645']]);
   expect(output.lines.every((line:any)=>line.x1<line.x2)).toBe(true);
  });
  it('shows loading, computes only after real intrabars arrive, and emits native OHLC candles',()=>{

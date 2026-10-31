@@ -144,7 +144,7 @@ const definitions:CatalogDefinition[]=[
   plots:[1,2,3,4].map(n=>({id:'ma'+n,label:'MA '+n,color:RIBBON_COLORS[n-1],width:1})),
   provenance:[{url:LV+'textbook-moving-average-ribbon',facts:'A moving average ribbon plots several moving averages of one type and source with increasing lengths.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 20/50/100/200 and type SMA are OpenCandle-defined.'],
-  policies:['RMA is the Wilder average (the OpenCandle SMMA); EMA uses the OpenCandle first-value seed.'],
+  policies:['RMA is the Wilder average (the OpenCandle SMMA); EMA uses the SMA seed (StockCharts, TA-Lib).'],
   calculate({source,tk,num,str}){const average={SMA:tk.sma,EMA:tk.ema,RMA:tk.rma,WMA:tk.wma}[str('maType') as typeof RIBBON_MA_TYPES[number]];return Object.fromEntries([1,2,3,4].map(n=>['ma'+n,average(source,num('length'+n))]));},
   warmup:value=>Math.max(value('length1'),value('length2'),value('length3'),value('length4')),work:(count,value)=>count*(value('length1')+value('length2')+value('length3')+value('length4')+16)},
  {id:'bbpb',name:'Bollinger Bands %b',acronym:'BB %B',overlay:false,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:20,...LENGTH},SOURCE,MULTIPLIER],
@@ -200,6 +200,7 @@ const definitions:CatalogDefinition[]=[
   calculate({source,tk,num}){const streak:NumericSeries=source.map(()=>null);let run=0;
    source.forEach((value,i)=>{const prior=i?source[i-1]:null;if(!finite(value)||!finite(prior)){run=0;return;}run=value>prior?(run>0?run+1:1):value<prior?(run<0?run-1:-1):0;streak[i]=run;});
    const a=tk.rsi(source,num('rsiLength')),b=tk.rsi(streak,num('streakLength')),roc=rocOf(source,1),n=num('rankLength');
+   // PercentRank counts earlier values strictly below the current one (Connors and Alvarez, An Introduction to ConnorsRSI, 2012).
    const rank=roc.map((value,i)=>{if(!finite(value)||i<n)return null;let below=0;for(let j=i-n;j<i;j++){const prior=roc[j];if(!finite(prior))return null;if(prior<value)below++;}return 100*below/n;});
    return {crsi:a.map((value,i)=>finite(value)&&finite(b[i])&&finite(rank[i])?(value+(b[i] as number)+(rank[i] as number))/3:null)};},
   warmup:value=>Math.max(value('rsiLength')+1,value('streakLength')+2,value('rankLength')+2),work:(count,value)=>count*(value('rankLength')+32)},
@@ -220,12 +221,14 @@ const definitions:CatalogDefinition[]=[
   warmup:value=>value('length')+1,work:count=>count*8},
  {id:'fisher',name:'Fisher transform',acronym:'Fisher',overlay:false,inputs:[{key:'length',title:'Length',defval:9,...LENGTH}],
   plots:[{id:'fisher',label:'Fisher',color:BLUE,width:1},{id:'trigger',label:'Trigger',color:ORANGE,width:1}],guides:[{id:'upper',value:1.5,color:GREY},{id:'zero',value:0,color:GREY},{id:'lower',value:-1.5,color:GREY}],
-  provenance:[{url:LV+'ehlers-cybernetic-analysis-2004',facts:'John Ehlers: value = 0.66 x ((hl2 - lowest low) / (highest high - lowest low) - 0.5) + 0.67 x prior value, limited to +/-0.999; Fisher = 0.5 x ln((1 + value) / (1 - value)) + 0.5 x prior Fisher; trigger = prior Fisher.'}],
+  provenance:[{url:LV+'ehlers-cybernetic-analysis-2004',facts:'John Ehlers: value = 0.66 x ((hl2 - lowest hl2) / (highest hl2 - lowest hl2) - 0.5) + 0.67 x prior value; above 0.99 becomes 0.999 and below -0.99 becomes -0.999; Fisher = 0.5 x ln((1 + value) / (1 - value)) + 0.5 x prior Fisher; trigger = prior Fisher.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Length 9 and the 1.5 / 0 / -1.5 guides are OpenCandle-defined.'],
   policies:['The recursion starts at 0 on the first full window. A flat window contributes 0. A bar with a missing high or low is unavailable and keeps the recursion state.'],
-  calculate({bars,num}){const n=num('length'),h=highs(bars),l=lows(bars),fisher:NumericSeries=[],trigger:NumericSeries=[];let value=0,fish=0,previous:number|null=null;
-   bars.forEach((bar,i)=>{const hi=extreme(h,i,n,'max'),lo=extreme(l,i,n,'min');if(hi===null||lo===null||!finite(bar.high)||!finite(bar.low)){fisher.push(null);trigger.push(null);return;}
-    const ratio=hi===lo?0:((bar.high+bar.low)/2-lo)/(hi-lo)-0.5;value=Math.max(-0.999,Math.min(0.999,0.66*ratio+0.67*value));fish=0.5*Math.log((1+value)/(1-value))+0.5*fish;
+  // Ehlers, "Using the Fisher Transform" (TASC Nov 2002) / Cybernetic Analysis (2004): MaxH = Highest(hl2, Len), MinL =
+  // Lowest(hl2, Len), and the clamp is "if Value1 > .99 then .999, if < -.99 then -.999" (applied before it recurses).
+  calculate({bars,num}){const n=num('length'),mid=bars.map(bar=>finite(bar.high)&&finite(bar.low)?(bar.high+bar.low)/2:null),fisher:NumericSeries=[],trigger:NumericSeries=[];let value=0,fish=0,previous:number|null=null;
+   bars.forEach((bar,i)=>{const hi=extreme(mid,i,n,'max'),lo=extreme(mid,i,n,'min'),m=mid[i];if(hi===null||lo===null||m===null){fisher.push(null);trigger.push(null);return;}
+    const ratio=hi===lo?0:(m-lo)/(hi-lo)-0.5,raw=0.66*ratio+0.67*value;value=raw>0.99?0.999:raw<-0.99?-0.999:raw;fish=0.5*Math.log((1+value)/(1-value))+0.5*fish;
     fisher.push(zero(fish));trigger.push(previous);previous=zero(fish);});
    return {fisher,trigger};},
   warmup:value=>value('length')+1,work:(count,value)=>count*value('length')*2},
@@ -233,7 +236,8 @@ const definitions:CatalogDefinition[]=[
   plots:[{id:'kvo',label:'KVO',color:BLUE,width:1},{id:'signal',label:'Signal',color:GREEN,width:1}],guides:ZERO,
   provenance:[{url:LV+'klinger-volume-oscillator',facts:'Stephen Klinger: trend = +1 when H + L + C rises versus the prior bar, else -1; dm = H - L; cm = prior cm + dm while the trend holds, else prior dm + dm; volume force = V x |2 x (dm / cm - 1)| x trend x 100 (the MetaStock form); KVO = EMA(VF, 34) - EMA(VF, 55); signal = EMA(KVO, 13).'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 34/55/13 are the author defaults.'],
-  policies:['The first bar has no trend. On the second bar cm starts as prior dm + dm. A zero cm is unavailable. EMAs use the OpenCandle first-value seed.'],
+  policies:['The first bar has no trend. On the second bar cm starts as prior dm + dm. A zero cm is unavailable. EMAs use the SMA seed (StockCharts, TA-Lib).'],
+  // Klinger's own volume force (dm/cm, the MetaStock form) is kept; the simplified sign(hlc3 change) x volume variant is not the author's.
   calculate({bars,tk,num}){const vf:NumericSeries=bars.map(()=>null);let trend=0,cm=0;
    bars.forEach((bar,i)=>{const prior=i?bars[i-1]:null;if(!prior||![bar.high,bar.low,bar.close,bar.volume,prior.high,prior.low,prior.close].every(finite)){trend=0;return;}
     const now=bar.high+bar.low+bar.close>prior.high+prior.low+prior.close?1:-1,dm=bar.high-bar.low,priorDm=prior.high-prior.low;cm=trend!==0&&now===trend?cm+dm:priorDm+dm;trend=now;
@@ -252,7 +256,7 @@ const definitions:CatalogDefinition[]=[
   plots:[{id:'mass',label:'Mass index',color:BLUE,width:1}],
   provenance:[{url:LV+'dorsey-mass-index-1992',facts:'Donald Dorsey: Mass index = sum over 25 of EMA(H - L, 9) / EMA(EMA(H - L, 9), 9).'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 9 and 25 are the author defaults.'],
-  policies:['EMAs use the OpenCandle first-value seed, so the first ratios are 1. A zero double EMA is unavailable.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib). A zero double EMA is unavailable.'],
   calculate({bars,tk,num}){const n=num('emaLength'),e1=tk.ema(bars.map(bar=>finite(bar.high)&&finite(bar.low)?bar.high-bar.low:null),n),ratio=pair(e1,tk.ema(e1,n),(a,b)=>b===0?null:a/b);return {mass:bars.map((_,i)=>windowSum(ratio,i,num('sumLength')))};},
   warmup:value=>value('sumLength'),work:(count,value)=>count*(value('sumLength')+8)},
  {id:'mcginley',name:'McGinley dynamic',acronym:'MD',overlay:true,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:14,...LENGTH},SOURCE],plots:[{id:'md',label:'McGinley dynamic',color:BLUE,width:1}],
@@ -271,7 +275,7 @@ const definitions:CatalogDefinition[]=[
   plots:[{id:'ppo',label:'PPO',color:BLUE,width:1},{id:'signal',label:'Signal',color:ORANGE,width:1},{id:'histogram',label:'Histogram',kind:'histogram',color:'#ff5252',width:1}],guides:ZERO,histogramPalette:true,histogramColors:{growing:TEAL,falling:'#ff5252'},
   provenance:[{url:LV+'textbook-percentage-price-oscillator',facts:'PPO = (EMA(12) - EMA(26)) / EMA(26) x 100; signal = EMA(PPO, 9); histogram = PPO - signal (Gerald Appel\'s MACD in percent).'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 12/26/9 are the conventional values.'],
-  policies:['EMAs use the OpenCandle first-value seed. A zero slow EMA is unavailable.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib). A zero slow EMA is unavailable.'],
   calculate({source,tk,num}){const ppo=pair(tk.ema(source,num('fastLength')),tk.ema(source,num('slowLength')),(a,b)=>b===0?null:zero(100*(a-b)/b)),signal=tk.ema(ppo,num('signalLength'));return {ppo,signal,histogram:pair(ppo,signal,(a,b)=>zero(a-b))};},
   warmup:value=>value('slowLength'),work:count=>count*16},
  {id:'rvgi',name:'Relative vigor index',acronym:'RVGI',overlay:false,inputs:[{key:'length',title:'Length',defval:10,...LENGTH}],
@@ -288,6 +292,7 @@ const definitions:CatalogDefinition[]=[
   provenance:[{url:LV+'dorsey-relative-volatility-index-1993',facts:'Donald Dorsey: RVI is computed like RSI, but each period adds the 10-period standard deviation (instead of the price change) to the up side when the close rises and to the down side when it falls, with Wilder smoothing over 14.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 10 and 14 are the author defaults; the 80 / 20 guides are OpenCandle-defined.'],
   policies:['Population standard deviation. An unchanged close adds to neither side. Both sides zero is unavailable.'],
+  // Wilder smoothing over 14 is Dorsey's 1993 definition (TASC, The Relative Volatility Index); some charting tools use an EMA instead.
   calculate({source,tk,num}){const n=num('stdLength'),m=num('smoothLength'),change=changeOf(source),sd=source.map((_,i)=>windowStats(source,i,n)?.sd??null);
    const up=tk.rma(pair(change,sd,(c,s)=>c>0?s:0),m),down=tk.rma(pair(change,sd,(c,s)=>c<0?s:0),m);return {rvi:pair(up,down,(a,b)=>a+b===0?null:zero(100*a/(a+b)))};},
   warmup:value=>value('stdLength')+value('smoothLength'),work:(count,value)=>count*(value('stdLength')*2+8)},
@@ -295,21 +300,21 @@ const definitions:CatalogDefinition[]=[
   plots:[{id:'smi',label:'SMI',color:BLUE,width:1},{id:'signal',label:'Signal',color:ORANGE,width:1},{id:'oscillator',label:'Oscillator',kind:'histogram',color:'#ff5252',width:1}],guides:ZERO,histogramPalette:true,histogramColors:{growing:TEAL,falling:'#ff5252'},
   provenance:[{url:LV+'blau-momentum-direction-divergence-1995',facts:'William Blau: the SMI ergodic indicator is the true strength index with lengths 20 and 5 (100 x double-smoothed momentum / double-smoothed absolute momentum); signal = EMA(SMI, 5); oscillator = SMI - signal.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 20/5/5 are the author defaults. The indicator and the oscillator are one OpenCandle kind.'],
-  policies:['Momentum is the 1-bar change; the long EMA is applied first. EMAs use the OpenCandle first-value seed. A zero denominator is unavailable.'],
+  policies:['Momentum is the 1-bar change; the long EMA is applied first. EMAs use the SMA seed (StockCharts, TA-Lib). A zero denominator is unavailable.'],
   calculate({source,tk,num}){const smi=tsiOf(source,num('longLength'),num('shortLength'),tk),signal=tk.ema(smi,num('signalLength'));return {smi,signal,oscillator:pair(smi,signal,(a,b)=>zero(a-b))};},
   warmup:()=>2,work:count=>count*24},
  {id:'tsi',name:'True strength index',acronym:'TSI',overlay:false,sourceSeries:true,inputs:[{key:'longLength',title:'Long length',defval:25,...LENGTH},{key:'shortLength',title:'Short length',defval:13,...LENGTH},{key:'signalLength',title:'Signal length',defval:13,...LENGTH},SOURCE],
   plots:[{id:'tsi',label:'True strength index',color:BLUE,width:1},{id:'signal',label:'Signal',color:RED,width:1}],guides:ZERO,
   provenance:[{url:LV+'blau-true-strength-index-1991',facts:'William Blau: TSI = 100 x EMA(EMA(change, 25), 13) / EMA(EMA(|change|, 25), 13); signal = EMA(TSI, 13).'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 25/13/13 are the conventional values.'],
-  policies:['Momentum is the 1-bar change; the long EMA is applied first. EMAs use the OpenCandle first-value seed. A zero denominator is unavailable.'],
+  policies:['Momentum is the 1-bar change; the long EMA is applied first. EMAs use the SMA seed (StockCharts, TA-Lib). A zero denominator is unavailable.'],
   calculate({source,tk,num}){const tsi=tsiOf(source,num('longLength'),num('shortLength'),tk);return {tsi,signal:tk.ema(tsi,num('signalLength'))};},
   warmup:()=>2,work:count=>count*20},
  {id:'vo',name:'Volume oscillator',acronym:'Volume Osc',overlay:false,requiresVolume:true,inputs:[{key:'shortLength',title:'Short length',defval:5,...LENGTH},{key:'longLength',title:'Long length',defval:10,...LENGTH}],
   plots:[{id:'vo',label:'Volume Osc',color:BLUE,width:1}],guides:ZERO,valueSuffix:'%',precision:2,
   provenance:[{url:LV+'textbook-volume-oscillator',facts:'Volume oscillator = (EMA(volume, short) - EMA(volume, long)) / EMA(volume, long) x 100.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 5 and 10 and the percent display are OpenCandle-defined.'],
-  policies:['EMAs use the OpenCandle first-value seed. A zero long EMA is unavailable.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib). A zero long EMA is unavailable.'],
   calculate({bars,tk,num}){const volume=bars.map(bar=>finite(bar.volume)?bar.volume:null);return {vo:pair(tk.ema(volume,num('shortLength')),tk.ema(volume,num('longLength')),(a,b)=>b===0?null:zero(100*(a-b)/b))};},
   warmup:()=>1,work:count=>count*12},
  {id:'vortex',name:'Vortex indicator',acronym:'VI',overlay:false,inputs:[{key:'length',title:'Length',defval:14,...LENGTH_2}],
@@ -354,7 +359,7 @@ const definitions:CatalogDefinition[]=[
   plots:[{id:'osc',label:'Chaikin oscillator',color:RED,width:1}],guides:ZERO,
   provenance:[named('Chaikin oscillator'),{url:LV+'chaikin-oscillator',facts:'Marc Chaikin: Chaikin oscillator = EMA(A/D, 3) - EMA(A/D, 10).'}],
   unknownDefaults:[UNKNOWN,'Lengths 3 and 10 are the author defaults.'],
-  policies:['EMAs use the OpenCandle first-value seed, so the oscillator starts at 0 on the first bar.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib), so the oscillator starts once the slow EMA is seeded.'],
   calculate({bars,tk,num}){const ad=adLine(bars);return {osc:pair(tk.ema(ad,num('fast')),tk.ema(ad,num('slow')),(a,b)=>zero(a-b))};},warmup:()=>1,work:count=>count*12},
  {id:'pvt',name:'Price volume trend',acronym:'PVT',overlay:false,requiresVolume:true,inputs:[],plots:[{id:'pvt',label:'PVT',color:BLUE,width:1}],
   provenance:[{url:LV+'textbook-price-volume-trend',facts:'Price volume trend = running total of volume x (close - prior close) / prior close.'}],
@@ -370,7 +375,7 @@ const definitions:CatalogDefinition[]=[
   plots:[{id:'power',label:'BBPower',kind:'histogram',color:TEAL,width:1},{id:'bull',label:'Bull power',color:GREEN,width:1,visible:false},{id:'bear',label:'Bear power',color:RED,width:1,visible:false}],guides:ZERO,histogramPalette:true,histogramColors:{growing:TEAL,falling:'#ff5252'},
   provenance:[named('Bull bear power'),{url:LV+'elder-ray-come-into-my-trading-room-2002',facts:'Alexander Elder (Elder-ray): bull power = high - EMA(close, 13); bear power = low - EMA(close, 13).'}],
   unknownDefaults:[UNKNOWN,'Length 13 is the author default. The histogram of bull power + bear power, with both lines hidden by default, is OpenCandle-defined.'],
-  policies:['The EMA uses the OpenCandle first-value seed.'],
+  policies:['The EMA uses the SMA seed (StockCharts, TA-Lib).'],
   calculate({bars,tk,num}){const e=tk.ema(closes(bars),num('length')),bull=pair(highs(bars),e,(a,b)=>zero(a-b)),bear=pair(lows(bars),e,(a,b)=>zero(a-b));return {power:pair(bull,bear,(a,b)=>zero(a+b)),bull,bear};},
   warmup:()=>1,work:count=>count*8},
 ];

@@ -222,8 +222,11 @@ export function sma(values: Values, period: number): NumericSeries {
 }
 
 /** EMA stepper (period already validated). smaSeed: the EMA is seeded by the mean of its first
- * period finite values (the common convention), so EMA 9 is unavailable on bars 0-7 and starts on bar 8 at the SMA 9,
- * and MACD 12/26/9 starts on bar 25 with the signal on bar 33. */
+ * period finite values, so EMA 9 is unavailable on bars 0-7 and starts on bar 8 at the SMA 9, and MACD 12/26/9 starts on
+ * bar 25 with the signal on bar 33. The SMA seed is the consensus convention every EMA-based indicator uses: StockCharts
+ * ChartSchool ("Moving Averages": a simple moving average is used as the previous period's EMA in the first
+ * calculation), TA-Lib (TA_EMA, default classic seed = SMA of the first period values) and Wilder's own RMA seed. The
+ * first-value seed (smaSeed false) remains for movingAverage('EMA') only (see there). */
 export function emaStepper(period:number,smaSeed=false):Stepper<{previous:number|null;sum:number;count:number}>{
  const alpha = 2 / (period + 1);
  return {create:()=>({previous:null,sum:0,count:0}),copy:state=>({...state}),step:(state,value)=>{
@@ -233,13 +236,14 @@ export function emaStepper(period:number,smaSeed=false):Stepper<{previous:number
   return state.previous;
  }};
 }
-/** Explicit first-finite-value seed; missing values emit null and retain accumulator. */
+/** First-finite-value seed (movingAverage 'EMA' only; the EMA indicator and catalog kinds take emaSmaSeed); missing values
+ * emit null and retain the accumulator. */
 export function ema(values: Values, period: number): NumericSeries {
   length(period);
   return runStepper(emaStepper(period),values);
 }
-/** The SMA-seeded EMA, unavailable until period finite values, then seeded by their mean (as rma). Used by
- * the EMA and MACD indicators and the exponential Keltner basis; other kernels keep their documented first-value seed. */
+/** The SMA-seeded EMA, unavailable until period finite values, then seeded by their mean (as rma). Used by the EMA and
+ * MACD indicators and every catalog kind (the toolkit's ema), see emaStepper. */
 export function emaSmaSeed(values: Values, period: number): NumericSeries {
   length(period);
   return runStepper(emaStepper(period,true),values);
@@ -289,6 +293,8 @@ export function vwma(values: Values, volumes: Values, period: number): NumericSe
 
 export function movingAverage(values: Values, period: number, kind: MovingAverageType = 'SMA', volumes?: Values): NumericSeries {
   if (kind === 'SMA') return sma(values, period);
+  // The built-in MA-type EMA (Volume MA, ATR smoothing, BB basis, additional smoothing) keeps the first-value seed for now:
+  // the incremental engine (indicator-incremental.ts) and the dialog warm-up model mirror it. See emaStepper.
   if (kind === 'EMA') return ema(values, period);
   if (kind === 'RMA') return rma(values, period);
   if (kind === 'WMA') return wma(values, period);
@@ -306,7 +312,7 @@ export function rsiLossAt(i: number, value: number | null | undefined, prior: nu
 }
 export function rsiValue(gain: number | null | undefined, loss: number | null | undefined): number | null {
   if (!finite(gain) || !finite(loss)) return null;
-  if (gain === 0 && loss === 0) return null; // Undefined denominator. The reference behaviour on a flat series is not confirmed.
+  if (gain === 0 && loss === 0) return null; // 0/0: Wilder's RS is undefined; references disagree (TA-Lib 0, some charting tools 100), so it stays unavailable.
   if (loss === 0) return 100;
   if (gain === 0) return 0;
   return 100 - 100 / (1 + gain / loss);
@@ -437,6 +443,15 @@ export function vwap(bars: readonly Bar[], sessions?: readonly string[], source:
   });
 }
 
+/** The VWAP anchor time zone. 'Exchange' (the planned new-instance default; kernel 1 only until the src/vwap worker resolves it) is the source exchange zone, so a US equity session
+ * day runs on New York dates and after-hours bars stay in their session; 24/7 (UTC calendar) sources and sources without
+ * a declared zone use UTC 00:00. A saved explicit zone (older instances were saved with 'UTC') is used as is. */
+export const VWAP_EXCHANGE_ZONE='Exchange';
+export function vwapAnchorZone(timezone:unknown,options:Pick<IndicatorCalculationOptions,'exchangeZone'|'calendar'>={}):string{
+ const zone=String(timezone??'UTC');if(zone!==VWAP_EXCHANGE_ZONE)return zone;
+ const exchange=options.exchangeZone;if(options.calendar==='utc'||typeof exchange!=='string'||!exchange.trim())return 'UTC';
+ try{new Intl.DateTimeFormat('en',{timeZone:exchange});return exchange;}catch{return 'UTC';}
+}
 function anchorKeys(bars: readonly Bar[], anchor: string, timezone: string, events?: readonly VwapEventDate[] | null): string[] {
   // Dividends and Splits periods start at the corporate-action ex-dates (vwap-event-anchors.ts).
   if (isVwapEventAnchor(anchor)) return vwapEventAnchorKeys(bars, anchor, events);
@@ -467,9 +482,10 @@ export interface IndicatorCalculationOptions {sourceValues?:NumericSeries;resolu
   secondSeries?:(symbol:string)=>SecondSeries;
   /** The symbol's split and dividend ex-dates for the VWAP Dividends and Splits anchors; absent or null = not loaded. */
   corporateActions?:readonly VwapEventDate[]|null}
-const CATALOG_TOOLKIT:CatalogToolkit={sma,ema,emaSmaSeed,rma,wma,rsi:(values,period)=>rsi(values,period),trueRange};
+// The toolkit ema is the SMA-seeded EMA (the consensus seed, see emaStepper), so every catalog EMA matches the EMA indicator.
+const CATALOG_TOOLKIT:CatalogToolkit={sma,ema:emaSmaSeed,emaSmaSeed,rma,wma,rsi:(values,period)=>rsi(values,period),trueRange};
 export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[], inputs: IndicatorInputs = {}, options: IndicatorCalculationOptions = {}): IndicatorResult {
-  const result: IndicatorResult = { id, series: [], diagnostics: [], policies: ['The EMA and MACD averages use an SMA seed; RMA uses initial SMA; missing values remain gaps.', 'Offsets belong to rendering and never change signal values.'] };
+  const result: IndicatorResult = { id, series: [], diagnostics: [], policies: ['EMA averages use an SMA seed (StockCharts, TA-Lib), except the first-value-seeded EMA choice of an MA type input; RMA uses initial SMA; missing values remain gaps.', 'Offsets belong to rendering and never change signal values.'] };
   const num = (key: string, fallback: number) => { const v = Object.hasOwn(inputs,key)?inputs[key]:fallback; if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`${key} must be a finite number.`); return v; };
   const plot = (key: string, label: string, values: NumericSeries) => {if(values.some(value=>value!==null&&!finite(value)))throw new Error(`The ${key} calculation overflowed or has an invalid numeric input.`);result.series.push({ id: key, label, values });};
   try {
@@ -483,19 +499,29 @@ export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[
     if(reference){if(!INDICATOR_SOURCE_KINDS.includes(kind))throw new Error('This indicator does not accept another indicator as its source.');if(!options.sourceValues)throw new Error('The selected source indicator is unavailable.');if(!Array.isArray(options.sourceValues)||options.sourceValues.length!==bars.length)throw new Error('The source indicator series does not match the chart bars.');}
     const source = (reference?'close':rawSource) as PriceSource;
     if(source!==undefined&&!['open','high','low','close','hl2','hlc3','ohlc4'].includes(source))throw new Error(`Unsupported source: ${source}`);
-    const volumes = bars.map(b => b.volume);
-    if((['volume','vwap','obv'].includes(kind)||inputs.basisType==='VWMA')&&volumes.some(value=>!finite(value)||value<0))throw new Error('This base indicator requires available nonnegative source volume.');
+    // A bar with missing or negative volume is unavailable at that bar only (the obvStep rule); the next valid bar resumes.
+    // Only a series with no usable volume at all is refused.
+    const validVolume=(value:number)=>finite(value)&&value>=0,volumes:NumericSeries = bars.map(b => validVolume(b.volume)?b.volume:null),volumeGaps=volumes.some(value=>value===null),noVolume=volumes.length>0&&volumes.every(value=>value===null);
+    if((['volume','vwap','obv'].includes(kind)||inputs.basisType==='VWMA')&&noVolume)throw new Error('This base indicator requires available nonnegative source volume.');
     const values:readonly (number|null)[] = ['sma','ema','rsi','macd','bb'].includes(kind)?(reference?options.sourceValues!.map(value=>finite(value)?value:null):sourceValues(bars, source)):[];
     const definition=catalogDefinition(kind);
     if(definition){
-      if(definition.requiresVolume&&volumes.some(value=>!finite(value)||value<0))throw new Error('This base indicator requires available nonnegative source volume.');
-      const hasSource=definition.inputs.some(input=>input.key==='source'),series:readonly (number|null)[]=!hasSource?[]:reference?options.sourceValues!.map(value=>finite(value)?value:null):sourceValues(bars,source);
+      if(definition.requiresVolume&&noVolume)throw new Error('This base indicator requires available nonnegative source volume.');
+      // Bar-wise volume kinds with gaps run on the bars that have volume and the gap bars stay unavailable (the obvStep rule:
+      // the next valid bar resumes from the last valid one). Profile, finer-bar and other chart-context kinds keep the
+      // whole-series volume requirement, since their geometry is tied to every chart bar.
+      const compactable=!definition.profile&&!definition.viewport&&!definition.finerBars&&!definition.dailyHistory&&!definition.projects&&!definition.pattern&&!definition.tradingSessions&&!definition.secondSymbol;
+      if(definition.requiresVolume&&volumeGaps&&!compactable)throw new Error('This base indicator requires available nonnegative source volume.');
+      const kept=definition.requiresVolume&&volumeGaps?volumes.flatMap((value,i)=>value===null?[]:[i]):null;
+      const hasSource=definition.inputs.some(input=>input.key==='source'),fullSeries:readonly (number|null)[]=!hasSource?[]:reference?options.sourceValues!.map(value=>finite(value)?value:null):sourceValues(bars,source),series=kept&&hasSource?kept.map(i=>fullSeries[i]):fullSeries,calcBars=kept?kept.map(i=>bars[i]):bars;
       const resolution=options.resolution??null,calendar=options.calendar??null;
       if(resolution!==null&&(typeof resolution!=='string'||resolution.length>40)||calendar!==null&&calendar!=='us-equity'&&calendar!=='utc')throw new Error('The chart resolution or session calendar supplied to the calculation is invalid.');
       const visibleRange=options.visibleRange??null,tickSize=options.tickSize??null,lowerTimeframe=options.lowerTimeframe??null,finerBars=options.finerBars??null;
       if(visibleRange!==null&&!(typeof visibleRange==='object'&&Number.isFinite(visibleRange.from)&&Number.isFinite(visibleRange.to))||tickSize!==null&&!(typeof tickSize==='number'&&Number.isFinite(tickSize)&&tickSize>0)||lowerTimeframe!==null&&!(typeof lowerTimeframe==='object'&&typeof lowerTimeframe.interval==='string'&&Array.isArray(lowerTimeframe.bars))||finerBars!==null&&typeof finerBars!=='function')throw new Error('The visible range, tick size or lower-timeframe bars supplied to the calculation are invalid.');
-      const output=definition.calculate({diagnostic:message=>{result.diagnostics.push(message);},bars,source:series,num:key=>catalogInputValue(definition,inputs,key) as number,bool:key=>catalogInputValue(definition,inputs,key) as boolean,str:key=>catalogInputValue(definition,inputs,key) as string,has:key=>Object.hasOwn(inputs,key),tk:CATALOG_TOOLKIT,chart:{resolution,calendar,...(definition.tradingSessions?{exchangeZone:options.exchangeZone??null,style:options.style??null,tickSize}:{}),...((definition.profile||definition.viewport||definition.finerBars||definition.dailyHistory)?{visibleRange,tickSize,lowerTimeframe,...(finerBars?{finerBars}:{})}:{}),...(definition.secondSymbol?{secondSeries:options.secondSeries??((symbol:string)=>secondSymbolSeries(symbol,resolution))}:{})},...(definition.tradingSessions?{sessions:(value:readonly Readonly<TradingSessionRecord>[])=>{result.sessions=value;}}:{}),...(definition.profile?{profiles:(value:readonly VolumeProfile[])=>{result.profiles=value;}}:{}),...(definition.projects?{projection:(value:Record<string,NumericSeries>)=>{result.projection=validProjection(definition.plots.map(item=>item.id),value);}}:{}),...(definition.pattern?{marks:(value:PatternMarks)=>{result.marks=validPatternMarks(value,bars.length,definition.plots.map(item=>item.id));}}:{})});
+      const raw=definition.calculate({diagnostic:message=>{result.diagnostics.push(message);},bars:calcBars,source:series,num:key=>catalogInputValue(definition,inputs,key) as number,bool:key=>catalogInputValue(definition,inputs,key) as boolean,str:key=>catalogInputValue(definition,inputs,key) as string,has:key=>Object.hasOwn(inputs,key),tk:CATALOG_TOOLKIT,chart:{resolution,calendar,...(definition.tradingSessions?{exchangeZone:options.exchangeZone??null,style:options.style??null,tickSize}:{}),...((definition.profile||definition.viewport||definition.finerBars||definition.dailyHistory)?{visibleRange,tickSize,lowerTimeframe,...(finerBars?{finerBars}:{})}:{}),...(definition.secondSymbol?{secondSeries:options.secondSeries??((symbol:string)=>secondSymbolSeries(symbol,resolution))}:{})},...(definition.tradingSessions?{sessions:(value:readonly Readonly<TradingSessionRecord>[])=>{result.sessions=value;}}:{}),...(definition.profile?{profiles:(value:readonly VolumeProfile[])=>{result.profiles=value;}}:{}),...(definition.projects?{projection:(value:Record<string,NumericSeries>)=>{result.projection=validProjection(definition.plots.map(item=>item.id),value);}}:{}),...(definition.pattern?{marks:(value:PatternMarks)=>{result.marks=validPatternMarks(value,bars.length,definition.plots.map(item=>item.id));}}:{})});
+      const output:Record<string,NumericSeries>=kept?Object.fromEntries(definition.plots.map(item=>{const full:(number|null)[]=Array(bars.length).fill(null),values=raw[item.id];if(values)kept.forEach((index,j)=>{full[index]=values[j]??null;});return [item.id,full];})):raw;
       for(const item of definition.plots)plot(item.id,item.label,output[item.id]);result.policies.push(...definition.policies);
+      if(kept)result.policies.push('Bars with missing volume are unavailable; the calculation resumes from the last bar with volume.');
     }else switch (id.toLowerCase()) {
       case 'volume': plot('volume', 'Volume', volumes); plot('ma', 'Volume MA', movingAverage(volumes, num('length', 20),indicatorVolumeMaType(inputs))); result.policies.push('Volume MA20 is an OpenCandle default; current reference default remains unverified.'); break;
       case 'sma': plot('sma', 'SMA', sma(values, num('length', 9))); break;
@@ -504,7 +530,7 @@ export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[
       case 'macd': { const m = macd(values, num('fast', 12), num('slow', 26), num('signal', 9), (inputs.oscillatorType ?? 'EMA') as 'EMA' | 'SMA', (inputs.signalType ?? 'EMA') as 'EMA' | 'SMA'); plot('macd', 'MACD', m.line); plot('signal', 'Signal', m.signal); plot('histogram', 'Histogram', m.histogram); break; }
       case 'bb': { const b = bollingerBands(values, num('length', 20), num('multiplier', 2), (inputs.basisType ?? 'SMA') as MovingAverageType, volumes); plot('basis', 'Basis', b.basis); plot('upper', 'Upper', b.upper); plot('lower', 'Lower', b.lower); result.policies.push('Population standard deviation; independent reference comparison pending.'); break; }
       case 'vwap': {
-        const bands=indicatorVwapBandSettings(inputs),keys=anchorKeys(bars,String(inputs.anchor??'Session'),String(inputs.timezone??'UTC'),options.corporateActions),base=vwap(bars,keys,(inputs.source??'hlc3') as PriceSource);plot('vwap','VWAP',base);
+        const bands=indicatorVwapBandSettings(inputs),keys=anchorKeys(bars,String(inputs.anchor??'Session'),vwapAnchorZone(inputs.timezone,options),options.corporateActions),base=vwap(bars,keys,(inputs.source??'hlc3') as PriceSource);plot('vwap','VWAP',base);
         // Standard Deviation mode (src/domain/vwap-stdev-bands.ts).
         const deviation=bands.bandMode==='Standard Deviation'?vwapDeviationSeries(legacySourceValues(bars,(inputs.source??'hlc3') as PriceSource),bars.map(bar=>bar.volume),keys):null;if(deviation)result.policies.push(VWAP_STDEV_POLICY);
         for(const n of [1,2,3] as const)if(bands[`band${n}Enabled`]){
@@ -525,7 +551,7 @@ export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[
       if(smoothing.type!=='None'){
         const ids=smoothing.type==='SMA+BB'?['smooth','smoothUpper','smoothLower']:['smooth'];
         try{
-          if(smoothing.type==='VWMA'&&volumes.some(value=>!finite(value)||value<0))throw new Error('VWMA smoothing requires available nonnegative volume; the base indicator is unchanged.');
+          if(smoothing.type==='VWMA'&&noVolume)throw new Error('VWMA smoothing requires available nonnegative volume; the base indicator is unchanged.');
           const base=result.series[0].values;
           if(smoothing.type==='SMA+BB'){const bands=bollingerBands(base,smoothing.length,smoothing.multiplier);plot('smooth',rsiMa?RSI_MA_NAME:'Smoothing SMA',bands.basis);plot('smoothUpper',rsiMa?RSI_MA_NAME+' upper band':'Smoothing upper band',bands.upper);plot('smoothLower',rsiMa?RSI_MA_NAME+' lower band':'Smoothing lower band',bands.lower);}
           else plot('smooth',rsiMa?RSI_MA_NAME:`Smoothing ${smoothing.type}`,movingAverage(base,smoothing.length,smoothing.type,volumes));

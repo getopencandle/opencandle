@@ -1,7 +1,7 @@
 {
   "name": "opencandle",
   "productName": "OpenCandle",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "private": true,
   "type": "module",
   "description": "Free, source-available desktop charting app: indicators, drawings, replay, alerts, scripting, strategy testing and paper trading with your own data. No account, no telemetry.",

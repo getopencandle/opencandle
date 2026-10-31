@@ -132,6 +132,18 @@ const VOLUME_KINDS=new Set<IndicatorId>(['volume','obv']),PERCENT_KINDS=new Set<
  * (formatIndicatorNumber). Automatic precision is LV policy: volume-unit plots abbreviate,
  * RSI and Stochastic use 2 decimals, price-unit plots use the symbol precision.
  */
+/** What a reader needs to show an indicator plot the way it is drawn. offset is the instance display offset in bars. */
+export interface IndicatorPlotReading {kind:IndicatorId;offset?:number;precision:IndicatorPrecision}
+/**
+ * The text of one indicator plot at chart bar `bar` (null = the last value), exactly as it is drawn: the plot is shifted by
+ * the display offset, so the value at a bar is values[bar - offset] (outside the series is the empty glyph), formatted by
+ * formatIndicatorValue with the instance precision and the symbol tick size. The data window, the table view and the main
+ * legend all read through this one function so they cannot disagree.
+ */
+export function indicatorPlotTextAt(values:ArrayLike<number|null>,bar:number|null,reading:IndicatorPlotReading,tickSize:number):string{
+ const offset=Number.isSafeInteger(reading.offset)?reading.offset as number:0,at=bar===null?values.length-1:bar,source=at-offset;
+ return formatIndicatorValue(source>=0&&source<values.length?values[source]:null,reading.kind,reading.precision,tickSize);
+}
 export function formatIndicatorValue(value:number|null|undefined,kind:IndicatorId,precision:IndicatorPrecision,tickSize:number):string{
  if(typeof value!=='number'||!Number.isFinite(value))return DATA_WINDOW_EMPTY;
  if(precision!=='auto'&&isIndicatorPrecision(precision))return formatIndicatorNumber(value,precision);
@@ -172,8 +184,8 @@ export function buildDataWindow(input:DataWindowInput):DataWindowView{
  }
  // Each indicator in legend order; one row per plot.
  for(const study of input.indicators){
-  const key=studySection(study.id),isHidden=hidden.has(key),offset=Number.isSafeInteger(study.offset)?study.offset:0;
-  const rows=isHidden?[]:study.plots.filter(plot=>plot.dataWindow).map(plot=>{const source=index-offset,raw=source>=0&&source<plot.values.length?plot.values[source]:null;return {key:plot.id,label:plot.label,value:formatIndicatorValue(raw,study.kind,study.precision,series.tickSize),color:plot.color};});
+  const key=studySection(study.id),isHidden=hidden.has(key);
+  const rows=isHidden?[]:study.plots.filter(plot=>plot.dataWindow).map(plot=>({key:plot.id,label:plot.label,value:indicatorPlotTextAt(plot.values,index,study,series.tickSize),color:plot.color}));
   sections.push({key,kind:'study',id:study.id,title:indicatorAcronyms[study.kind]??study.kind,tooltip:indicatorNames[study.kind]??study.kind,visible:study.visible,hidden:isHidden,rows});
  }
  // Script indicators and strategies: one row per plot shown in the data window, as built-in indicators.

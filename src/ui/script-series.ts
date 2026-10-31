@@ -38,8 +38,10 @@ function chartSpec(resolution:string|null){
  return spec;
 }
 
-/** Completed higher-timeframe bars of the script's own bars. The same interval as the chart reads the chart bars. */
-export function resolveScriptTimeframes(declarations:readonly ScriptTimeframeDeclaration[],bars:readonly Bar[],resolution:string|null,calendar:'us-equity'|'utc'|null):ResolvedScriptSeries{
+/** Completed higher-timeframe bars of the script's own bars. The same interval as the chart reads the chart bars.
+ *  completeRows: chart bars known to be closed (a live or replay forming last bar is not); absent = all of them. A
+ *  higher-timeframe bar whose last chart bar is still forming stays developing and is not visible. */
+export function resolveScriptTimeframes(declarations:readonly ScriptTimeframeDeclaration[],bars:readonly Bar[],resolution:string|null,calendar:'us-equity'|'utc'|null,completeRows?:number):ResolvedScriptSeries{
  const feeds:Record<string,ScriptSeriesFeed>=Object.create(null),labels:string[]=[];
  const chart=chartSpec(resolution);
  for(const declaration of declarations){
@@ -49,7 +51,7 @@ export function resolveScriptTimeframes(declarations:readonly ScriptTimeframeDec
    feeds[declaration.id]=trimmed(bars.map(bar=>row(bar,chartBarEnd(bar.time,chart))),bars.map((_,index)=>index+1),what);
    labels.push(declaration.id+' = chart bars ('+target+')');continue;
   }
-  const planned=planHigherTimeframe(bars,chart.id,target,{calendar});
+  const planned=planHigherTimeframe(bars,chart.id,target,{calendar,...(completeRows!==undefined?{completeRows}:{})});
   if(!planned.ok)throw new Error(what+': '+planned.message);
   const plan=planned.plan,rows=plan.bars.map((bar,index)=>row(bar,plan.buckets[index].end)),visible:number[]=new Array(bars.length);
   // confirmedAt is non-decreasing; a null (developing) bucket is never counted.

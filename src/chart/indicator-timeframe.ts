@@ -47,15 +47,17 @@ const unavailable=(kind:string,message:string,policies:string[]=[]):IndicatorRes
  * chart-type transform); toCalculation applies that transform to the higher-timeframe bars. chartLength is the number
  * of chart calculation bars the aligned values must cover. Interval equal to the chart evaluates the chart bars.
  * calendar (L4): the chart's session calendar; 'us-equity' builds the timeframe on New York trading sessions.
+ * completeRows: chart rows known to be closed (a live or replay forming last bar is not); absent = every row is closed.
+ * A bucket whose last row is still forming stays developing, so Wait for timeframe closes shows no value for it yet.
  */
-export function evaluateIndicatorOnTimeframe(settings:{kind:string;inputs:Record<string,unknown>;presentation?:{timeframe?:IndicatorTimeframe}},chartResolution:string|null,raw:readonly Bar[]|null,chartBars:readonly Bar[],toCalculation:(bars:readonly Bar[])=>Bar[],evaluate:(bars:readonly Bar[])=>IndicatorResult,qualified?:HigherTimeframePlan,calendar?:'us-equity'|'utc'|null):IndicatorResult{
+export function evaluateIndicatorOnTimeframe(settings:{kind:string;inputs:Record<string,unknown>;presentation?:{timeframe?:IndicatorTimeframe}},chartResolution:string|null,raw:readonly Bar[]|null,chartBars:readonly Bar[],toCalculation:(bars:readonly Bar[])=>Bar[],evaluate:(bars:readonly Bar[])=>IndicatorResult,qualified?:HigherTimeframePlan,calendar?:'us-equity'|'utc'|null,completeRows?:number):IndicatorResult{
  const timeframe=indicatorTimeframeOf(settings.presentation);
  if(timeframe.interval===null)return evaluate(chartBars);
  if(parseIndicatorSource(settings.inputs.source))return unavailable(settings.kind,'An indicator that uses another indicator as its source calculates on the chart timeframe only. Choose the Chart timeframe or a price source.');
  if(!raw)return unavailable(settings.kind,'The chart source bars for timeframe '+timeframe.interval+' were not supplied.');
  let chartId:string|null=null;try{chartId=chartResolution===null?null:parseInterval(chartResolution).id;}catch{chartId=null;}
  if(chartId===timeframe.interval){const result=evaluate(chartBars);result.policies.push('The indicator timeframe equals the chart interval; values use the chart bars.');return result;}
- const planned=qualified?{ok:true as const,plan:qualified}:planHigherTimeframe(raw,chartResolution,timeframe.interval,{calendar});
+ const planned=qualified?{ok:true as const,plan:qualified}:planHigherTimeframe(raw,chartResolution,timeframe.interval,{calendar,...(completeRows!==undefined?{completeRows}:{})});
  if(!planned.ok)return unavailable(settings.kind,planned.message);
  const plan=planned.plan;
  if(raw.length!==chartBars.length)return unavailable(settings.kind,'This chart type changes the number of calculation bars, so values on timeframe '+plan.target+' cannot be aligned to it.');

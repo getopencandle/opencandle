@@ -1,19 +1,18 @@
 import {describe,expect,it} from 'vitest';
 import type {Bar} from '../../src/domain/types';
-import {indicatorLegendValues} from '../../src/chart/legend-pane-model';
-import {buildDataWindow,formatIndicatorValue,type DataWindowIndicatorInput} from '../../src/ui/data-window-model';
+import {indicatorLegendTexts} from '../../src/chart/legend-pane-model';
+import {buildDataWindow,indicatorPlotTextAt,type DataWindowIndicatorInput} from '../../src/ui/data-window-model';
 
-// 0.8.1: the main legend (App.tsx legendRow) reads the value drawn at a bar exactly as the data window does: values[bar -
-// offset], formatted by formatIndicatorValue with the instance precision and symbol tick size. SYNTHETIC values.
+// 0.8.1: the main legend (App.tsx legendRow) and the data window read a plot through one function, indicatorPlotTextAt:
+// values[bar - offset], formatted with the instance precision and symbol tick size. SYNTHETIC values.
 const T0=1767225600;
 const bars:Bar[]=Array.from({length:10},(_,i)=>({time:T0+i*86400,open:1.1,high:1.2,low:1.0,close:1.1+i/1000,volume:1000}));
 const series={symbol:'SYN',exchange:'LV',interval:'1D',description:'Synthetic',tickSize:0.00001};
-/** The App.tsx legend read: displayed index (null = last bar) shifted by the offset, then the data window formatter. */
+/** The App.tsx legend read, as wired there. */
 function legendText(values:readonly (number|null)[],row:{id:string;kind:string;offset?:number;presentation?:{precision?:DataWindowIndicatorInput['precision']}},at:number|null,tickSize:number):string[]{
  const port={values:()=>({series:[{id:'plot',values:values as unknown as ArrayLike<number>}]})};
- const offset=Number.isSafeInteger(row.offset)?row.offset as number:0,precision=row.presentation?.precision??'auto';
- const index=offset===0?at:(at??Math.max(0,...port.values().series.map(s=>s.values.length))-1)-offset;
- return indicatorLegendValues(port,row,index,()=>({color:'#000'}),value=>formatIndicatorValue(value,row.kind as never,precision,tickSize)).map(part=>part.text);
+ const reading={kind:row.kind as never,offset:row.offset,precision:row.presentation?.precision??'auto'};
+ return indicatorLegendTexts(port,row,at,()=>({color:'#000'}),(plotValues,bar)=>indicatorPlotTextAt(plotValues,bar,reading,tickSize)).map(part=>part.text);
 }
 function windowText(values:readonly (number|null)[],study:Omit<DataWindowIndicatorInput,'plots'>,at:number|null,tickSize=series.tickSize):string{
  const view=buildDataWindow({series:{...series,tickSize},bars,index:at,timezone:'UTC',indicators:[{...study,plots:[{id:'plot',label:'Plot',color:'#000',dataWindow:true,values}]}]});
@@ -35,5 +34,10 @@ describe('legend values match the data window (SYNTHETIC)',()=>{
   const row={id:'vol-1',kind:'volume'};
   expect(legendText(volume,row,5,0.01)).toEqual([windowText(volume,{id:'vol-1',kind:'volume',visible:true,offset:0,precision:'auto'},5,0.01)]);
   expect(legendText(volume,row,5,0.01)[0]).not.toBe('1234572.00');
+ });
+ it('the shared reader shifts by the offset and shows the empty glyph outside the series',()=>{
+  const reading={kind:'sma' as never,offset:3,precision:5 as const};
+  expect(indicatorPlotTextAt(sma,2,reading,series.tickSize)).toBe('∅');
+  expect(indicatorPlotTextAt(sma,null,reading,series.tickSize)).toBe(indicatorPlotTextAt(sma,9,reading,series.tickSize));
  });
 });

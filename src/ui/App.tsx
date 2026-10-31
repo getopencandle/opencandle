@@ -3,7 +3,8 @@ import {CellScriptSettings,chartSurfaceProps} from './CellStudyLegend';
 import {ScriptTablesPanel} from './ScriptTablesPanel';
 import {createCellStudyIntentQueue,assertCellStudyIntent,builtinStudyFingerprint,scriptStudyFingerprint,type CellStudyIntent} from './cell-study-intents';
 import {confirmAnalysisPublication} from './analysis-capture-confirmation';
-import {chartHeaderChange,formatIndicatorValue} from './data-window-model';
+import {chartHeaderChange,indicatorPlotTextAt} from './data-window-model';
+import {replayClippedResolver,replayHistoryClock} from '../chart/indicator-history-lookup';
 import {createHeldKeyGate,heldKeyCommand,type HeldKeyCommand} from './held-key-gate';
 import {HELD_KEY_STALE} from './held-key-gate';
 import {DRAWING_EDIT_WRITE_WAIT,DRAWING_EDIT_STALE,DRAWING_SETTINGS_CLOSED,DRAWING_FAVORITES_STALE,missingDrawingTargets,type DrawingEditTargets} from './drawing-edit-queue';
@@ -26,7 +27,7 @@ import type {ContextPriceRequest,ContextPriceOutcome} from './context-price-requ
 import type {IndicatorInstanceSettings,IndicatorInstanceView} from '../chart/indicator-port';
 import {defaultPlotStyle} from '../chart/indicator-port';
 import type {IndicatorId} from '../domain/indicators';
-import {groupLegendByPane,indicatorLegendValues} from '../chart/legend-pane-model';
+import {groupLegendByPane,indicatorLegendTexts} from '../chart/legend-pane-model';
 import {IndicatorTemplatesMenu} from './IndicatorTemplatesMenu';
 import {displayExchange,fixtureDataset,fixtureQuote,isDemoPlaceholder,isHiddenDemoSourceId} from '../domain/fixtures';
 import {exactGridDataset} from '../chart/grid-analysis-coordinator';
@@ -2569,11 +2570,9 @@ export function App(){
   // NumericSeries holds nulls for warm-up bars; legendValueParts reads them as empty (Number.isFinite), so the port is re-typed here.
   const legendPort=chart?{values:(id:string)=>({series:(chart.indicators.peekValues?.(id)??chart.indicators.values(id)).series.map(series=>({id:series.id,values:series.values as unknown as ArrayLike<number>}))})}:null;
   // Live plot values at the inspected bar (null reads the last bar); displayed.index indexes the calculation bars.
-  // Read exactly as the data window does (buildDataWindow): the value drawn at a bar is values[bar - offset], and the text
-  // is formatIndicatorValue with the instance precision and the symbol tick size.
-  const values=legendPort&&statusLine.indicators.values?hoverSlot(()=>hoverReadout().validInspection?.displayed.index??null,()=>{const {validInspection}=hoverReadout(),at=validInspection?.displayed.index??null,offset=Number.isSafeInteger(row.offset)?row.offset as number:0,precision=row.presentation?.precision??'auto',tickSize=dataset.instrument.tickSize;
-   const index=offset===0?at:(at??Math.max(0,...(()=>{try{return legendPort.values(row.id).series.map(series=>series.values.length);}catch{return [0];}})())-1)-offset;
-   return legendValuesView(indicatorLegendValues(legendPort,row,index,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),value=>formatIndicatorValue(value,row.kind,precision,tickSize)));}):null;
+  // The shared reader (indicatorPlotTextAt) is the data window's: values[bar - offset] with the instance precision and tick size.
+  const values=legendPort&&statusLine.indicators.values?hoverSlot(()=>hoverReadout().validInspection?.displayed.index??null,()=>{const {validInspection}=hoverReadout(),reading={kind:row.kind,offset:row.offset,precision:row.presentation?.precision??'auto'},tickSize=dataset.instrument.tickSize;
+   return legendValuesView(indicatorLegendTexts(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),(plotValues,bar)=>indicatorPlotTextAt(plotValues,bar,reading,tickSize)));}):null;
   const orderRows=menuOpen?indicatorViews.map(item=>({id:item.id,paneId:item.paneId})):[];
   const placement=menuOpen?scaleOf(row):null,moveTo:LegendSubmenuItem[]=menuOpen?indicatorMoveChoices(chart??{},row.rendererId,indicatorViews).map(choice=>({id:choice.id,label:choice.label,...(choice.disabled?{disabled:true,title:choice.disabled}:{})})):[];
   return <div key={row.id} className="lv-legend-row" data-legend-row={row.id} data-hidden={row.visible?undefined:'true'} style={{background:statusBackground??'transparent'}} {...legendRowMenuProps(()=>setLegendMenu({id:row.id,open:null}))}>
@@ -2786,7 +2785,10 @@ export function App(){
  const layoutTabs=useLayoutTabs({reserve:!secondaryWindow,/* The active tab reads the active chart's ticker and daily change. */quote:loaded?layoutTabQuote(dataset,watchQuotes,workspace.watchBook):null,loaded:loaded&&!secondaryWindow,library:workspace.layoutLibrary,grid:workspace.grid,run:action=>layoutAction(action,'menu'),onError:reportFailure,keyboard:loaded&&!dialog,elsewhere:layoutWindowIds,openWindow:typeof window!=='undefined'&&typeof window.lv?.openLayoutWindow==='function'?openLayoutInWindow:null,wick:wickMode.available?wickMode:null,tabQuotes:loaded&&!secondaryWindow?{datasets:watchQuotes,workspace}:null,onOpenTabs:setLayoutTabIds});
  // Declared after every other hook (App tests rely on hook order): ctx.request in chart scripts and script
  // alerts reads only these loaded datasets, under the interval menu's aggregation policy. Nothing is fetched for it.
- useEffect(()=>installScriptRequestResolver(createDatasetRequestResolver({datasets:intervalUniverse,policy:workspace.intervals.policy})),[intervalUniverse,dataset,workspace.intervals.policy]);
+ // During Bar Replay chart-owned intrabar history stops at the replay clock, so the forming bar's Volume delta, Up/Down volume
+ // and CVD read the revealed steps only (the same rows that build the forming bar).
+ const replayHistoryClockOf=useMemo(()=>replayHistoryClock(replaySession),[replaySession?.phase,replaySession?.clock,replaySession?.participants]);
+ useEffect(()=>installScriptRequestResolver(replayClippedResolver(createDatasetRequestResolver({datasets:intervalUniverse,policy:workspace.intervals.policy}),replayHistoryClockOf)),[intervalUniverse,dataset,workspace.intervals.policy,replayHistoryClockOf]);
  // Declared after every other hook (App tests rely on hook order): an order ticket opened here for a layout
  // window's instrument (the Shift+B / Shift+S relay) follows that instrument's live quote in this window. Its 1m series is opened
  // through the same provider as the paper background feed and folded into the paper account, and its live bid and ask show in the

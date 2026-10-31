@@ -3,6 +3,7 @@ import type {FinerBarsLookup} from '../domain/volume-profile';
 import type {Bar} from '../domain/types';
 import {parseInterval} from '../domain/intervals';
 import {chartBarEnd} from '../domain/indicator-resample';
+import type {ReplaySession} from '../domain/replay-session';
 import {currentScriptRequestResolver,type ScriptDatasetResolverExtras,type ScriptRequestResolver,type ScriptRequestSeries} from '../ui/script-requests';
 
 /** A chart-owned request for actual same-symbol history, including equal-interval volume and coarser daily history. */
@@ -22,6 +23,8 @@ export function indicatorHistoryLookup(datasetId:string|undefined,resolution:str
  };
 }
 
+/** The replay clock function of each installed clipped resolver (closedChartRows reads the installed one). */
+const replayClocks=new WeakMap<object,(datasetId:string)=>number|null>();
 /** Chart-owned history requests that a replaying chart must not read past its clock. */
 const REPLAY_CLIPPED_REQUESTS=new Set(['indicator-history','volume-profile']);
 const clipped=new WeakMap<readonly Bar[],{clock:number;bars:readonly Bar[]}>();
@@ -50,8 +53,28 @@ export function replayClippedResolver(resolver:ScriptRequestResolver&ScriptDatas
   const bars=historyRowsClosedBy(series,clock);if(bars===series.bars)return series;
   return {...series,bars,...(series.ends?{ends:series.ends.slice(0,bars.length)}:{})};
  };
- const out:ScriptRequestResolver&ScriptDatasetResolverExtras=wrap(resolver);
+ const out:ScriptRequestResolver&ScriptDatasetResolverExtras=wrap(resolver);replayClocks.set(out,clockOf);
  if(resolver.loadedOnly)out.loadedOnly=resolver.loadedOnly===resolver?out:wrap(resolver.loadedOnly);
  if(resolver.calendarFor)out.calendarFor=resolver.calendarFor;
  return out;
+}
+/** The replay clock for a chart dataset: the session clock while the replay is active and that dataset is one of its
+ *  participants (every chart shares the one event clock), else null. */
+export function replayHistoryClock(session:Pick<ReplaySession,'phase'|'clock'|'participants'>|null|undefined):(datasetId:string)=>number|null{
+ if(!session||session.phase!=='active'||session.clock===null||!Number.isFinite(session.clock))return()=>null;
+ const clock=session.clock,ids=new Set(session.participants.map(row=>row.datasetId));
+ return datasetId=>ids.has(datasetId)?clock:null;
+}
+/**
+ * How many leading chart rows are closed: all of them, or all but the last when the last bar is still forming. The
+ * watermark is the replay clock of the chart (from the installed replayClippedResolver) while it replays, else the wall
+ * clock (a live bar whose period has not ended). Only the last row is ever treated as forming, so historical data and
+ * fixtures are unaffected. Undefined when the interval is not a time interval (nothing to judge).
+ */
+export function closedChartRows(bars:readonly Bar[],resolution:string|null|undefined,datasetId?:string,now:number=Date.now()/1000):number|undefined{
+ if(!bars.length||typeof resolution!=='string')return undefined;
+ let spec;try{spec=parseInterval(resolution);}catch{return undefined;}if(spec.kind!=='time')return undefined;
+ const resolver=currentScriptRequestResolver(),replay=datasetId&&resolver?replayClocks.get(resolver)?.(datasetId)??null:null;
+ const clock=replay??now,last=bars[bars.length-1];
+ return Number.isFinite(last.time)&&chartBarEnd(last.time,spec)>clock?bars.length-1:bars.length;
 }

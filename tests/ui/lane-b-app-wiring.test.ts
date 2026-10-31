@@ -8,11 +8,12 @@ const app=readFileSync('src/ui/App.tsx','utf8');
 
 describe('LANE-B App wiring',()=>{
  it('section 1: legend rows show live values and stack per pane',()=>{
-  expect(app).toContain("import {groupLegendByPane,indicatorLegendValues} from '../chart/legend-pane-model';");
+  // 0.8.1: the legend reads through the data window's shared reader (offset and format), indicatorLegendTexts + indicatorPlotTextAt.
+  expect(app).toContain("import {groupLegendByPane,indicatorLegendTexts} from '../chart/legend-pane-model';");
   expect(app).toMatch(/legendValuesView,legendPaneView/);
   // The legend reads the port's shared frozen snapshot (peekValues) instead of a deep copy per hover frame; values() is the fallback.
   expect(app).toContain('legendPort=chart?{values:(id:string)=>({series:(chart.indicators.peekValues?.(id)??chart.indicators.values(id)).series');
-  expect(app).toContain('legendValuesView(indicatorLegendValues(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0)))');
+  expect(app).toContain('legendValuesView(indicatorLegendTexts(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),(plotValues,bar)=>indicatorPlotTextAt(plotValues,bar,reading,tickSize)))');
   expect(app).toMatch(/className="lv-legend-title"[^\n]*?<\/button>\s*\{values\}/);
   expect(app).toContain('groupLegendByPane(indicatorViews).map(group=>');
   expect(app).not.toContain('indicatorViews.map(legendRow)');

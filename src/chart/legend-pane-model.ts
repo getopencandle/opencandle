@@ -25,6 +25,19 @@ export function legendValueParts(result:{series:readonly LegendValueSeries[]},pl
  }
  return out;
 }
+/** Legend parts read by `text(values, barIndex)` (barIndex null = the last bar), e.g. the data window's indicatorPlotTextAt,
+ * so the legend shows what the data window shows at the same bar (display offset and formatting included). */
+export function indicatorLegendTexts(port:{values(id:string):{series:readonly LegendValueSeries[]}},row:{id:string;kind:string;plots?:Readonly<Record<string,LegendPlotStyle|undefined>>},barIndex:number|null,styleOf:(kind:string,plot:string)=>LegendPlotStyle,text:(values:ArrayLike<number>,barIndex:number|null)=>string):LegendValuePart[]{
+ try{
+  const out:LegendValuePart[]=[];
+  for(const series of port.values(row.id).series){
+   const style=row.plots?.[series.id]??styleOf(row.kind,series.id);
+   if(!style||style.visible===false||style.legend===false)continue;
+   out.push({plot:series.id,text:text(series.values,barIndex),color:style.color});
+  }
+  return out;
+ }catch{return[];}
+}
 /** Values for one legend row, read from the indicator port. The row's own plot style wins; styleOf supplies the default for a plot
  * the row has not styled. An unmounted or removed instance reads as no values rather than an error in the legend. */
 export function indicatorLegendValues(port:{values(id:string):{series:readonly LegendValueSeries[]}},row:{id:string;kind:string;plots?:Readonly<Record<string,LegendPlotStyle|undefined>>},barIndex:number|null,styleOf:(kind:string,plot:string)=>LegendPlotStyle,format?:(value:number)=>string):LegendValuePart[]{

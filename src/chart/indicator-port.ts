@@ -40,7 +40,7 @@ import {readIndicatorOwnScale,indicatorNativeScaleSupported,indicatorScaleSides,
 import {registerIndicatorDisplayPort,type IndicatorDisplayPlot} from './indicator-display-source';
 import {evaluateIndicatorOnTimeframe,indicatorTimeframeOf} from './indicator-timeframe';
 import {profileFinerLookup,profileLowerTimeframe,subscribeProfileDatasets,assertCurrentProfilePrimarySource,profilePrimaryInputMatches} from './vp-visible-range-ltf';
-import {indicatorHistoryLookup} from './indicator-history-lookup';
+import {closedChartRows,indicatorHistoryLookup} from './indicator-history-lookup';
 import {subscribeScriptRequestResolver} from '../ui/script-requests';
 import {INDICATOR_KINDS as DOMAIN_INDICATORS,indicatorDefaults as defaults,indicatorLegacyDefaults,defaultIndicatorPresentation,assertIndicatorBatchBudget,indicatorInputSchema,validateIndicatorSettings,validateIndicatorSnapshots,validateIndicatorInputs,assertIndicatorRecord,indicatorEstimatedWork,mergeStoredIndicatorInputs,applyIndicatorInputEdit,assertIndicatorEditOffset,assertIndicatorNewInputs,INDICATOR_WORK_LIMIT,INDICATOR_MAX_OFFSET,INDICATOR_MAX_INSTANCES,type IndicatorPlotStyle,type IndicatorInstanceSettings,type IndicatorSnapshot} from './indicator-settings';
 export {DOMAIN_INDICATORS,indicatorInputSchema,type IndicatorPlotStyle,type IndicatorInstanceSettings,type IndicatorSnapshot} from './indicator-settings';
@@ -168,7 +168,8 @@ export function evaluateDomainIndicator(kind:IndicatorId,bars:readonly Bar[],inp
   if(unknown.length)return {id:kind,series:[],diagnostics:[`Unsupported indicator inputs: ${unknown.join(', ')}`],policies:['Unsupported controls never silently no-op.']};
   if(kind==='atr'&&inputs.smoothing==='VWMA')return {id:kind,series:[],diagnostics:['VWMA smoothing is not a documented ATR option.'],policies:['ATR exposes RMA, SMA, EMA and WMA only.']};
   try{const work=indicatorEstimatedWork(kind,bars.length,inputs);if(work>INDICATOR_WORK_LIMIT)return {id:kind,series:[],diagnostics:[`Indicator workload ${work} exceeds the local ${INDICATOR_WORK_LIMIT} operation limit. Reduce the history or window length.`],policies:['Work is bounded before synchronous calculation.']};}catch(error){return {id:kind,series:[],diagnostics:[error instanceof Error?error.message:String(error)],policies:[]};}
-  if(needsVolume(kind,inputs)){const available=requireVolume(bars,kind);if(!available.ok)return {id:kind,series:[],diagnostics:[available.diagnostic.message],policies:['Missing volume is unavailable; no zero substitution.']};}
+  // A bar with missing volume is a gap at that bar (calculateIndicator); only a series without any usable volume is refused here.
+  if(needsVolume(kind,inputs)&&!bars.some(bar=>Number.isFinite(bar.volume)&&bar.volume>=0)){const available=requireVolume(bars,kind);if(!available.ok)return {id:kind,series:[],diagnostics:[available.diagnostic.message],policies:['Missing volume is unavailable; no zero substitution.']};}
   return session?session.calculate(kind,bars,inputs,options):calculateIndicator(kind,bars,inputs,options);
 }
 const VIEWPORT_FAILURE='Visible range recalculation failed; the previous profile stays: ';
@@ -553,7 +554,8 @@ function buildIndicatorPort(chart:Vela,panes:PaneRegistry=createPaneRegistry(cha
   /** An instance with its own timeframe calculates on bars built from the chart's standard bars (raw) and is aligned back; never on the chart bars instead. */
   const evaluateSettings=(settings:IndicatorInstanceSettings,bars:readonly Bar[],stack:ReadonlySet<string>=new Set(),raw?:readonly Bar[]):IndicatorResult=>{
    const timeframe=indicatorTimeframeOf(settings.presentation).interval;
-   if(timeframe!==null){const context=presentationContext?.();return evaluateIndicatorOnTimeframe(settings,context?.resolution??null,raw??null,bars,calculationBars,htf=>evaluateChartSettings(settings,htf,stack,undefined,timeframe),undefined,context?.calendar??null);}
+   // A live or replay forming last bar is not closed: its bucket stays developing (Wait for timeframe closes).
+   if(timeframe!==null){const context=presentationContext?.();return evaluateIndicatorOnTimeframe(settings,context?.resolution??null,raw??null,bars,calculationBars,htf=>evaluateChartSettings(settings,htf,stack,undefined,timeframe),undefined,context?.calendar??null,raw?closedChartRows(raw,context?.resolution,context?.datasetId):undefined);}
    return evaluateChartSettings(settings,bars,stack,raw,presentationContext?.()?.resolution??null);
   };
   interface TimeframeJob {basis:PrimarySourceBasis;settings:IndicatorInstanceSettings;ctx:NativeIndicatorContext;generation:number;reservation:BuiltinSourceReservation|null;publication:BuiltinScenePublication|null;off:(()=>void)|null;live:boolean;pending:boolean;working:boolean;queued:boolean;readCurrent:(()=>void)|null;check:()=>void}
@@ -629,7 +631,7 @@ function buildIndicatorPort(chart:Vela,panes:PaneRegistry=createPaneRegistry(cha
   const sessions=new WeakMap<DomainRenderingIndicator,IncrementalIndicatorSession>();
   const sessionOf=(id:string):IncrementalIndicatorSession|undefined=>{const model=instances.get(id)?.model;if(!model||model.removed)return undefined;let session=sessions.get(model);if(!session){session=createIncrementalIndicatorSession({shared:true,sealed:true});sessions.set(model,session);}return session;};
   /** The declared interval of the bars being calculated (the instance timeframe on the INDTF path) and the chart's session calendar. */
-  const chartFacts=(resolution:string|null,kind?:IndicatorId,id?:string)=>{const context=presentationContext?.(),definition=kind?catalogDefinition(kind):undefined;return {resolution,calendar:context?.calendar??null,...(definition?.tradingSessions?{tickSize:context?.tickSize??null,exchangeZone:context?.exchangeZone??null,style:context?.style??null}:{}),...(kind==='vwap'?{corporateActions:vwapEventDatesFor(context?.instrument)}:{}),...(definition&&(definition.profile||definition.viewport||definition.finerBars||definition.dailyHistory)?profileFacts(context,resolution,id,definition.profile===true):{})};};
+  const chartFacts=(resolution:string|null,kind?:IndicatorId,id?:string)=>{const context=presentationContext?.(),definition=kind?catalogDefinition(kind):undefined;return {resolution,calendar:context?.calendar??null,...(definition?.tradingSessions?{tickSize:context?.tickSize??null,exchangeZone:context?.exchangeZone??null,style:context?.style??null}:{}),...(kind==='vwap'?{corporateActions:vwapEventDatesFor(context?.instrument),exchangeZone:context?.exchangeZone??null}:{}),...(definition&&(definition.profile||definition.viewport||definition.finerBars||definition.dailyHistory)?profileFacts(context,resolution,id,definition.profile===true):{})};};
   /** Profile instances whose last calculation is waiting for finer bars on demand. */
   const finerPending=new Set<string>();
   /** The pane's visible range (seconds), the instrument tick size and loaded finer bars, for the profile kinds only. */

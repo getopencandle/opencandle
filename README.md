@@ -66,7 +66,7 @@ You use your own accounts and keys, and each provider's terms apply to the data 
 
 ## Install
 
-Prebuilt Windows downloads will be listed on the [releases page](https://github.com/getopencandle/opencandle/releases) and at https://getopencandle.com. Extract the whole ZIP and run `OpenCandle.exe`. Builds are not code-signed yet, so Windows SmartScreen may ask you to confirm.
+Download the latest Windows build from the [releases page](https://github.com/getopencandle/opencandle/releases/latest) or https://getopencandle.com. Extract the whole ZIP and run `OpenCandle.exe`. Builds are not code-signed yet, so Windows SmartScreen may ask you to confirm.
 
 ## Build and run from source
 

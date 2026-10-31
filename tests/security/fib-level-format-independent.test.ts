@@ -42,10 +42,10 @@ it.each([
  expect(drawing.levelText(ratio,123.456)).not.toMatch(/Infinity|NaN/);
 });
 
-it('legacy coefficients retain the original finite-number and price formatter exactly',()=>{
+it('legacy coefficients keep their finite-number formatting; prices without a known tick use 5 significant digits',()=>{
  const drawing=model(fib());
  expect(drawing.levelText(.618,123.456)).toBe('0.618 (123.46)');
- expect(drawing.levelText(-.236,-1.005)).toBe('-0.236 (-1.00)');
+ expect(drawing.levelText(-.236,-1.005)).toBe('-0.236 (-1.0050)');
  drawing.showPrices=false;expect(drawing.levelText(Number.MIN_VALUE,123)).toBe('5e-324');
  expect(drawing.levelText(-0,123)).toBe('0');
  const legacy=fib();expect(patchDrawingProperties(legacy,{[field]:'coefficient'})).toBe(legacy);

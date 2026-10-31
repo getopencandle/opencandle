@@ -48,7 +48,7 @@ describe(' oscillators and bands match the OpenCandle built-in indicators', () =
   expectSeries(out.rsi,series('rsi',{length:14}).rsi,'rsi');
   const macd=series('macd');expectSeries(out.macd,macd.macd,'macd');expectSeries(out.signal,macd.signal,'signal');expectSeries(out.hist,macd.histogram,'histogram');
   const stoch=series('stoch',{length:14,smoothK:3,smoothD:3});expectSeries(out.k,stoch.k,'%K');expectSeries(out.d,stoch.d,'%D');
-  expectSeries(out.cci,series('cci',{length:20}).cci,'cci');expectSeries(out.mfi,series('mfi',{length:14}).mfi,'mfi');
+  expectSeries(out.cci,series('cci',{length:20,source:'close'}).cci,'cci');expectSeries(out.mfi,series('mfi',{length:14}).mfi,'mfi');
  });
  it('tr, atr, bb, kc, dmi and obv', async () => {
   const out=await plots(`ctx.plot('tr', ctx.ta.tr(true)); ctx.plot('trna', ctx.ta.tr()); ctx.plot('atr', ctx.ta.atr('a', 14)); const bb = ctx.ta.bb('b', b.close, 20, 2); ctx.plot('basis', bb.basis); ctx.plot('upper', bb.upper); ctx.plot('lower', bb.lower);`),out2=await plots(`const kc = ctx.ta.kc('k', b.close, 20, 1.5); ctx.plot('kcu', kc.upper); ctx.plot('kcl', kc.lower); const d = ctx.ta.dmi('d', 14, 14); ctx.plot('plus', d.plusDI); ctx.plot('minus', d.minusDI); ctx.plot('adx', d.adx); ctx.plot('obv', ctx.ta.obv('o'));`);Object.assign(out,out2);

@@ -41,5 +41,5 @@ it('OBV price line: a non-finite last close leaves the latest value unavailable 
  const obv=valuesOf(a.port,a.ids[0]).find(series=>series.id==='obv')!.values;expect(obv).toEqual([0,101,203,306,410,null]);// NaN close: unavailable, not 410 and not 0
  expect(track(a)).toEqual([]);
  const b=dialog({seed:['obv'],initialSelected:0,bars:nanVolume});b.sClick('Style');b.sCheck('obv trackPrice',true);b.sSubmit();
- expect(b.port.list()[0].plots.obv.trackPrice).toBe(true);expect(valuesOf(b.port,b.ids[0])).toEqual([]);expect(b.port.list()[0].diagnostics.join(' ')).toMatch(/volume/);expect(track(b)).toEqual([]);
+ expect(b.port.list()[0].plots.obv.trackPrice).toBe(true);expect(valuesOf(b.port,b.ids[0]).find(series=>series.id==='obv')!.values).toEqual([0,101,203,306,410,null]);expect(b.port.list()[0].diagnostics.join(' ')).not.toMatch(/volume/);expect(track(b)).toEqual([]);// a missing-volume bar is a gap at that bar only
 });

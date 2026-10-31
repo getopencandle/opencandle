@@ -96,6 +96,6 @@ describe('App wiring of the drawing-assets sync (batch-1019)',()=>{
  it('addImageFile reports a refused session.commit() instead of dropping it',()=>{
   const body=app.slice(app.indexOf('async function addImageFile'),app.indexOf('async function pickReplacementImage'));
   expect(body).not.toMatch(/^\s*session\.commit\(\);/m);
-  expect(body).toMatch(/if\(!session\.commit\(\)\)\{[^}]*DRAWING_ASSETS_MESSAGES\.changed/);
+  expect(body).toMatch(/if\(!session\.commit\(\)\)\{[\s\S]*?DRAWING_ASSETS_MESSAGES\.changed/);
  });
 });

@@ -33,7 +33,8 @@
     "test:watch": "vitest --no-fs-module-cache --no-cache",
     "start": "electron .",
     "package": "npm run build && node scripts/package.mjs",
-    "package:verify": "node scripts/security-package.mjs"
+    "package:verify": "node scripts/security-package.mjs",
+    "visual:gallery": "node scripts/visual-gallery.mjs"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "6.2.5",

@@ -66,18 +66,22 @@ describe('seasonals', () => {
 });
 
 describe('technical rating', () => {
-  it('scores a clean uptrend 1/6 (Buy) by hand: averages +1, oscillators -2/3', () => {
-    const r = technicalRating(series(Array.from({ length: 60 }, (_, i) => i + 1)));
-    // 0.8.1: the EMAs are SMA-seeded, so on an exactly linear series each EMA sits at its steady-state lag from its first
-    // value and the MACD line (7) equals its signal; rounding leaves it 1.8e-15 below, a sell vote (was +1 with the old
-    // first-value seed, whose MACD was still converging upward).
-    const macd = r.votes.find(v => v.name === 'MACD 12 26 9')!; expect(Math.abs(macd.value as number)).toBeLessThan(1e-12);
-    expect(r.groups.average).toBe(1); expect(r.groups.oscillator).toBeCloseTo(-2 / 3, 10);
-    expect(r.score).toBeCloseTo(1 / 6, 10); expect(r.label).toBe('Buy'); expect([r.buy, r.sell, r.neutral]).toEqual([9, 5, 0]);
-    expect(r.votes.find(v => v.name === 'RSI 14')!.value).toBe(100); expect(r.votes.find(v => v.name === 'SMA 50')!.value).toBeCloseTo(35.5, 10);
+  // An accelerating trend plus a small deterministic wobble (slope >= 1 > wobble 0.3, so every close still rises): the
+  // MACD line sits clearly above its signal (about +1.07), independent of rounding.
+  const up = Array.from({ length: 60 }, (_, i) => 10 + i + 0.02 * i * i + 0.3 * Math.sin(i)), down = up.map(v => 200 - v);
+  it('scores an accelerating uptrend 1/3 (Buy) by hand: averages +1, oscillators -1/3', () => {
+    const r = technicalRating(series(up)), vote = (name: string) => r.votes.find(v => v.name === name)!;
+    // Every close is above each SMA/EMA (+1 x 8). RSI 100, %K 100, CCI > 100 and %R 0 are overbought (-1 x 4); momentum and
+    // MACD (line above signal) are +1: oscillators (2 - 4) / 6 = -1/3; score (1 - 1/3) / 2 = 1/3.
+    expect(r.groups.average).toBe(1); expect(r.groups.oscillator).toBeCloseTo(-1 / 3, 10);
+    expect(r.score).toBeCloseTo(1 / 3, 10); expect(r.label).toBe('Buy'); expect([r.buy, r.sell, r.neutral]).toEqual([10, 4, 0]);
+    expect(vote('MACD 12 26 9').vote).toBe(1); expect(vote('MACD 12 26 9').value as number).toBeGreaterThan(0.5);
+    expect(vote('RSI 14').value).toBe(100); expect(vote('SMA 50').value).toBeCloseTo(up.slice(10).reduce((a, b) => a + b, 0) / 50, 10);
   });
   it('mirrors for a downtrend and refuses short history', () => {
-    expect(technicalRating(series(Array.from({ length: 60 }, (_, i) => 60 - i))).score).toBeCloseTo(-1 / 6, 10);// 0.8.1 SMA seed, see above
+    const r = technicalRating(series(down));
+    expect(r.score).toBeCloseTo(-1 / 3, 10); expect(r.label).toBe('Sell'); expect([r.buy, r.sell, r.neutral]).toEqual([4, 10, 0]);
+    expect(r.votes.find(v => v.name === 'MACD 12 26 9')!.vote).toBe(-1);
     const short = technicalRating(series([1, 2, 3])); expect(short.score).toBeNull(); expect(short.label).toBe('Unavailable');
   });
 });

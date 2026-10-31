@@ -32,9 +32,12 @@ export const readoutRetryDelay=(attempt:number)=>attempt<20?100:500;
 /** The heading stops short of the plot's right edge by the 6px inset plus the pane control strip (Maximize pane,
  * 20px plus its margin) so the OHLC line never runs under it. */
 const HEADING_RIGHT_RESERVE=40;
-/** Plot widths at or below which the heading values give way to the symbol title (O, H, L hidden; then the change too).
+/** Plot widths at or below which the heading drops values (O, H, L hidden; then the close). The change percent always stays.
  * About a 2- or 4-chart cell at 1440 px (data width near 450 px) and a 3-column or smaller cell. */
 export const HEADING_NARROW_WIDTH=700,HEADING_TINY_WIDTH=380;
+/** The heading room class for a plot width (cell-series-heading.css): narrow drops O, H and L, tiny the close too; the change
+ * and its percent always stay. */
+export const headingRoom=(dataWidth:number):'tiny'|'narrow'|'wide'=>dataWidth<=HEADING_TINY_WIDTH?'tiny':dataWidth<=HEADING_NARROW_WIDTH?'narrow':'wide';
 /** Own-element placement. No chart/workspace variables, canvas sizes or sibling ownership are written. */
 export function useSeriesHeadingPlacement(props:{chart:ChartController|null;heading:RefObject<HTMLElement|null>;menu?:RefObject<HTMLElement|null>;owner:object;isCurrent:()=>boolean;holdKey?:string}){
  const latest=useRef(props),scheduleRef=useRef<(()=>void)|null>(null);latest.current=props;
@@ -69,7 +72,7 @@ export function useSeriesHeadingPlacement(props:{chart:ChartController|null;head
    if(!layout?.heading||!facts||!parent||!current()){hide();return;}
    const origin=parent.getBoundingClientRect();if(!current()){hide();return;}
    const placed:[string,string][]=[['top',layout.heading.top-origin.top+'px'],['left',layout.heading.left-origin.left+'px'],['max-width',Math.max(0,facts.dataWidth-HEADING_RIGHT_RESERVE)+'px'],['visibility','visible']];for(const [name,value]of placed)write(element,name,value);
-   /* How much room the values row has (cell-series-heading.css drops O, H and L, then the change, so the symbol title keeps priority in a narrow chart cell). */const room=facts.dataWidth<=HEADING_TINY_WIDTH?'tiny':facts.dataWidth<=HEADING_NARROW_WIDTH?'narrow':'wide';if(typeof element.setAttribute==='function'&&element.getAttribute?.('data-lv-heading-room')!==room)element.setAttribute('data-lv-heading-room',room);
+   /* How much room the values row has (cell-series-heading.css drops O, H and L, then the close, and truncates the symbol title, so the change percent always shows in a narrow chart cell). */const room=headingRoom(facts.dataWidth);if(typeof element.setAttribute==='function'&&element.getAttribute?.('data-lv-heading-room')!==room)element.setAttribute('data-lv-heading-room',room);
    const key=latest.current.holdKey,carry:HeadingCarry|null=key?{key,element:placed,menu:null,since:0}:null;if(carry)headingCarry.set(element,carry);
    const menu=menuTarget();if(!menu||!current())return;const actualHeading=element.getBoundingClientRect();if(!current())return;const menuParent=menu.parentElement;if(!menuParent){write(menu,'visibility','hidden',true);return;}const menuOrigin=menuParent.getBoundingClientRect();if(!current())return;
    if(!(actualHeading.width>0&&actualHeading.height>0)){write(menu,'visibility','hidden',true);return;}const menuPlaced:[string,string][]=[['left',actualHeading.left-menuOrigin.left+'px'],['top',actualHeading.bottom-menuOrigin.top+2+'px'],['visibility','visible']];for(const [name,value]of menuPlaced)write(menu,name,value);if(carry)carry.menu=menuPlaced;

@@ -193,18 +193,22 @@ export function AlpacaSourceSettings(props:AlpacaSourceSettingsProps){
   return()=>{active=false;off?.();};
  },[bridge]);
  const report=(next:AlpacaKeyStatus)=>{if(!mounted.current)return;setStatus(next);props.onAlpacaKeyStatus?.(next);};
- useEffect(()=>{mounted.current=true;if(bridge)void bridge.alpacaKeyStatus().then(result=>{if(result.ok)report(result.value);else if(mounted.current)setMessage(result.error.message);}).catch(()=>undefined);return()=>{mounted.current=false;};},[bridge]);
- async function run(action:()=>Promise<void>){if(busy)return;setBusy(true);setMessage('');try{await action();}catch(cause){if(mounted.current)setMessage(cause instanceof Error?cause.message:String(cause));}finally{if(mounted.current)setBusy(false);}}
+ useEffect(()=>{mounted.current=true;if(bridge)void bridge.alpacaKeyStatus().then(result=>{if(result.ok)report(result.value);else if(mounted.current)say(result.error.message,'error');}).catch(()=>undefined);return()=>{mounted.current=false;};},[bridge]);
+ const [messageKind,setMessageKind]=useState<'pending'|'ok'|'error'>('ok');
+ const say=(text:string,kind:'pending'|'ok'|'error'='ok')=>{setMessage(text);setMessageKind(kind);};
+ // Every action shows its outcome in the status line right under the buttons (a pending line while it runs), never only far
+ // below the symbol list: a Test connection answer printed at the bottom of the section read as "nothing happened".
+ async function run(action:()=>Promise<void>,pending=''){if(busy)return;setBusy(true);say(pending,'pending');try{await action();}catch(cause){if(mounted.current)say(cause instanceof Error?cause.message:String(cause),'error');}finally{if(mounted.current)setBusy(false);}}
  const save=()=>run(async()=>{
   if(!bridge)throw Error('Live stocks need the desktop app.');
   const input={keyId:keyId.trim(),secret:secret.trim()};
   setSecret('');
   const result=await bridge.saveAlpacaKey(input);
   if(!result.ok)throw Error(result.error.message);
-  setKeyId('');report(result.value);setMessage('Key saved. Use Test connection to check it with Alpaca.');
+  setKeyId('');report(result.value);say('Key saved. Use Test connection to check it with Alpaca.');
  });
- const clear=()=>run(async()=>{if(!bridge)return;const result=await bridge.clearAlpacaKey();if(!result.ok)throw Error(result.error.message);report(result.value);setMessage('Key removed from this computer.');});
- const test=()=>run(async()=>{if(!bridge)return;const result=await bridge.testAlpacaConnection();if(!result.ok)throw Error('Connection test failed: '+result.error.message);setMessage('Connected: Alpaca accepted the key (IEX feed).'+(plan==='paid'?' The connection test checks IEX only; the all-exchange live stream needs a paid plan.':'')+(usMarketSession(alpacaMarketNow())==='closed'?' The US market is closed now, so charts show the last session.':''));});
+ const clear=()=>run(async()=>{if(!bridge)return;const result=await bridge.clearAlpacaKey();if(!result.ok)throw Error(result.error.message);report(result.value);say('Key removed from this computer.');});
+ const test=()=>run(async()=>{if(!bridge)return;const result=await bridge.testAlpacaConnection();if(!result||!result.ok)throw Error('Connection test failed: '+(result?.error?.message||'the desktop app gave no answer.'));say('Connected: Alpaca accepted the key (IEX feed).'+(plan==='paid'?' The connection test checks IEX only; the all-exchange live stream needs a paid plan.':'')+(usMarketSession(alpacaMarketNow())==='closed'?' The US market is closed now, so charts show the last session.':''));},'Testing the connection with Alpaca...');
  const plan:AlpacaDataPlan=props.alpacaPlan==='paid'?'paid':'free';
  return <>
   <p role="status" aria-live="polite" className="lv-live-status">{describeKeyStatus(status)}</p>
@@ -221,11 +225,12 @@ export function AlpacaSourceSettings(props:AlpacaSourceSettingsProps){
    <button type="button" data-lv-destructive="true" disabled={busy||!bridge||!status?.configured} onClick={()=>void clear()}>Remove key</button>
    </div>
   </div>
+  {/* Action outcome (Save, Test connection, Remove), directly under the buttons that caused it. */}
+  <p role="status" aria-live="polite" className="lv-live-message" data-lv-action-result={message?messageKind:undefined} hidden={!message}>{message}</p>
   {props.onAlpacaPlanChange&&<div className="lv-live-grid"><label>{ALPACA_DATA_PLAN_SETTING.label} <select aria-label="Alpaca data plan" value={plan} onChange={event=>props.onAlpacaPlanChange?.(event.target.value==='paid'?'paid':'free')}>{ALPACA_DATA_PLAN_SETTING.options.map(row=><option key={row.value} value={row.value}>{row.label}</option>)}</select></label><span/><p className="lv-live-note">{ALPACA_DATA_PLAN_SETTING.options.find(row=>row.value===plan)?.note}</p></div>}
   <AlpacaSymbolPicker symbols={props.alpacaSymbols} onChange={props.onAlpacaSymbolsChange} keySaved={!!status?.configured} search={bridge?.searchAlpacaAssets?input=>bridge.searchAlpacaAssets!(input):undefined}/>
   {/* The full disclosure stays one click away. */}
   <details className="lv-live-about"><summary>How your key and data are used</summary><p className="lv-live-note">{ALPACA_SETTING.disclosure} {plan==='paid'?'Prices come from all exchanges.':'Past bars come from all exchanges (15 minutes behind); the newest 15 minutes and live prices come from the IEX exchange only, so their volume is lower than the full market.'}</p></details>
-  {message&&<p className="lv-live-message">{message}</p>}
  </>;
 }
 /** Both live sources in one section (the original layout; the Data sources page uses the two parts above). */

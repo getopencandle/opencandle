@@ -46,12 +46,37 @@ function quoteFromSources(primary:BarDataset,dailySource:BarDataset|null,diagnos
  const today=companionLast?[nyDate(companionLast.time),nyDate(last.time)].sort().at(-1)!:'';
  const dailyLast=liveDaily?(companionLast&&nyDate(companionLast.time)===today?companionLast:undefined):dailySource?.bars.at(-1);
  const prior=liveDaily?[...dailySource!.bars].reverse().find(bar=>nyDate(bar.time)<today):dailySource?.bars.at(-2),dailyBasis=!!dailySource;
- const finite=(value:number|null|undefined)=>typeof value==='number'&&Number.isFinite(value)?value:null,change=liveDaily?(prior?finite(last.close-prior.close):null):dailyLast&&prior?finite(dailyLast.close-prior.close):null;
- const changePercent=change!==null&&prior?.close?finite(change/prior.close*100):null,changePercentState:ChangePercentState=changePercent!==null?'value':change!==null&&prior?.close===0?'zero-base':'missing';
+ const finite=(value:number|null|undefined)=>typeof value==='number'&&Number.isFinite(value)?value:null;
+ // A live intraday chart whose daily companion is not loaded (not opened yet, or no watchlist row for it) still has a
+ // daily change: the previous day's close read from its own bars (liveIntradayPreviousClose). Without this a live SOL-USD
+ // tab showed no Chg% at all while its daily feed was not open.
+ const own=!dailySource?liveIntradayPreviousClose(primary):null,base=prior??(own!==null?{close:own}:undefined);
+ const change=liveDaily||own!==null?(base?finite(last.close-base.close):null):dailyLast&&prior?finite(dailyLast.close-prior.close):null;
+ const changePercent=change!==null&&base?.close?finite(change/base.close*100):null,changePercentState:ChangePercentState=changePercent!==null?'value':change!==null&&base?.close===0?'zero-base':'missing';
  const ext=extendedQuote(primary),rvol=relativeVolume(dailySource,dailyLast);
  const year=dailyYearRange(dailySource,dailyLast),stats={previousClose:dailyBasis?finite(prior?.close):null,open:dailyBasis?finite(dailyLast?.open):null,yearLow:year?.low??null,yearHigh:year?.high??null,averageVolume30:averageDailyVolume(dailySource,dailyLast,30)};
  const high=dailyBasis?finite(dailyLast?.high):null,low=dailyBasis?finite(dailyLast?.low):null,range=high!==null&&low!==null&&high>=low?{high,low,dayRange:finite(high-low)}:{high,low,dayRange:null};
- return{last:finite(last.close),change,changePercent,changePercentState,volume:finite(dailyLast?.volume),extended:ext.extended,extendedChange:ext.change,extendedChangePercent:ext.changePercent,extendedSession:ext.session,relativeVolume:rvol,...stats,...range,asOf:last.time,dataset:primary,dailyDataset:dailySource,description:primary.instrument.name,dailyBasis,reason:(primary.provenance.fixture?(demoDataMode()==='legacy'?'SYNTHETIC. ':demoDataMode()==='example'?'Example data. ':''):primary.provenance.providerId===ALPACA_STUB_PROVIDER_ID?'SYNTHETIC (keyless Alpaca stub, invented prices). ':'')+diagnostic+'Last is the selected '+primary.resolution+' close. '+(liveDaily?'Daily change compares Last with the previous live daily close; daily volume is the live daily bar of the day.':dailyBasis?'Daily change and volume use the daily bars; change compares the previous daily close.':'Daily change and volume are unavailable without a compatible daily snapshot.')+' '+ext.reason+' '+(rvol===null?'Relative volume needs the daily bar of the day and ten earlier daily bars with volume.':'Relative volume is the daily bar volume over the mean of the ten earlier daily bars (the day may still be in progress).')+' Historical values do not establish current market prices or final-value availability.'};
+ return{last:finite(last.close),change,changePercent,changePercentState,volume:finite(dailyLast?.volume),extended:ext.extended,extendedChange:ext.change,extendedChangePercent:ext.changePercent,extendedSession:ext.session,relativeVolume:rvol,...stats,...range,asOf:last.time,dataset:primary,dailyDataset:dailySource,description:primary.instrument.name,dailyBasis,reason:(primary.provenance.fixture?(demoDataMode()==='legacy'?'SYNTHETIC. ':demoDataMode()==='example'?'Example data. ':''):primary.provenance.providerId===ALPACA_STUB_PROVIDER_ID?'SYNTHETIC (keyless Alpaca stub, invented prices). ':'')+diagnostic+'Last is the selected '+primary.resolution+' close. '+(liveDaily?'Daily change compares Last with the previous live daily close; daily volume is the live daily bar of the day.':own!==null?(primary.instrument.assetClass==='crypto'?'Daily change compares Last with the close at 00:00 UTC (the open of the UTC day), read from the bars of this chart.':'Daily change compares Last with the previous regular-session close, read from the bars of this chart.'):dailyBasis?'Daily change and volume use the daily bars; change compares the previous daily close.':'Daily change and volume are unavailable without a compatible daily snapshot.')+' '+ext.reason+' '+(rvol===null?'Relative volume needs the daily bar of the day and ten earlier daily bars with volume.':'Relative volume is the daily bar volume over the mean of the ten earlier daily bars (the day may still be in progress).')+' Historical values do not establish current market prices or final-value availability.'};
+}
+/**
+ * The previous day's close of a live intraday feed, from its own bars, for a quote with no daily source loaded.
+ * Crypto trades around the clock: its day is the UTC day, the convention of the app's crypto daily bars (Coinbase daily
+ * candles open at 00:00 UTC), so the reference is the close of the last bar before 00:00 UTC of Last's day, which is the
+ * UTC daily open and the close of the previous daily candle. US stocks use the close of the last regular-session bar on an
+ * earlier New York date (the previous session close; pre- and post-market bars never count). Null for daily and longer
+ * sources, non-live sources, or when the loaded bars do not reach back past the day boundary.
+ */
+export function liveIntradayPreviousClose(primary:BarDataset):number|null{
+ if(!/^live:/.test(primary.provenance.datasetId??''))return null;
+ let seconds:number|null|undefined;try{seconds=parseInterval(primary.resolution).seconds;}catch{seconds=undefined;}
+ if(!seconds||seconds>=86400)return null;
+ const bars=primary.bars,last=bars.at(-1);if(!last)return null;
+ const crypto=primary.instrument.assetClass==='crypto',dayOf=crypto?(time:number)=>new Date(time*1000).toISOString().slice(0,10):(time:number)=>newYorkClock(time).date,today=dayOf(last.time);
+ for(let index=bars.length-2;index>=0&&index>=bars.length-200001;index--){
+  const bar=bars[index];if(!Number.isFinite(bar.close)||dayOf(bar.time)>=today)continue;
+  if(crypto||usSessionPhase(bar.time)==='regular')return bar.close;
+ }
+ return null;
 }
 /**
  * Extended columns require an extended feed and label the session: an intraday New York source whose

@@ -76,6 +76,7 @@ const DATA_SOURCES_CSS=[
  '.lv-datasources .lv-need-head button{min-height:22px;padding:0 10px;font-size:12px}',
  '.lv-datasources .lv-saved-path{display:flex;gap:8px;align-items:center;margin:4px 0}.lv-datasources .lv-saved-path textarea{flex:1;min-width:0;box-sizing:border-box;resize:none;overflow:hidden;font:inherit;line-height:1.4;overflow-wrap:anywhere;word-break:break-all;padding:4px 8px;background:var(--lv-bg-input);color:var(--lv-text-primary);border:1px solid var(--lv-input-border);border-radius:var(--lv-radius-plate)}.lv-datasources .lv-saved-path{align-items:flex-start}',
  '.lv-datasources .lv-saved-warning{color:var(--lv-negative-text)}',
+ '.lv-datasources .lv-live-message{margin:4px 0;font-size:12px;line-height:1.45;color:var(--lv-text-primary)}.lv-datasources .lv-live-message[data-lv-action-result=ok]{color:var(--lv-positive-text)}.lv-datasources .lv-live-message[data-lv-action-result=error]{color:var(--lv-negative-text)}.lv-datasources .lv-live-message[data-lv-action-result=pending]{color:var(--lv-text-secondary)}',
 ].join('');
 const SECTION_IDS:Readonly<Record<NonNullable<DataNeed['section']>,string>>={alpaca:'lv-ds-alpaca',coinbase:'lv-ds-coinbase',fred:'lv-ds-fred','own-files':'lv-ds-own-files'};
 function goTo(section:NonNullable<DataNeed['section']>){try{document.getElementById(SECTION_IDS[section])?.scrollIntoView({block:'start',behavior:'smooth'});}catch{/* preview without a document */}}

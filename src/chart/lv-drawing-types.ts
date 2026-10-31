@@ -19,6 +19,8 @@ import {paintHookStatus} from './lv-paint-hook';
 import {LV_DRAWING_TOOL_MODULES,type LvDrawingToolModule} from './lv-types';
 import {LV_SHORT_POSITION} from './lv-types/short-position';
 import {LV_DATE_RANGE,LV_PRICE_RANGE} from './lv-types/measure-ranges';
+import {DRAWING_FIXES_081_MODULE} from './drawing-fixes/native-fixes';
+import {ELLIOTT_ORIGIN_081_MODULE} from './drawing-fixes/elliott-origin';
 
 export {LV_SHORT_POSITION,LV_PRICE_RANGE,LV_DATE_RANGE};
 export const LV_DRAWING_TYPE_IDS:readonly string[]=Object.freeze(LV_DRAWING_TOOL_MODULES.flatMap(module=>(module.types??[]).map(definition=>definition.type)));
@@ -55,7 +57,16 @@ export function registerLvDrawingToolModules(modules:readonly LvDrawingToolModul
  return Object.freeze(added);
 }
 installArrowMarkHitArea();
+// 0.8.1 drawing fixes (src/chart/drawing-fixes): the geometry fixes replace their native registrations first, so the tool modules
+// built on those bases inherit them; the Elliott origin replaces the native waves after the wave and pattern modules pinned them.
+// Their statuses are kept apart from the tool module statuses (drawingFixStatus).
+const fixStatuses:LvDrawingTypeStatus[]=[];
+const registerFixes=(module:LvDrawingToolModule)=>{const before=statuses.length;fixStatuses.push(...registerLvDrawingToolModules([module]));statuses.splice(before);};
+registerFixes(DRAWING_FIXES_081_MODULE);
 registerLvDrawingToolModules(LV_DRAWING_TOOL_MODULES);
+registerFixes(ELLIOTT_ORIGIN_081_MODULE);
+/** Registration outcome of each 0.8.1 drawing fix (replaced native types), for diagnostics and tests. */
+export function drawingFixStatus():readonly LvDrawingTypeStatus[]{return Object.freeze([...fixStatuses]);}
 
 /** Registration outcome per OpenCandle type, for diagnostics and tests. */
 export function lvDrawingTypeStatus():readonly LvDrawingTypeStatus[]{return Object.freeze([...statuses]);}

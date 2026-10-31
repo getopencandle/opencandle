@@ -4,6 +4,8 @@ import {FIB_TREND_LINE_FIELD,FIB_TREND_LINE_PREFIX,FIB_TREND_LINE_DIAGNOSTIC,rea
 import {acquireFibTrendLineHit} from './fib-trend-line-runtime';
 import {FIB_BACKGROUND_FIELD,FIB_TEXT_FIELD,FIB_BACKGROUND_DEFAULTS,FIB_TEXT_DEFAULTS,readFibBackground,readFibText,cloneFibPresentationMember,patchFibLevelPresentationProps,assertFibLevelPresentationPatchValues} from './fib-level-presentation-data';
 import {validateFibLevelLabelChange} from './fib-level-text-policy';
+import {fibLevelText} from './drawing-fixes/native-fixes';
+import {formatDrawingPrice} from './drawing-fixes/price-format';
 import {FIB_RETRACEMENT_FACTORY_LEVELS,FIB_RETRACEMENT_FACTORY_PRESENTATION,cloneFibFactoryLevels} from './fib-factory-defaults';
 
 type Init=Partial<SerializedDrawing>&{paneId:string};
@@ -97,6 +99,8 @@ function preflightLevelSettings(model:object,patch:Record<string,unknown>){
  }
  return{unchanged,values};
 }
+/** True while a retained record (it carries its type) is being constructed; read by readProps for the legacy `reverse` meaning. */
+let constructingRetained=false;
 class LVFibRetracement extends Base {
  // The base constructor invokes readProps before this constructor resumes.
  declare lvFibLevelFormat:unknown;
@@ -104,7 +108,7 @@ class LVFibRetracement extends Base {
  declare lvFibBackground:unknown;
  declare lvFibText:unknown;
  constructor(init:Init){
-  assertFibLevelFormatRegistration();super(init);if(!Object.hasOwn(this,FIB_LEVEL_FORMAT_FIELD))this.lvFibLevelFormat='coefficient';if(!Object.hasOwn(this,FIB_TREND_LINE_FIELD))this.lvFibTrendLine={...trendLineDefaults};if(!Object.hasOwn(this,FIB_BACKGROUND_FIELD))this.lvFibBackground={...FIB_BACKGROUND_DEFAULTS};if(!Object.hasOwn(this,FIB_TEXT_FIELD))this.lvFibText={...FIB_TEXT_DEFAULTS};
+  assertFibLevelFormatRegistration();constructingRetained=(init as {type?:unknown}).type!==undefined;try{super(init);}finally{constructingRetained=false;}if(!Object.hasOwn(this,FIB_LEVEL_FORMAT_FIELD))this.lvFibLevelFormat='coefficient';if(!Object.hasOwn(this,FIB_TREND_LINE_FIELD))this.lvFibTrendLine={...trendLineDefaults};if(!Object.hasOwn(this,FIB_BACKGROUND_FIELD))this.lvFibBackground={...FIB_BACKGROUND_DEFAULTS};if(!Object.hasOwn(this,FIB_TEXT_FIELD))this.lvFibText={...FIB_TEXT_DEFAULTS};
   // Factory seed of a NEW drawing only. A retained
   // record (it carries its type) and any carried props keep their own values, so saved drawings never change.
   if((init as {type?:unknown}).type===undefined){
@@ -122,7 +126,13 @@ class LVFibRetracement extends Base {
   const baselineValue=baseline?cloneFibTrendLineMember(baseline.value):undefined;
   const presentations=[FIB_BACKGROUND_FIELD,FIB_TEXT_FIELD].map(key=>{const field=Object.getOwnPropertyDescriptor(props,key);if(field&&(!field.enumerable||!Object.hasOwn(field,'value')))throw Error('Fibonacci presentation requires retained data.');return{key,field,value:field?cloneFibPresentationMember(field.value):undefined};});
   if(member&&(!member.enumerable||!Object.hasOwn(member,'value')))throw Error('Fibonacci format requires retained plain data.');
+  // 0.8.1: the native readProps reads a missing `reverse` as true, so a partial props patch (a store edit, remembered tool
+  // defaults carried by a new drawing) silently swapped the 0 and 1 levels. A bag without a boolean `reverse` keeps the current
+  // direction (for a new drawing that is unset, and the native constructor then starts it unreversed). A RETAINED record keeps
+  // the native reading: a legacy saved bag without `reverse` always meant reversed, so saved drawings never change.
+  const keepDirection=typeof Object.getOwnPropertyDescriptor(props,'reverse')?.value!=='boolean'&&!(constructingRetained&&(this as {reverse?:unknown}).reverse===undefined),direction=(this as {reverse?:unknown}).reverse;
   super.readProps(props);
+  if(keepDirection)(this as {reverse?:unknown}).reverse=direction;
   if(baseline&&(!Object.hasOwn(this,FIB_TREND_LINE_FIELD)||readFibTrendLine({[FIB_TREND_LINE_FIELD]:primitiveData(this,FIB_TREND_LINE_FIELD)},trendLineDefaults).state!=='unavailable'))this.lvFibTrendLine=baselineValue;
   for(const {key,field,value} of presentations)if(field&&(!Object.hasOwn(this,key)||(key===FIB_BACKGROUND_FIELD?readFibBackground:readFibText)({[key]:primitiveData(this,key)}).state!=='unavailable'))Reflect.set(this,key,value);
   if(!member)return;
@@ -170,9 +180,10 @@ class LVFibRetracement extends Base {
  }
  levelText(ratio:number,price:number):string{
   assertFibLevelFormatRegistration();
-  if(!this.showRatios||this.lvFibLevelFormat==='coefficient')return super.levelText(ratio,price);
+  // 0.8.1: prices use the instrument's tick decimals (drawing-fixes/price-format.ts), not a fixed 2.
+  if(!this.showRatios||this.lvFibLevelFormat==='coefficient')return fibLevelText(this,ratio,price);
   const label=this.lvFibLevelFormat==='percent'?formatFibLevelRatio(ratio,'percent'):'';
-  const priceText=price.toFixed(2);
+  const priceText=formatDrawingPrice(price,this);
   return label?(this.showPrices?label+' ('+priceText+')':label):(this.showPrices?priceText:'');
  }
 }

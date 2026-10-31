@@ -25,6 +25,7 @@ import {cloneStyle,fail,lvKey,method,nativeBase,roles,type Init,type NativeModel
 import {supportedColor} from '../color-validation';
 import {TREND_BASED_FIB_TIME_FACTORY_LEVELS,cloneFibFactoryLevels} from '../fib-factory-defaults';
 import {defineLvDrawingToolModule} from './contract';
+import {barStepX} from '../drawing-fixes/geometry';
 
 export const FIB_TIME_TREND_TYPE='trendfibtime';
 export const FIB_TIME_TREND_TOOL_ID='LineToolTrendBasedFibTime';
@@ -150,6 +151,14 @@ function defineFibTimeTrendLine():DrawingTypeMeta{
    const rest=Object.fromEntries(Object.entries(patch).filter(([path])=>!own.includes(path)));
    if(Object.keys(rest).length)super.applySettings(rest);
    if(next)STATES.set(this,{read:{state:'supported',settings:next}});
+  }
+  /** 0.8.1: level n sits n bar units after the third point, one unit being the bar distance p1 -> p2 (the native model added
+   *  calendar time, so weekends and session gaps moved the levels). Counted on the logical bar axis, where x is linear. */
+  entryLines(proj:Projector):Entry[]|null{
+   const rows=super.entryLines(proj),[a,b,c]=this.anchors;if(!rows||!a||!b||!c)return rows;
+   const xa=proj.xOf(a.time),xb=proj.xOf(b.time),xc=proj.xOf(c.time),levels=this.levels.filter(level=>level.enabled);
+   if(![xa,xb,xc].every(Number.isFinite)||rows.length!==levels.length)return rows;
+   return rows.map((row,i)=>{const x=barStepX(xc,xc+(xb-xa),levels[i].ratio);return{...row,x1:x,x2:x,numberX:x,labelX:x};});
   }
   /** Pixel polyline p1 -> p2 -> p3 (two points while placing), or null when hidden, unavailable or off the pane. */
   trendLinePoints(proj:Projector):[number,number][]|null{

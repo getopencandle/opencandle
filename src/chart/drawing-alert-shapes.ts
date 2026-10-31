@@ -148,7 +148,9 @@ export function captureDrawingAlertShape(value:unknown,grid:DrawingAlertGrid,opt
   const segment=(a:{logical:number;price:number},b:{logical:number;price:number},kind:'segment'|'ray'|'both')=>{
    if(a.logical===b.logical)throw new Error('Vertical or equal-time lines do not have a single price boundary');
    const low=Math.min(a.logical,b.logical),high=Math.max(a.logical,b.logical);
-   const left=kind==='both'||kind==='segment'&&ext?.left===true,right=kind!=='segment'||ext?.right===true;
+   // A ray runs from its first point in the drawn direction (0.8.1): drawn right to left, it is unbounded on the left.
+   const leftward=kind==='ray'&&b.logical<a.logical;
+   const left=kind==='both'||kind==='segment'&&ext?.left===true||leftward,right=kind==='both'||kind==='ray'&&!leftward||kind==='segment'&&ext?.right===true;
    return line(point(a.logical,a.price),point(b.logical,b.price),left?null:low,right?null:high);
   };
   // y in the price coordinate the renderer draws in (log price on a log scale), and back.
@@ -194,9 +196,11 @@ export function captureDrawingAlertShape(value:unknown,grid:DrawingAlertGrid,opt
    case 'extendedline':lines.push(segment(place(0),place(1),'both'));break;
    case 'vline':lineTime=raw[0].time;break;
    case 'parallelchannel':{
-    const a=place(0),b=place(1),offset=raw[2].price-(a.price+b.price)/2;
+    // The parallel line is the base line shifted by one offset in the drawn coordinate (log price on a log scale), as the renderer draws it.
+    const a=place(0),b=place(1),offset=y(raw[2].price)-(y(a.price)+y(b.price))/2;
     if(!finite(offset))throw new Error('Channel price offset overflow');
-    const base=segment(a,b,'segment'),shifted={...a,price:a.price+offset},shiftedEnd={...b,price:b.price+offset};
+    const base=segment(a,b,'segment'),shifted={...a,price:price(y(a.price)+offset)},shiftedEnd={...b,price:price(y(b.price)+offset)};
+    if(!finite(shifted.price)||!finite(shiftedEnd.price))throw new Error('Channel price offset overflow');
     if(log&&!(shifted.price>0&&shiftedEnd.price>0))throw new Error('A drawing on a logarithmic scale needs positive prices for an alert');
     lines.push(base,line(point(shifted.logical,shifted.price),point(shiftedEnd.logical,shiftedEnd.price),base.min,base.max));break;
    }
@@ -217,13 +221,18 @@ export function captureDrawingAlertShape(value:unknown,grid:DrawingAlertGrid,opt
     // Median origin and direction as the renderer builds them (in its drawn coordinates).
     let sx=p0.logical,sy=y(p0.price),dx:number,dy:number;
     if(tool==='schiffpitchfork')sy=y((p0.price+p1.price)/2);
-    if(tool==='modifiedschiffpitchfork'){sx=atTime((p0.time+p1.time)/2);sy=y((p0.price+p1.price)/2);}
-    if(tool==='insidepitchfork'){const bx=atTime((p0.time+p1.time)/2),by=y((p0.price+p1.price)/2);dx=p2.logical-bx;dy=y(p2.price)-by;}
+    // Midpoints of the pivot leg are taken in bars (0.8.1), as the renderer draws them.
+    if(tool==='modifiedschiffpitchfork'){sx=(p0.logical+p1.logical)/2;sy=y((p0.price+p1.price)/2);}
+    if(tool==='insidepitchfork'){const bx=(p0.logical+p1.logical)/2,by=y((p0.price+p1.price)/2);dx=p2.logical-bx;dy=y(p2.price)-by;}
     else{const mx=(p1.logical+p2.logical)/2,my=(y(p1.price)+y(p2.price))/2;dx=mx-sx;dy=my-sy;}
     if(!(Math.abs(dx)>1e-9))throw new Error('A pitchfork with a vertical median line has no price channel');
-    const tine=(from:{logical:number;price:number})=>{const end=from.logical+dx,endPrice=price(y(from.price)+dy);if(!finite(endPrice)||log&&!(endPrice>0))throw new Error('Pitchfork tine price is not representable');return line(point(from.logical,from.price),point(end,endPrice),Math.min(from.logical,end),null);};
-    const upper=tine(p1),lower=tine(p2),min=Math.max(upper.min!,lower.min!);
-    lines.push({...upper,min},{...lower,min});break;
+    // The tines run from P1 and P2 in the median's drawn direction (0.8.1): drawn right to left, they extend to the left.
+    const forward=dx>0;
+    const tine=(from:{logical:number;price:number})=>{const end=from.logical+dx,endPrice=price(y(from.price)+dy);if(!finite(endPrice)||log&&!(endPrice>0))throw new Error('Pitchfork tine price is not representable');return forward?line(point(from.logical,from.price),point(end,endPrice),from.logical,null):line(point(from.logical,from.price),point(end,endPrice),null,from.logical);};
+    const upper=tine(p1),lower=tine(p2);
+    if(forward){const min=Math.max(upper.min!,lower.min!);lines.push({...upper,min},{...lower,min});}
+    else{const max=Math.min(upper.max!,lower.max!);lines.push({...upper,max},{...lower,max});}
+    break;
    }
   }
   if(lines.some(row=>[row.from.logical,row.from.price,row.to?.logical??0,row.to?.price??0].some(number=>!finite(number))))throw new Error('Drawing alert geometry is not representable');

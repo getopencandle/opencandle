@@ -138,17 +138,21 @@ const BEFORE={
 //   defaultStyle) and all move; nothing else. Previous pin: all d533733a, factoryDefinitions ddb2f97b, factoryUnapplied f5ebef97,
 //   registered 852b8881.
 // Catalog, factoryUnapplied and all re-pinned; only note and label prose changed (the old short product name became OpenCandle). Previous: all dc85bce2, catalog a04a39fd, factoryUnapplied 37465471.
+// 0.8.1 drawing fixes: the Elliott tools gain an origin point (anchor counts +1, notes reworded), the triangle pattern note names its
+//   boundary lines, and the replaced native types (pitchforks, fans, time zones, Gann grids, channel, extensions, range, arcs, waves)
+//   are re-registered. catalog, factoryUnapplied, portCatalog, registered and all move. Previous: all a9a40513, catalog 4eb1fa66,
+//   factoryUnapplied b1f504ec, portCatalog fc9c59e3, registered c2159399.
 const PINNED={
- all:'a9a405134b85a6dff8bd2f2b342e989aaa8ed7280433583f6dc826f4d1a0e065',
- catalog:'4eb1fa66864edf0ca9e1dc9ae78fed223e31df1d43fcc4e24c07a6c159043a06',
+ all:'4acfb57987299962f7f4b5ba3c2a28375155d99c5c17115dbba69ff63e5fce40',
+ catalog:'9ae61aaf59ca2288523b80d5ffb464032ac193f3916ded797dcb097b03ec8587',
  factoryDefinitions:'815d67cb786de19aeab78dba31d5ce4a963e3939dd6ef25e7ace9e0daac31646',
- factoryUnapplied:'b1f504ec1f7e7626bc0949f4dd0cfd1b19958bb6729d673aa770774003af969f',
+ factoryUnapplied:'4b2595e051490540ce2fc1861a4543f70b709b4a94a52a6533169ed612eca403',
  factoryStatus:'7812034d4bf4c9eaf7376bcd684620431398bd1ba9fd894934bc7abc2ff3d3b2',
  dialogSpecs:'332ce420d6513ddb60469c9cb2ceac29859b723532f1f5a027aa98133e1cb56c',
  dialogUnavailable:'a816dd28be2ae041ca2b1069c6fe9df848d19e02d110b4662f26e94477b5ff51',
  lvStatus:'fadb0efa2df48518660b5a5da223dacf433e0d13e5c6158fcab58ff0966f12d1',
- portCatalog:'fc9c59e3f5870fe8fdebff6e2648ef4e49d9375b46f6f15bbb22d83bf819904a',
- registered:'c21593995640b38e25581499b1f7d0d0016fd30231b39df32f4772864fb3de8c',
+ portCatalog:'bf45eb269dcef5b13dbdf462ed55200f56693a8fd2a55abd37c3086be681cfc5',
+ registered:'b3f5ed6e243929c11d4c846bd6d543d14614c3c1f2fd3c05e8d7857c3047c465',
 } as const;
 
 describe('per-tool registry snapshot (baseline, re-pinned at each integration)',()=>{

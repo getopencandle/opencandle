@@ -6,7 +6,7 @@ import {readFileSync,writeFileSync,mkdirSync,unlinkSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {resolve,dirname} from 'node:path';
 import {randomUUID,createHash} from 'node:crypto';
-import {runPatch,patchPlan,harmonicStepIds} from '../../src/chart/apply-vela-compat-patch.mjs';
+import {runPatch,patchPlan,harmonicStepIds,drawingFixStepIds} from '../../src/chart/apply-vela-compat-patch.mjs';
 import {CHART_PATTERN_SPECS,LV_THREE_DRIVES} from '../../src/chart/lv-types/chart-patterns';
 
 const CHUNK='node_modules/@luxalgo/vela/dist/chunk-UNUVPQFW.js';
@@ -81,7 +81,7 @@ describe('LV-VELA-HARMONIC-RATIOS-1 pattern ratio labels',()=>{
   const {sourceHash}=await installed(),plan=patchPlan as any;
   const chunk=plan.files.find((row:any)=>row.path==='dist/chunk-UNUVPQFW.js');expect(sourceHash).toBe(chunk.afterSha256);
   for(const row of plan.files.filter((r:any)=>/\.(c?js)$/.test(r.path))){
-   expect(row.transformations.slice(-2).map((s:any)=>s.id)).toEqual([...harmonicStepIds]);
+   expect(row.transformations.slice(-4,-2).map((s:any)=>s.id)).toEqual([...harmonicStepIds]);expect(row.transformations.slice(-2).map((s:any)=>s.id)).toEqual([...drawingFixStepIds]);
    const source=readFileSync(resolve('node_modules/@luxalgo/vela',row.path),'utf8');
    expect(source).toContain('/*! LarryVision LV-VELA-HARMONIC-RATIOS-1');expect(source).not.toContain('ctx.fillText(r.toFixed(3), (a[0] + b[0]) / 2 + 6');
   }

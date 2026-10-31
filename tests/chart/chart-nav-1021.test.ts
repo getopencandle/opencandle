@@ -103,9 +103,9 @@ describe('LV-VELA-COMPAT-7 plan (LV-VELA-NAV-1)',async()=>{
   for(const row of plan.files){
    const installed=readFileSync(resolve('node_modules/@luxalgo/vela',row.path));expect(sha(installed),row.path).toBe(row.afterSha256);
    if(!row.magnetSha256){expect(row.compat6Sha256).toBe(row.afterSha256);continue;}
-   const steps=row.transformations.slice(-55,-52);expect(steps.map((step:any)=>step.id)).toEqual([...compat7StepIds]);
+   const steps=row.transformations.slice(-57,-54);expect(steps.map((step:any)=>step.id)).toEqual([...compat7StepIds]);
    let text=installed.toString('utf8');
-   const later=row.transformations.slice(-52);expect(later.map((step:any)=>step.id)).toEqual([...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]);
+   const later=row.transformations.slice(-54);expect(later.map((step:any)=>step.id)).toEqual([...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]);
    for(const step of [...later].reverse()){expect(text.split(step.after)).toHaveLength(2);text=text.replace(step.after,step.before);}
    expect(sha(Buffer.from(text))).toBe(row.compat7Sha256);
    for(const step of [...steps].reverse()){expect(step.after).toContain('/*! LarryVision LV-VELA-NAV-1');expect(text.split(step.after)).toHaveLength(2);text=text.replace(step.after,step.before);}

@@ -153,6 +153,17 @@ function contextOf(model:object,canvas?:unknown):PositionChartContext|null{
  for(const context of [...CONTEXTS].reverse()){try{if(context.owns(canvas===undefined?{model}:{model,canvas})){LAST.set(model,context);return context;}}catch{/* a retired chart answers nothing */}}
  return null;
 }
+/** The instrument tick size a drawing's prices should be written with (0.8.1 drawing price text). The model's own chart wins (the
+ *  context its last paint matched); otherwise the finest valid tick among the registered charts, so a level never prints with fewer
+ *  decimals than its instrument has. Undefined when no chart reports a tick (tests, an unwired chart). */
+export function chartTickSizeFor(model:object|undefined):number|undefined{
+ const own=model?contextOf(model):null;
+ const read=(context:PositionChartContext)=>{try{const tick=context.tickSize?.();return validTick(tick)?tick:undefined;}catch{return undefined;}};
+ const mine=own?read(own):undefined;if(mine!==undefined)return mine;
+ let finest:number|undefined;
+ for(const context of CONTEXTS){const tick=read(context);if(tick!==undefined&&(finest===undefined||tickDecimals(tick)>tickDecimals(finest)))finest=tick;}
+ return finest;
+}
 
 // ---------------------------------------------------------------- the model
 

@@ -1,0 +1,382 @@
+// OpenCandle 0.8.1 drawing fixes on pinned native Vela classes. Each entry REPLACES a native registration in place
+// (replacesNative, lv-types/contract.ts), so saved records keep their type ids; placement, handles, serialization, undo and
+// the native painter branch (which dispatches by class and reads the model's geometry/entryLines) stay native. Only the
+// model geometry or text that was wrong is overridden. Every define() pins the native shape it overrides and fails closed.
+//
+// What is fixed here (the spec tests are tests/chart/drawing-*-081*.test.ts):
+//  * Directed extension: Ray hit testing (its painter is LV-VELA-DRAWING-FIXES-1, src/chart/vela-compat-patch-plan.json), Pitchfork, Schiff, Modified Schiff and Inside pitchfork median and tines, Fib fan and Gann fan lines
+//    run from their origin to the pane edge in the drawn direction (drawn right to left, they extend left).
+//  * Bar space: Fib time zones (standard definition: counted in bars), Gann box and Gann square time divisions, the Modified
+//    Schiff median origin, the Inside pitchfork base midpoint and the Parallel channel middle handle are computed on the
+//    logical bar axis, so weekends and session gaps no longer move them.
+//  * Parallel channel: the parallel line is the base line shifted by one screen offset (the price offset on a linear scale,
+//    the log price offset on a log scale), so it stays parallel on a log scale.
+//  * Prices: Fib extension and Trend-based fib extension level prices, the Date and price range change and the Info line change
+//    (read by the LV-VELA-DRAWING-FIXES-1 painter through lvPriceText) use the instrument tick decimals (./price-format.ts).
+//  * Ray and Info line keep their native factory (the drawing-factory-defaults seed wrapper): a model it builds adopts the fixed
+//    subclass prototype, which adds methods only (no fields, no constructor work).
+//  * Fib arcs: centred on the second point (the end of the measured move), as in the classic definition, so each arc crosses
+//    the trend line at its retracement ratio measured back from the end of the move.
+//  * Default level additions (new drawings only; saved levels never change): Trend-based fib extension 0.236, 0.786, 3.618
+//    and 4.236; Fib time zones 55 and 89.
+//
+// Elliott waves (an origin point) live in ./elliott-origin.ts; they register after the OpenCandle wave and pattern modules,
+// which pin the native labels.
+import type {DrawingTypeMeta} from '@luxalgo/vela';
+import {cloneStyle,fail,lvKey,method,nativeBase,type Init,type NativeBase,type NativeModel,type Projector} from '../lv-drawing-pin';
+import type {LvDrawingToolModule,LvTypeDefinition} from '../lv-types/contract';
+import {defineLvDrawingToolModule} from '../lv-types/contract';
+import {barMidX,barStepX,channelLineY,directedRay,segmentDistance,type Segment} from './geometry';
+import {drawingPriceDecimals,formatDrawingPrice,formatSignedDrawingPrice} from './price-format';
+
+type Anchor={time:number;price:number};
+type Level={ratio:number;color:string;enabled:boolean;label?:string};
+interface Entry{color:string;label?:string;x1:number;y1:number;x2:number;y2:number;numberText:string;numberX:number;numberY:number;numberAlign:string;labelX:number;labelY:number}
+interface SegmentModel extends NativeModel{geometry(proj:Projector):{segments:number[][];fill:number[][]|null}|null;medianStart?(a:Anchor,b:Anchor,c:Anchor):Anchor}
+interface FibModel extends NativeModel{levels:Level[];showRatios:boolean;showPrices:boolean;entryLines(proj:Projector):Entry[]|null;defaultLevels():Level[];levelText?(ratio:number,price:number):string}
+
+/** Pixel of an anchor, or null when its pane is gone or a value is not finite. */
+function px(model:{paneId:string},proj:Projector,p:Anchor|undefined):[number,number]|null{
+ if(!p)return null;const y=proj.yOf(p.price,model.paneId),x=proj.xOf(p.time);
+ return y==null||!Number.isFinite(x)||!Number.isFinite(y)?null:[x,y];
+}
+/** A linear test projector (x = time, y = 1000 - price) for the pins. */
+const LINEAR={xOf:(time:number)=>time,yOf:(price:number)=>1000-price,width:2000,height:1000,pxToPoint:(x:number,y:number)=>({time:x,price:1000-y}),barsBetween:(a:number,b:number)=>Math.abs(b-a)} as unknown as Projector;
+const probeInit=(anchors:Anchor[]):Init=>({id:'lv-drawing-type-probe',paneId:'price',createdAt:0,anchors});
+
+function meta(base:NativeBase,create:(init:Init)=>NativeModel):DrawingTypeMeta{
+ const m=base.meta;
+ return{...m,type:lvKey(m.type),defaultStyle:cloneStyle(m),create:init=>create(init)} as DrawingTypeMeta;
+}
+function pinned(type:string,members:readonly string[]):NativeBase{
+ const base=nativeBase(type);
+ if(Object.hasOwn(base.prototype,'lvDrawingFix081'))fail(type+' is already fixed by another module instance');
+ for(const key of members)method(base.prototype,key);
+ return base;
+}
+const FIXED={lvDrawingFix081:{value:true,enumerable:false}} as const;
+
+// ---------------------------------------------------------------- ray and info line (adopted prototypes)
+
+/** The registered factory (with any seed wrapper) builds the native model, which then adopts `Sub`'s prototype. */
+function adopting(base:NativeBase,Sub:{prototype:object}):DrawingTypeMeta{
+ const create=base.meta.create;
+ return{...base.meta,defaultStyle:cloneStyle(base.meta),create:(init:Init)=>{const model=create(init);if(Object.getPrototypeOf(model)===base.prototype)Object.setPrototypeOf(model,Sub.prototype);return model;}} as DrawingTypeMeta;
+}
+interface RayModel extends NativeModel{pixels(proj:Projector):[number,number,number,number]|null}
+function defineRay():DrawingTypeMeta{
+ const base=pinned('ray',['pixels','hitTest','handlePoints']);
+ const Base=base.ctor as unknown as new(init:Init)=>RayModel;
+ const probe=new Base(probeInit([{time:300,price:500},{time:200,price:600}]));
+ // Pin: the native ray hit-tests to the right even when drawn to the left.
+ if(probe.hitTest(500,700,LINEAR,2)!==true||probe.hitTest(100,300,LINEAR,2)!==false)fail('ray hit testing changed');
+ class LvRay extends Base{
+  /** The line from the first point through the second, to the pane edge in the drawn direction. */
+  hitTest(px:number,py:number,proj:Projector,tol:number):boolean{
+   const p=this.pixels(proj);if(!p)return false;
+   const [x1,y1,x2,y2]=directedRay(p[0],p[1],p[2],p[3],proj.width,proj.height);
+   return segmentDistance(px,py,x1,y1,x2,y2)<=tol;
+  }
+ }
+ Object.defineProperties(LvRay.prototype,FIXED);
+ return adopting(base,LvRay);
+}
+function defineInfoLine():DrawingTypeMeta{
+ const base=pinned('infoline',['handlePoints','hitTest']);
+ class LvInfoLine extends (base.ctor as unknown as new(init:Init)=>NativeModel){
+  /** The signed-less price change as the Info line writes it (the painter adds the sign). */
+  lvPriceText(change:number):string{const [a,b]=this.anchors;return Number.isFinite(change)?change.toFixed(drawingPriceDecimals(this,a&&b?Math.max(Math.abs(a.price),Math.abs(b.price)):change)):'';}
+ }
+ Object.defineProperties(LvInfoLine.prototype,FIXED);
+ return adopting(base,LvInfoLine);
+}
+
+// ---------------------------------------------------------------- pitchforks
+
+/** Pitchfork segments: median from `start` through the base midpoint, tines from P1 and P2 parallel to it, all in the drawn
+ *  direction; then the base line and any construction lines. `dir` overrides the median direction (Inside pitchfork). */
+export function pitchforkSegments(P0:[number,number],P1:[number,number],P2:[number,number],start:[number,number],w:number,h:number,options:{readonly direction?:[number,number];readonly medianFrom?:[number,number];readonly construction?:readonly Segment[]}={}):Segment[]{
+ const mx=(P1[0]+P2[0])/2,my=(P1[1]+P2[1])/2;
+ const [dx,dy]=options.direction??[mx-start[0],my-start[1]];
+ const from=options.medianFrom??start;
+ return[
+  directedRay(from[0],from[1],from[0]+dx,from[1]+dy,w,h),
+  directedRay(P1[0],P1[1],P1[0]+dx,P1[1]+dy,w,h),
+  directedRay(P2[0],P2[1],P2[0]+dx,P2[1]+dy,w,h),
+  [P1[0],P1[1],P2[0],P2[1]],
+  ...(options.construction??[]),
+ ];
+}
+type PitchforkKind='pitchfork'|'schiffpitchfork'|'modifiedschiffpitchfork'|'insidepitchfork';
+/** The pitchfork geometry of `kind` (null while a point is missing), with bar-space midpoints. */
+export function pitchforkGeometry(kind:PitchforkKind,model:{anchors:readonly Anchor[];paneId:string},proj:Projector):{segments:number[][];fill:null}|null{
+ const [a,b,c]=model.anchors;
+ const P0=px(model,proj,a),P1=px(model,proj,b);if(!P0||!P1)return null;
+ if(!c)return{segments:[[P0[0],P0[1],P1[0],P1[1]]],fill:null};
+ const P2=px(model,proj,c);if(!P2)return null;
+ const w=proj.width,h=proj.height,back:Segment=[P0[0],P0[1],P1[0],P1[1]];
+ if(kind==='pitchfork')return{segments:pitchforkSegments(P0,P1,P2,P0,w,h),fill:null};
+ // Schiff: the median starts halfway up the pivot-to-P1 leg (in price), at the pivot's bar. Modified Schiff: at the midpoint
+ // of that leg, its bar being the bar-space midpoint. Inside: the median runs through the base midpoint parallel to the line
+ // from the leg midpoint to P2.
+ const midY=proj.yOf((a.price+b.price)/2,model.paneId);if(midY==null||!Number.isFinite(midY))return null;
+ if(kind==='schiffpitchfork')return{segments:pitchforkSegments(P0,P1,P2,[P0[0],midY],w,h,{construction:[back]}),fill:null};
+ const B:[number,number]=[barMidX(P0[0],P1[0]),midY];
+ if(kind==='modifiedschiffpitchfork')return{segments:pitchforkSegments(P0,P1,P2,B,w,h,{construction:[back]}),fill:null};
+ const M:[number,number]=[(P1[0]+P2[0])/2,(P1[1]+P2[1])/2];
+ return{segments:pitchforkSegments(P0,P1,P2,B,w,h,{direction:[P2[0]-B[0],P2[1]-B[1]],medianFrom:M,construction:[[B[0],B[1],P2[0],P2[1]],back]}),fill:null};
+}
+function definePitchfork(kind:PitchforkKind):DrawingTypeMeta{
+ const base=pinned(kind,['geometry','anchorSchema','handlePoints','hitTest','priceRange','schema','serialize']);
+ // Pin: drawn left to right, the native median runs from the (start) point to the right edge; 4 segments (plus construction).
+ const sample=new (base.ctor as unknown as new(init:Init)=>SegmentModel)(probeInit([{time:100,price:500},{time:300,price:600},{time:300,price:400}]));
+ const g=sample.geometry(LINEAR);
+ if(!g||g.segments.length!==(kind==='pitchfork'?4:kind==='insidepitchfork'?6:5)||Math.round(g.segments[0][2])!==LINEAR.width+2)fail(kind+' geometry changed');
+ const Base=base.ctor as unknown as new(init:Init)=>SegmentModel;
+ class LvPitchfork extends Base{geometry(proj:Projector){return pitchforkGeometry(kind,this,proj);}}
+ Object.defineProperties(LvPitchfork.prototype,FIXED);
+ return meta(base,init=>new LvPitchfork(init));
+}
+
+// ---------------------------------------------------------------- fans
+
+interface FanLine{ratio:number;color:string;label?:string;x1:number;y1:number;x2:number;y2:number;labelX:number;labelY:number}
+interface FanModel extends FibModel{fanLines(proj:Projector):FanLine[]|null}
+/** Fib fan lines from the first point through each level price at the second point's bar, in the drawn direction. */
+export function fibFanLines(model:{anchors:readonly Anchor[];paneId:string;levels:readonly Level[]},proj:Projector):FanLine[]|null{
+ const [a,b]=model.anchors;const O=px(model,proj,a);if(!O||!b)return null;
+ const xb=proj.xOf(b.time),delta=b.price-a.price,out:FanLine[]=[];
+ for(const lv of model.levels){
+  if(!lv.enabled)continue;
+  const ty=proj.yOf(a.price+lv.ratio*delta,model.paneId);if(ty==null)continue;
+  const [x1,y1,x2,y2]=directedRay(O[0],O[1],xb,ty,proj.width,proj.height);
+  // Labels sit just outside the second point's bar, on the side the fan opens to.
+  const lx=xb>=O[0]?xb+5:xb-5;
+  out.push({ratio:lv.ratio,color:lv.color,...(lv.label?{label:lv.label}:{}),x1,y1,x2,y2,labelX:lx,labelY:ty});
+ }
+ return out;
+}
+function defineFibFan():DrawingTypeMeta{
+ const base=pinned('fibfan',['fanLines','entryLines','hitTest']);
+ const Base=base.ctor as unknown as new(init:Init)=>FanModel;
+ const sample=new Base(probeInit([{time:100,price:500},{time:200,price:600}]));
+ const lines=sample.fanLines(LINEAR);if(!lines||!lines.length||Math.round(lines[0].x2)!==LINEAR.width+2)fail('fib fan geometry changed');
+ class LvFibFan extends Base{
+  fanLines(proj:Projector){return fibFanLines(this,proj);}
+  entryLines(proj:Projector){
+   const rows=super.entryLines(proj),lines=this.fanLines(proj);if(!rows||!lines)return rows;
+   // Number labels align away from the origin.
+   const [a,b]=this.anchors,left=a&&b?proj.xOf(b.time)<proj.xOf(a.time):false;
+   return rows.map(row=>left?{...row,numberAlign:'right'}:row);
+  }
+ }
+ Object.defineProperties(LvFibFan.prototype,FIXED);
+ return meta(base,init=>new LvFibFan(init));
+}
+function defineGannFan():DrawingTypeMeta{
+ const base=pinned('gannfan',['entryLines','hitTest']);
+ const Base=base.ctor as unknown as new(init:Init)=>FibModel;
+ const sample=new Base(probeInit([{time:100,price:500},{time:200,price:600}]));
+ const rows=sample.entryLines(LINEAR);if(!rows||!rows.length||Math.round(rows[0].x2)!==LINEAR.width+2||rows[0].numberX!==205)fail('gann fan geometry changed');
+ class LvGannFan extends Base{
+  entryLines(proj:Projector){
+   const [a,b]=this.anchors;const O=px(this,proj,a);if(!O||!b)return null;
+   const xb=proj.xOf(b.time),dp=b.price-a.price,left=xb<O[0],out:Entry[]=[];
+   for(const lv of this.levels){
+    if(!lv.enabled)continue;
+    const ty=proj.yOf(a.price+dp*lv.ratio,this.paneId);if(ty==null)continue;
+    const [x1,y1,x2,y2]=directedRay(O[0],O[1],xb,ty,proj.width,proj.height);
+    const nx=left?xb-5:xb+5;
+    out.push({color:lv.color,x1,y1,x2,y2,numberText:lv.label??String(lv.ratio),numberX:nx,numberY:ty,numberAlign:left?'right':'left',labelX:nx,labelY:ty});
+   }
+   return out;
+  }
+ }
+ Object.defineProperties(LvGannFan.prototype,FIXED);
+ return meta(base,init=>new LvGannFan(init));
+}
+
+// ---------------------------------------------------------------- bar-space time levels
+
+/** Standard Fibonacci time zone sequence additions (new drawings only). */
+export const FIB_TIME_ZONE_ADDED_LEVELS:readonly number[]=Object.freeze([55,89]);
+interface ZoneModel extends FibModel{zoneLines(proj:Projector):{n:number;color:string;label?:string;x:number}[]|null}
+function defineFibTimeZones():DrawingTypeMeta{
+ const base=pinned('fibtimezones',['zoneLines','entryLines','defaultLevels']);
+ const Base=base.ctor as unknown as new(init:Init)=>ZoneModel;
+ const sample=new Base(probeInit([{time:100,price:500},{time:110,price:500}]));
+ const zones=sample.zoneLines(LINEAR);
+ if(!zones||zones.map(zone=>zone.n).join()!=='0,1,2,3,5,8,13,21,34'||zones[2].x!==120)fail('fib time zones geometry changed');
+ class LvFibTimeZones extends Base{
+  defaultLevels(){const levels=super.defaultLevels(),template=levels[levels.length-1];return[...levels,...FIB_TIME_ZONE_ADDED_LEVELS.filter(n=>!levels.some(lv=>lv.ratio===n)).map(ratio=>({...template,ratio,enabled:true}))];}
+  /** Zone n is n bar units after the first point, one unit being the bar distance between the two points. */
+  zoneLines(proj:Projector){
+   const [a,b]=this.anchors;if(!a||!b)return null;
+   const xa=proj.xOf(a.time),xb=proj.xOf(b.time);if(!Number.isFinite(xa)||!Number.isFinite(xb)||Math.abs(xb-xa)<1e-9)return null;
+   return this.levels.filter(lv=>lv.enabled).map(lv=>({n:lv.ratio,color:lv.color,...(lv.label?{label:lv.label}:{}),x:barStepX(xa,xb,lv.ratio)}));
+  }
+ }
+ Object.defineProperties(LvFibTimeZones.prototype,FIXED);
+ return meta(base,init=>new LvFibTimeZones(init));
+}
+
+/** Gann box and square: the vertical time divisions at each level, in bar space. `rows` are the native entries; vertical rows
+ *  (no number text, x1 = x2) are matched to the enabled levels in order. */
+export function barSpaceVerticals(rows:Entry[],levels:readonly Level[],xa:number,xb:number):Entry[]{
+ const enabled=levels.filter(lv=>lv.enabled);let k=0;
+ return rows.map(row=>{
+  if(row.numberText!==''||row.x1!==row.x2||row.y1===row.y2||k>=enabled.length)return row;
+  const x=barStepX(xa,xb,enabled[k++].ratio);
+  return{...row,x1:x,x2:x,numberX:x,labelX:x};
+ });
+}
+function defineGannGrid(type:'gannbox'|'gannsquare'):DrawingTypeMeta{
+ const base=pinned(type,['entryLines','hitTest']);
+ const Base=base.ctor as unknown as new(init:Init)=>FibModel;
+ const sample=new Base(probeInit([{time:100,price:500},{time:200,price:600}]));
+ const rows=sample.entryLines(LINEAR),verticals=(rows??[]).filter(row=>row.numberText===''&&row.x1===row.x2&&row.y1!==row.y2);
+ if(verticals.length!==sample.levels.filter(lv=>lv.enabled).length||verticals[1]?.x1!==100+100*sample.levels.filter(lv=>lv.enabled)[1].ratio)fail(type+' time divisions changed');
+ class LvGannGrid extends Base{
+  entryLines(proj:Projector){
+   const rows=super.entryLines(proj),[a,b]=this.anchors;if(!rows||!a||!b)return rows;
+   return barSpaceVerticals(rows,this.levels,proj.xOf(a.time),proj.xOf(b.time));
+  }
+ }
+ Object.defineProperties(LvGannGrid.prototype,FIXED);
+ return meta(base,init=>new LvGannGrid(init));
+}
+
+// ---------------------------------------------------------------- parallel channel
+
+interface ChannelModel extends SegmentModel{offset():number}
+function defineParallelChannel():DrawingTypeMeta{
+ const base=pinned('parallelchannel',['geometry','handlePoints','offset','priceRange','timeExtent']);
+ const Base=base.ctor as unknown as new(init:Init)=>ChannelModel;
+ const sample=new Base(probeInit([{time:100,price:500},{time:300,price:600},{time:200,price:650}]));
+ const g=sample.geometry(LINEAR),h=sample.handlePoints(LINEAR);
+ if(!g||g.segments.length!==2||g.segments[1].join()!=='100,400,300,300'||h.length!==3||h[2].join()!=='200,350')fail('parallel channel geometry changed');
+ class LvParallelChannel extends Base{
+  /** Base line a..b and the parallel line through the offset handle, one screen offset apart (log-parallel on a log scale). */
+  geometry(proj:Projector){
+   const [a,b,c]=this.anchors;if(!c)return super.geometry(proj);
+   const A=px(this,proj,a),B=px(this,proj,b),yc=proj.yOf(c.price,this.paneId);
+   if(!A||!B||yc==null||!Number.isFinite(yc))return null;
+   const {y1,y2}=channelLineY(A[1],B[1],yc,1);
+   return{segments:[[A[0],A[1],B[0],B[1]],[A[0],y1,B[0],y2]],fill:[[A[0],A[1]],[B[0],B[1]],[B[0],y2],[A[0],y1]]};
+  }
+  /** The offset handle sits on the parallel line at the bar-space midpoint of the base line. */
+  handlePoints(proj:Projector){
+   const pts=super.handlePoints(proj);
+   if(pts.length===3)pts[2]=[barMidX(pts[0][0],pts[1][0]),pts[2][1]];
+   return pts;
+  }
+  /** Price extent of both offset readings (additive on a linear scale, multiplicative on a log scale): the model does not know
+   *  the scale, and autoscale only needs a range that contains the drawn lines. */
+  priceRange(){
+   const range=super.priceRange(),[a,b,c]=this.anchors;if(!range||!a||!b||!c||!(a.price>0&&b.price>0&&c.price>0))return range;
+   const k=c.price/Math.sqrt(a.price*b.price),extra=[a.price*k,b.price*k].filter(Number.isFinite);
+   return{min:Math.min(range.min,...extra),max:Math.max(range.max,...extra)};
+  }
+ }
+ Object.defineProperties(LvParallelChannel.prototype,FIXED);
+ return meta(base,init=>new LvParallelChannel(init));
+}
+
+// ---------------------------------------------------------------- prices
+
+function levelText(model:{showRatios:boolean;showPrices:boolean},ratio:number,price:number):string{
+ const p=formatDrawingPrice(price,model);
+ if(model.showRatios&&model.showPrices)return `${ratio} (${p})`;
+ if(model.showRatios)return String(ratio);
+ return model.showPrices?p:'';
+}
+/** The native level text with the instrument's decimals (used by Fib retracement and Fib extension). */
+export const fibLevelText=levelText;
+function defineFibExtension():DrawingTypeMeta{
+ const base=pinned('fibextension',['levelText','entryLines']);
+ const Base=base.ctor as unknown as new(init:Init)=>FibModel;
+ const sample=new Base(probeInit([]));
+ if(sample.levelText?.(1,1.08235)!=='1 (1.08)')fail('fib extension level text changed');
+ class LvFibExtension extends Base{levelText(ratio:number,price:number){return levelText(this,ratio,price);}}
+ Object.defineProperties(LvFibExtension.prototype,FIXED);
+ return meta(base,init=>new LvFibExtension(init));
+}
+/** Standard trend-based extension levels added to new drawings (the native set has 0, 0.382, 0.5, 0.618, 1, 1.618, 2.618). */
+export const TREND_EXTENSION_ADDED_LEVELS:readonly number[]=Object.freeze([0.236,0.786,3.618,4.236]);
+function defineFibExtensionTrend():DrawingTypeMeta{
+ const base=pinned('fibextensiontrend',['entryLines','defaultLevels','priceRange']);
+ const Base=base.ctor as unknown as new(init:Init)=>FibModel;
+ const sample=new Base(probeInit([{time:0,price:100},{time:10,price:110},{time:20,price:105}]));
+ const rows=sample.entryLines(LINEAR);
+ if(!rows||rows[0].numberText!=='0 (105.00)'||rows[0].x1!==0||rows[0].x2!==20)fail('trend-based fib extension geometry changed');
+ class LvFibExtensionTrend extends Base{
+  defaultLevels(){
+   const levels=super.defaultLevels(),color=(ratio:number)=>[...levels].sort((p,q)=>Math.abs(p.ratio-ratio)-Math.abs(q.ratio-ratio))[0]?.color??'#787b86';
+   return[...levels,...TREND_EXTENSION_ADDED_LEVELS.filter(r=>!levels.some(lv=>lv.ratio===r)).map(ratio=>({ratio,color:color(ratio),enabled:true}))].sort((p,q)=>p.ratio-q.ratio);
+  }
+  entryLines(proj:Projector){
+   const rows=super.entryLines(proj),[a,b,c]=this.anchors;if(!rows||!a||!b||!c)return rows;
+   const ratios=this.levels.filter(lv=>lv.enabled&&proj.yOf(c.price+lv.ratio*(b.price-a.price),this.paneId)!=null).map(lv=>lv.ratio);
+   return rows.map((row,i)=>ratios[i]===undefined?row:{...row,numberText:`${ratios[i]} (${formatDrawingPrice(c.price+ratios[i]*(b.price-a.price),this)})`});
+  }
+ }
+ Object.defineProperties(LvFibExtensionTrend.prototype,FIXED);
+ return meta(base,init=>new LvFibExtensionTrend(init));
+}
+interface MeasureModel extends NativeModel{priceLabel():string}
+function defineDatePriceRange():DrawingTypeMeta{
+ const base=pinned('datepricerange',['priceLabel','measureLabel','timeLabel']);
+ const Base=base.ctor as unknown as new(init:Init)=>MeasureModel;
+ if(new Base(probeInit([{time:0,price:100},{time:10,price:101.5}])).priceLabel()!=='+1.50 (+1.50%)')fail('date and price range text changed');
+ class LvDatePriceRange extends Base{
+  priceLabel(){
+   const [a,b]=this.anchors;if(!a||!b)return '';
+   const delta=b.price-a.price,percent=a.price!==0?delta/a.price*100:0;
+   return `${formatSignedDrawingPrice(delta,this,Math.max(Math.abs(a.price),Math.abs(b.price)))} (${percent>=0?'+':''}${percent.toFixed(2)}%)`;
+  }
+ }
+ Object.defineProperties(LvDatePriceRange.prototype,FIXED);
+ return meta(base,init=>new LvDatePriceRange(init));
+}
+
+// ---------------------------------------------------------------- fib arcs
+
+interface RadialModel extends FibModel{radial(proj:Projector):{cx:number;cy:number;R0:number;a0:number;a1:number}|null;boundingLines(proj:Projector):number[][]}
+function defineFibArcs():DrawingTypeMeta{
+ const base=pinned('fibarcs',['radial','boundingLines','hitTest']);
+ const Base=base.ctor as unknown as new(init:Init)=>RadialModel;
+ const r=new Base(probeInit([{time:100,price:500},{time:200,price:500}])).radial(LINEAR);
+ if(!r||r.cx!==100||r.R0!==100)fail('fib arcs geometry changed');
+ class LvFibArcs extends Base{
+  /** Centre on the second point; the half circle opens back toward the first point. */
+  radial(proj:Projector){
+   const [s,e]=this.anchors,S=px(this,proj,s),E=px(this,proj,e);if(!S||!E)return null;
+   const R0=Math.hypot(S[0]-E[0],S[1]-E[1]),phi=Math.atan2(S[1]-E[1],S[0]-E[0]);
+   return{cx:E[0],cy:E[1],R0,a0:phi-Math.PI/2,a1:phi+Math.PI/2};
+  }
+ }
+ Object.defineProperties(LvFibArcs.prototype,FIXED);
+ return meta(base,init=>new LvFibArcs(init));
+}
+
+const replace=(type:string,define:()=>DrawingTypeMeta):LvTypeDefinition=>({type,base:type,define,replacesNative:true});
+/** Registered BEFORE the OpenCandle tool modules, so the modules built on these bases (Gann square fixed, Price range, Date range)
+ *  inherit the fixes. */
+export const DRAWING_FIXES_081_MODULE:LvDrawingToolModule=defineLvDrawingToolModule({
+ id:'drawing-fixes-081',
+ types:[
+  ...(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork'] as const).map(kind=>replace(kind,()=>definePitchfork(kind))),
+  replace('fibfan',defineFibFan),
+  replace('gannfan',defineGannFan),
+  replace('fibtimezones',defineFibTimeZones),
+  replace('gannbox',()=>defineGannGrid('gannbox')),
+  replace('gannsquare',()=>defineGannGrid('gannsquare')),
+  replace('parallelchannel',defineParallelChannel),
+  replace('fibextension',defineFibExtension),
+  replace('fibextensiontrend',defineFibExtensionTrend),
+  replace('datepricerange',defineDatePriceRange),
+  replace('fibarcs',defineFibArcs),
+  replace('ray',defineRay),
+  replace('infoline',defineInfoLine),
+ ],
+});

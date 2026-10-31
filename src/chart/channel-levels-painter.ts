@@ -12,8 +12,10 @@ export interface ChannelLineOp {readonly kind:'line';readonly x1:number;readonly
 const dashFor=(style:'solid'|'dashed'|'dotted',width:number):number[]=>style==='dotted'?[width,width*2]:style==='dashed'?[width*4,width*3]:[];
 const finite=(...values:number[])=>values.every(Number.isFinite);
 
-/** Level r is the base line moved by r times the channel offset (r 0 is the base line, r 1 the parallel line). The offset is the third anchor minus the
- * midpoint of the first two prices, the same definition the coordinate editor uses. Extension follows the segment slope to the pane edge.
+/** Level r is the base line moved by r times the channel offset (r 0 is the base line, r 1 the parallel line). 0.8.1: the offset is applied on
+ * screen, as the renderer draws the parallel line (drawing-fixes/native-fixes.ts): the third anchor's y minus the base line's y at its bar-space
+ * midpoint. On a linear scale that is the price offset the coordinate editor uses; on a log scale it is the log price offset, so the levels stay
+ * parallel. Extension follows the segment slope to the pane edge.
  * Returns [] for no member, for the legacy settings and for any non-finite geometry. Never throws. */
 export function planChannelLevels(settings:Readonly<ChannelLevelsSettings>|undefined,anchors:readonly ChannelAnchor[],proj:ChannelProjection,bounds:ChannelBounds,base:ChannelBaseStyle):ChannelLineOp[]{
  try{
@@ -25,8 +27,9 @@ export function planChannelLevels(settings:Readonly<ChannelLevelsSettings>|undef
   if(!finite(offset,x0,x1,bounds.left,bounds.right)||x0===x1)return[];
   const left=x0<=x1?{time:a.time,price:a.price,x:x0}:{time:b.time,price:b.price,x:x1},right=x0<=x1?{time:b.time,price:b.price,x:x1}:{time:a.time,price:a.price,x:x0};
   const out:ChannelLineOp[]=[];
+  const ya=proj.yOf(a.price),yb=proj.yOf(b.price),dy=proj.yOf(c.price)-(ya+yb)/2;
   const line=(ratio:number,color:string,alpha:number,width:number,dash:readonly number[],tailsOnly:boolean)=>{
-   const ly=proj.yOf(left.price+ratio*offset),ry=proj.yOf(right.price+ratio*offset);
+   const ly=proj.yOf(left.price)+ratio*dy,ry=proj.yOf(right.price)+ratio*dy;
    if(!finite(ly,ry))return false;
    const slope=(ry-ly)/(right.x-left.x),yAt=(x:number)=>ly+slope*(x-left.x);
    const startX=settings.extendLeft?Math.min(bounds.left,left.x):left.x,endX=settings.extendRight?Math.max(bounds.right,right.x):right.x;

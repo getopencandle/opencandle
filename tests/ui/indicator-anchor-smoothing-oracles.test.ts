@@ -33,7 +33,7 @@ it.each(anchors)('VWAP anchor $anchor ($note)',({anchor,timezone,rows,literal})=
  const ui=dialog({seed:['vwap'],initialSelected:0,bars}),[id]=ui.ids;
  if(timezone)ui.sEdit('Calendar anchor time zone',timezone);
  ui.sEdit('Anchor period',anchor==='Century'?'Year':'Century');ui.sSubmit();const other=valuesOf(ui.port,id)[0].values;
- ui.sEdit('Anchor period',anchor);ui.sSubmit();expect(ui.port.list()[0].inputs).toMatchObject(inputs);
+ ui.sEdit('Anchor period',anchor);ui.sSubmit();expect(ui.port.list()[0].inputs).toMatchObject({...inputs,timezone:timezone??'Exchange'});// 0.8.1: new VWAPs default to the Exchange zone (UTC here: the fixture declares no exchange zone)
  expect(valuesOf(ui.port,id).find(series=>series.id==='vwap')!.values).toEqual(literal);if(literal.length>3)expect(other).not.toEqual(literal);
 });
 
@@ -47,7 +47,7 @@ const atrBars=[[10,8,9],[12,9,11],[11,9,10],[15,11,14],[16,12,13]].map(([high,lo
 const atrLiteral:Record<'SMA'|'RMA'|'EMA'|'WMA',(number|null)[]>={
  SMA:[null,null,7/3,10/3,11/3],// (2+3+2)/3, (3+2+5)/3, (2+5+4)/3
  RMA:[null,null,7/3,29/9,94/27],// SMA seed 7/3, then (2*prev+TR)/3
- EMA:[2,2.5,2.25,3.625,3.8125],// alpha=2/(3+1)=0.5, LV first-value seed
+ EMA:[null,null,7/3,11/3,23/6],// alpha=2/(3+1)=0.5, SMA seed (0.8.1; was the first-value seed): (2+3+2)/3, then 0.5 x TR + 0.5 x prior
  WMA:[null,null,7/3,11/3,4],// (1*2+2*3+3*2)/6, (1*3+2*2+3*5)/6, (1*2+2*5+3*4)/6
 };
 it.each(Object.keys(atrLiteral) as ('SMA'|'RMA'|'EMA'|'WMA')[])('ATR smoothing %s matches the hand-computed recurrence on the domain and through the Smoothing editor',smoothing=>{

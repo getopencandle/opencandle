@@ -97,7 +97,8 @@ describe(' tick size and lower-timeframe bars reach the calculation',()=>{
   expect(profileLowerTimeframe('syn-1','1D',undefined,context.profileSource)?.interval).toBe('360m');// canonical interval id of 6hexpect(profileLowerTimeframe('syn-1','6h')).toBeNull();expect(profileLowerTimeframe('missing','1D')).toBeNull();
   const r=rig({resolution:'1D',instrument:'syn-1',...context});const id=r.port.add('pvp',{period:'Month',valueAreaVolume:0});
   const plain=rig();const base=plain.port.add('pvp',{period:'Month',valueAreaVolume:0});
-  const poc=r.port.values(id).series[0].values[0],plainPoc=plain.port.values(base).series[0].values[0];
+  // 0.8.1 (R2): per-bar POC is causal, so the period POC is read on the period's last bar.
+  const at=(port:typeof r.port,key:string)=>{const value=port.values(key);return value.series[0].values[value.profiles![0].to];},poc=at(r.port,id),plainPoc=at(plain.port,base);
   expect(poc).not.toBe(plainPoc);const row=13/24;expect(Math.abs(poc!-14.1)).toBeLessThan(row);// the POC row holds the 4000 finer-bar volume at 14-14.2
   expect(r.port.values(id).profiles![0].lowerTimeframeBars).toBe(1);
   expect(sourceInstrumentId(JSON.stringify([1,'syn-1']))).toBe('syn-1');expect(sourceInstrumentId('not json')).toBeUndefined();

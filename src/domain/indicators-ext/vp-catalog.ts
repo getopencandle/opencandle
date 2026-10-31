@@ -59,25 +59,27 @@ const UNKNOWN_SHARED='Inputs Rows Layout, Row Size 24, Volume Up/Down and Value 
 function options(ctx:CatalogContext){
  return {rowsLayout:ctx.str('rowsLayout') as ProfileRowsLayout,rowSize:ctx.num('rowSize'),valueAreaPct:ctx.num('valueAreaVolume'),tickSize:ctx.chart?.tickSize??null,lowerTimeframe:ctx.chart?.lowerTimeframe??null,resolution:ctx.chart?.resolution??null};
 }
-function levels(ctx:CatalogContext,profiles:readonly VolumeProfile[],grid?:ProfileOptions):VpLevels{
+/** causal: the per-bar POC, VAH and VAL are the levels developed through that bar (no look-ahead into later bars of the
+ *  period); the drawn histogram keeps the whole period. Otherwise every bar of a profile carries its final levels. */
+function levels(ctx:CatalogContext,profiles:readonly VolumeProfile[],grid?:ProfileOptions,causal=false):VpLevels{
  const n=ctx.bars.length,line=():NumericSeries=>Array(n).fill(null);
  const poc=line(),vah=line(),val=line(),devPoc=line(),devVah=line(),devVal=line();
- for(const p of profiles)for(let i=p.from;i<=p.to;i++){poc[i]=p.pocPrice;vah[i]=p.vah;val[i]=p.val;}
+ if(!causal)for(const p of profiles)for(let i=p.from;i<=p.to;i++){poc[i]=p.pocPrice;vah[i]=p.vah;val[i]=p.val;}
  // Developing levels over the same bars as each profile.
  const wantPoc=ctx.bool('developingPoc'),wantVa=ctx.bool('developingVa');
- if(wantPoc||wantVa)for(const p of profiles){
+ if(wantPoc||wantVa||causal)for(const p of profiles){
   const dev=developingProfile(ctx.bars,p.from,p.to,grid??options(ctx));
-  for(let i=p.from;i<=p.to;i++){const k=i-p.from;if(wantPoc)devPoc[i]=dev.poc[k];if(wantVa){devVah[i]=dev.vah[k];devVal[i]=dev.val[k];}}
+  for(let i=p.from;i<=p.to;i++){const k=i-p.from;if(causal){poc[i]=dev.poc[k];vah[i]=dev.vah[k];val[i]=dev.val[k];}if(wantPoc)devPoc[i]=dev.poc[k];if(wantVa){devVah[i]=dev.vah[k];devVal[i]=dev.val[k];}}
  }
  return {poc,vah,val,devPoc,devVah,devVal};
 }
 /** Every kind builds its profiles through withFinerBars, so a profile whose rows need finer bars
  *  than the chart has asks the chart for them once; the developing levels use the same finer bars. */
 type Built={profiles:VolumeProfile[];grid?:ProfileOptions};
-function profileKind(ctx:CatalogContext,build:(opts:ProfileOptions)=>Built):VpLevels{
+function profileKind(ctx:CatalogContext,build:(opts:ProfileOptions)=>Built,causal=false):VpLevels{
  const opts=options(ctx),out=withFinerBars(lower=>build({...opts,lowerTimeframe:lower}),opts.lowerTimeframe,ctx.chart?.finerBars,opts.resolution);
  const lower:LowerTimeframeBars|null=out.lowerTimeframe;
- ctx.profiles?.(out.profiles);return levels(ctx,out.profiles,{...(out.grid??opts),lowerTimeframe:lower});
+ ctx.profiles?.(out.profiles);return levels(ctx,out.profiles,{...(out.grid??opts),lowerTimeframe:lower},causal);
 }
 function visibleRange(ctx:CatalogContext){
  const span=visibleProfileSpan(ctx.bars,ctx.chart?.visibleRange??null,ctx.chart?.resolution??null);
@@ -88,12 +90,12 @@ const runsProfiles=(ctx:CatalogContext,runs:readonly {from:number;to:number}[],o
 };
 function periodic(ctx:CatalogContext){
  const runs=profilePeriods(ctx.bars,ctx.str('period') as ProfilePeriod,{resolution:ctx.chart?.resolution??null,calendar:ctx.chart?.calendar??null});
- return profileKind(ctx,opts=>({profiles:runsProfiles(ctx,runs,opts)}));
+ return profileKind(ctx,opts=>({profiles:runsProfiles(ctx,runs,opts)}),true);
 }
 /** One profile per session. */
 function session(ctx:CatalogContext){
  const runs=sessionProfilePeriods(ctx.bars,ctx.str('session') as ProfileSession,{resolution:ctx.chart?.resolution??null,calendar:ctx.chart?.calendar??null});
- return profileKind(ctx,opts=>({profiles:runsProfiles(ctx,runs,opts)}));
+ return profileKind(ctx,opts=>({profiles:runsProfiles(ctx,runs,opts)}),true);
 }
 /** Session volume profile HD. Number Of Rows rows share one height from the visible price range;
  *  Ticks Per Row is the Session volume profile's rule. */
@@ -114,6 +116,9 @@ function autoAnchored(ctx:CatalogContext){
 }
 /** Row work per bar: the row count for Number Of Rows (each bar can touch every row), else an LV estimate of 64.
  *  Developing levels add one row pass per bar plus an LV estimate of 8 grid rebuilds per bar. */
+/** Periodic and Session profiles always run the developing pass (their per-bar levels are causal). */
+const causalWork=(count:number,value:(key:string)=>number)=>{const layout=value('rowsLayout') as unknown,rows=layout==='Ticks Per Row'?64:Math.min(value('rowSize'),PROFILE_MAX_ROWS);return work(count,value)+count*rows*10;};
+const CAUSAL_POLICY='OpenCandle-defined causal levels: on each bar the POC, VAH and VAL plots (and their alerts) are the levels of the period developed through that bar, so earlier bars never show later volume; the drawn histogram and its POC line cover the whole period.';
 const work=(count:number,value:(key:string)=>number)=>{const layout=value('rowsLayout') as unknown,rows=layout==='Ticks Per Row'?64:Math.min(value('rowSize'),PROFILE_MAX_ROWS),developing=(value('developingPoc') as unknown)===true||(value('developingVa') as unknown)===true;return count*rows*2+count*16+(developing?count*rows*10:0);};
 /** Extra volume profile policies. */
 export const VP_EXTRA_POLICIES=Object.freeze([
@@ -148,14 +153,14 @@ export const VP_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
   inputs:[ROWS_LAYOUT,ROW_SIZE,VOLUME,VALUE_AREA,PERIOD,placement('Left'),WIDTH,...EXTRAS],plots:PLOTS,continuousPlots:CONTINUOUS,
   provenance:PROVENANCE,
   unknownDefaults:[UNKNOWN_SHARED,'Period Day (choices Session, Day, Week, Month), Placement Left, the Period, Placement and Width titles and the acronym PVP are OpenCandle-defined. Each histogram is measured from its period\'s first or last bar edge, as a percentage of the period width.'],
-  policies:[...VOLUME_PROFILE_POLICIES,...VP_EXTRA_POLICIES,...R38_POLICIES,'OpenCandle-defined periods: US equities use New York trading dates, Monday weeks and months (the R23 pivot calendar); Session keeps only regular-session bars of each trading date, Day includes pre-market and after-hours bars. Daily bars and UTC feeds: Session equals Day.',R37_POLICIES[1]],
-  calculate:periodic,warmup:()=>1,work},
+  policies:[...VOLUME_PROFILE_POLICIES,...VP_EXTRA_POLICIES,...R38_POLICIES,'OpenCandle-defined periods: US equities use New York trading dates, Monday weeks and months (the R23 pivot calendar); Session keeps only regular-session bars of each trading date, Day includes pre-market and after-hours bars. Daily bars and UTC feeds: Session equals Day.',R37_POLICIES[1],CAUSAL_POLICY],
+  calculate:periodic,warmup:()=>1,work:causalWork},
  {id:'svp',name:'Session volume profile',acronym:'SVP',overlay:true,requiresVolume:true,segmented:true,profile:true,
   inputs:[ROWS_LAYOUT,ROW_SIZE,VOLUME,VALUE_AREA,SESSION,placement('Left'),WIDTH,...EXTRAS],plots:PLOTS,continuousPlots:CONTINUOUS,
   provenance:PROVENANCE,
   unknownDefaults:[UNKNOWN_SHARED,UNKNOWN_SESSION,'Placement Left, the Placement and Width titles and the acronym SVP are OpenCandle-defined. Each histogram is measured from its session\'s first or last bar edge, as a percentage of the session width.'],
-  policies:[...VOLUME_PROFILE_POLICIES,...VP_EXTRA_POLICIES,...R38_POLICIES,...R37_POLICIES],
-  calculate:session,warmup:()=>1,work},
+  policies:[...VOLUME_PROFILE_POLICIES,...VP_EXTRA_POLICIES,...R38_POLICIES,...R37_POLICIES,CAUSAL_POLICY],
+  calculate:session,warmup:()=>1,work:causalWork},
  {id:'svphd',name:'Session volume profile HD',acronym:'SVP HD',overlay:true,requiresVolume:true,viewport:true,segmented:true,profile:true,
   inputs:[ROWS_LAYOUT,{...ROW_SIZE,defval:100},VOLUME,VALUE_AREA,SESSION,placement('Left'),WIDTH,...EXTRAS],plots:PLOTS,continuousPlots:CONTINUOUS,
   provenance:PROVENANCE,

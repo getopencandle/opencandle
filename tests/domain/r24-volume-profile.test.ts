@@ -104,12 +104,15 @@ describe(' indicator kinds (SYNTHETIC)',()=>{
  it('VRVP without a visible range covers every loaded bar',()=>{
   const result=calculateIndicator('vrvp',days,{});expect(result.profiles![0]).toMatchObject({from:0,to:9});
  });
- it('PVP: one profile per period, POC constant within each period',()=>{
+ it('PVP: one profile per period; the per-bar POC develops and reaches the profile POC on its last bar',()=>{
   const result=calculateIndicator('pvp',days,{period:'Week'},{resolution:'1D',calendar:'utc'});
   // 2026-01-01 is a Thursday: Jan 1-4, Jan 5-10.
   expect(result.profiles!.map(p=>[p.from,p.to])).toEqual([[0,3],[4,9]]);
   const poc=result.series.find(row=>row.id==='poc')!.values;
-  expect(new Set(poc.slice(0,4)).size).toBe(1);expect(new Set(poc.slice(4)).size).toBe(1);expect(poc[0]).not.toBe(poc[4]);
+  // 0.8.1 (R2): causal per-bar levels (no look-ahead into later bars of the week); the histogram keeps the whole week.
+  for(const p of result.profiles!)expect(poc[p.to]).toBe(p.pocPrice);
+  expect(poc[3]).not.toBe(poc[9]);
+  const prefix=calculateIndicator('pvp',days.slice(0,6),{period:'Week'},{resolution:'1D',calendar:'utc'}).series.find(row=>row.id==='poc')!.values;expect(prefix).toEqual(poc.slice(0,6));
  });
  it('missing volume is unavailable, never zero',()=>{
   const result=calculateIndicator('vrvp',days.map(row=>({...row,volume:NaN})),{});

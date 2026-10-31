@@ -1,5 +1,9 @@
 import {describe,expect,it} from 'vitest';
-import {calculateIndicator,vwapAnchorZone,VWAP_EXCHANGE_ZONE} from '../../src/domain/indicators';
+import {calculateIndicator,emaSmaSeed,movingAverage,trueRange,vwapAnchorZone,VWAP_EXCHANGE_ZONE} from '../../src/domain/indicators';
+import {createIncrementalIndicatorSession} from '../../src/domain/indicator-incremental';
+import {effectiveVwapSettings} from '../../src/vwap/settings';
+import {copyVwapSettings} from '../../src/vwap/protocol';
+import {VWAP_EXCHANGE_TIMEZONE} from '../../src/vwap/types';
 import {indicatorDefaults,indicatorLegacyDefaults,validateIndicatorInputs} from '../../src/chart/indicator-settings';
 import type {Bar} from '../../src/domain/types';
 
@@ -79,8 +83,8 @@ describe('VWAP session zone (finding 4)',()=>{
  // 2024-01-02: 14:30 UTC (09:30 New York), 21:30 UTC (16:30, after hours), 2024-01-03 00:30 UTC (19:30 on Jan 2 in New York).
  const t=Date.UTC(2024,0,2)/1000,bars=[bar(0,10,10,10,10,1,t+52200),bar(1,20,20,20,20,1,t+77400),bar(2,30,30,30,30,1,t+88200)];
  const inputs=(timezone:string)=>({anchor:'Session',timezone,source:'close'});
- it('accepts the Exchange zone choice; saved instances keep their stored zone',()=>{
-  expect(indicatorLegacyDefaults.vwap.timezone).toBe('UTC');expect(indicatorDefaults.vwap.timezone).toBe('UTC');// flipping the new-instance default waits on the kernel 2 worker (src/vwap/settings.ts)
+ it('new instances default to the exchange zone; saved instances keep their stored zone',()=>{
+  expect(indicatorDefaults.vwap.timezone).toBe(VWAP_EXCHANGE_ZONE);expect(indicatorLegacyDefaults.vwap.timezone).toBe('UTC');
   expect(()=>validateIndicatorInputs('vwap',inputs(VWAP_EXCHANGE_ZONE))).not.toThrow();
  });
  it('US after-hours bars stay in their exchange session',()=>{
@@ -127,5 +131,54 @@ describe('Connors RSI percent rank (finding 7)',()=>{
   const crsi=plot('crsi',b,{rsiLength:1,streakLength:1,rankLength:2,source:'close'},'crsi');
   // RSI(1) of a rise = 100; the streak 1, 2, 3 rises, so its RSI(1) = 100.
   near([crsi[3]],[(100+100+0)/3],6);
+ });
+});
+
+describe('every EMA path in the app is the same SMA-seeded EMA (finding 6, 0.8.1 follow-up)',()=>{
+ const bars=wave(90),close=bars.map(row=>row.close),n=7,reference=emaSmaSeed(close,n);
+ // Hand check of the seed itself: the first value is the SMA of the first n closes, then alpha = 2 / (n + 1).
+ it('the reference EMA is the SMA seed then the 2 / (n + 1) recurrence',()=>{
+  const seed=close.slice(0,n).reduce((a,b)=>a+b,0)/n;expect(reference.slice(0,n-1).every(value=>value===null)).toBe(true);expect(reference[n-1]).toBeCloseTo(seed,12);
+  expect(reference[n]).toBeCloseTo(0.25*close[n]+0.75*seed,12);
+ });
+ it('indicator, MA-type, toolkit and smoothing EMAs all equal it',()=>{
+  const paths:Record<string,readonly (number|null)[]>={
+   'EMA indicator':plot('ema',bars,{length:n,source:'close'},'ema'),
+   'movingAverage EMA':movingAverage(close,n,'EMA'),
+   'BB EMA basis':plot('bb',bars,{length:n,basisType:'EMA',source:'close'},'basis'),
+   'additional smoothing EMA':plot('sma',bars,{length:1,source:'close',smoothingType:'EMA',smoothingLength:n},'smooth'),
+   'EMA cross short':plot('emacross',bars,{shortLength:n,longLength:n+5,source:'close'},'short'),
+   'MA ribbon EMA':plot('maribbon',bars,{maType:'EMA',length1:n},'ma1'),
+   'Guppy':plot('guppy',bars,{short1:n},'short1'),
+   'Envelope exponential':plot('env',bars,{exponential:true,length:n},'basis'),
+  };
+  for(const [name,values] of Object.entries(paths))near(values,reference,12),expect(values.length,name).toBe(bars.length);
+  // EMAs over other inputs: Volume MA EMA over volume, ATR EMA smoothing over true range, the MACD line.
+  near(plot('volume',bars,{length:n,maType:'EMA'},'ma'),emaSmaSeed(bars.map(row=>row.volume),n),12);
+  near(plot('atr',bars,{length:n,smoothing:'EMA'},'atr'),emaSmaSeed(trueRange(bars),n),12);
+  const fast=emaSmaSeed(close,5),slow=emaSmaSeed(close,n+6);
+  near(plot('macd',bars,{fast:5,slow:n+6,signal:3,source:'close'},'macd'),fast.map((value,i)=>value!==null&&slow[i]!==null?value-(slow[i] as number):null),12);
+ });
+ it('the incremental live path equals the full calculation for every MA-type EMA',()=>{
+  for(const [kind,inputs] of [['volume',{length:n,maType:'EMA'}],['atr',{length:n,smoothing:'EMA'}],['bb',{length:n,basisType:'EMA',source:'close'}],['ema',{length:n,source:'close',smoothingType:'EMA',smoothingLength:4}]] as const){
+   const session=createIncrementalIndicatorSession();
+   for(let count=80;count<=90;count++){const slice=bars.slice(0,count);expect(session.calculate(kind,slice,inputs).series,kind+' '+count).toEqual(calculateIndicator(kind,slice,inputs).series);}
+  }
+ });
+});
+
+describe('VWAP Exchange zone on the exact (kernel 2) path',()=>{
+ it('effectiveVwapSettings resolves Exchange like the kernel 1 calculation and keeps saved zones',()=>{
+  const inputs={kernelVersion:2,anchor:'Session',timezone:VWAP_EXCHANGE_ZONE,source:'hlc3'};
+  expect(VWAP_EXCHANGE_TIMEZONE).toBe(VWAP_EXCHANGE_ZONE);
+  expect(effectiveVwapSettings(inputs,'standard',{exchangeZone:'America/New_York',calendar:'us-equity'}).timezone).toBe('America/New_York');
+  expect(effectiveVwapSettings(inputs,'standard',{exchangeZone:'America/New_York',calendar:'utc'}).timezone).toBe('UTC');
+  expect(effectiveVwapSettings(inputs,'standard').timezone).toBe('UTC');
+  expect(effectiveVwapSettings({...inputs,timezone:'UTC'},'standard',{exchangeZone:'America/New_York'}).timezone).toBe('UTC');
+  expect(effectiveVwapSettings({...inputs,timezone:'Asia/Tokyo'},'standard',{exchangeZone:'America/New_York'}).timezone).toBe('Asia/Tokyo');
+ });
+ it('the worker protocol accepts an unresolved Exchange zone',()=>{
+  const settings={kernelVersion:2,source:'hlc3',anchor:'Session',timezone:VWAP_EXCHANGE_TIMEZONE,transform:'standard',bandMode:'Percentage',band1Enabled:false,band1Multiplier:1,band2Enabled:false,band2Multiplier:2,band3Enabled:false,band3Multiplier:3};
+  expect(copyVwapSettings(settings).timezone).toBe(VWAP_EXCHANGE_TIMEZONE);expect(()=>copyVwapSettings({...settings,timezone:'Not/AZone'})).toThrow();
  });
 });

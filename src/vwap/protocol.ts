@@ -1,5 +1,5 @@
 import { VWAP_EXACT_SOURCES } from '../domain/vwap-exact';
-import { VWAP_ANCHORS, VWAP_WORKER_LIMITS as LIMIT, type VwapCalculationSettings, type VwapDiagnostic, type VwapPlot, type VwapPlotId, type VwapWireRequest } from './types';
+import { VWAP_ANCHORS, VWAP_EXCHANGE_TIMEZONE, VWAP_WORKER_LIMITS as LIMIT, type VwapCalculationSettings, type VwapDiagnostic, type VwapPlot, type VwapPlotId, type VwapWireRequest } from './types';
 
 export class VwapError extends Error { constructor(readonly code: string, message: string) { super(message); this.name = 'VwapError'; } }
 export function reject(code: string, message: string): never { throw new VwapError(code, message); }
@@ -29,7 +29,7 @@ export function copyVwapSettings(value: unknown): Readonly<VwapCalculationSettin
   const fields = ownData(value, settingsKeys, 'VWAP settings');
   if (fields.kernelVersion !== 2 || !(VWAP_EXACT_SOURCES as readonly unknown[]).includes(fields.source) || !(VWAP_ANCHORS as readonly unknown[]).includes(fields.anchor) || !['standard', 'heikin-ashi'].includes(fields.transform as string) || !['Percentage', 'Standard Deviation'].includes(fields.bandMode as string)) reject('VWAP_SETTINGS', 'Unsupported VWAP version, source, anchor, transform or band mode.');
   const timezone = text(fields.timezone, 128, 'VWAP timezone');
-  try { new Intl.DateTimeFormat('en-CA', { timeZone: timezone }); } catch { reject('VWAP_SETTINGS', 'VWAP timezone is unavailable.'); }
+  if (timezone !== VWAP_EXCHANGE_TIMEZONE) try { new Intl.DateTimeFormat('en-CA', { timeZone: timezone }); } catch { reject('VWAP_SETTINGS', 'VWAP timezone is unavailable.'); }
   for (let pair = 1; pair <= 3; pair++) {
     const enabled = fields[`band${pair}Enabled`], multiplier = fields[`band${pair}Multiplier`];
     if (typeof enabled !== 'boolean' || typeof multiplier !== 'number' || !Number.isFinite(multiplier) || multiplier < 0 || multiplier > 100_000) reject('VWAP_SETTINGS', 'Every VWAP band requires a boolean and finite multiplier from 0 through 100000.');

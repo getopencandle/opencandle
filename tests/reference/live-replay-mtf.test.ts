@@ -28,12 +28,9 @@ import {optionsFor,datasetOf,finerBars} from './context';
 import {REPAINT_EXEMPT,HEADLESS_UNAVAILABLE} from './exemptions';
 
 export const KNOWN_FAILURES:Record<string,string>={
- // R5: a new VWAP stores timezone 'UTC', so on US extended-hours data after the DST change the session splits at 00:00 UTC (19:00 New York).
- '2e:vwap-default:us30m':'R5',
- '2e:rbintrapivots-regular:us30m':'R4',
 };
 /** Kinds left out of the all-kinds MTF run because of an open finding (each also fails its own guardrail elsewhere). */
-const MTF_OPEN_FINDINGS:Record<string,string>={pvp:'R2',svp:'R2'};
+const MTF_OPEN_FINDINGS:Record<string,string>={};
 const flagged=(key:string,title:string)=>{const finding=KNOWN_FAILURES[key];return {run:finding?it.fails:it,title:title+(finding?' [known failure '+finding+']':'')};};
 const causal=ALL_IDS.filter(id=>!REPAINT_EXEMPT[id]&&!HEADLESS_UNAVAILABLE[id]);
 const sameResult=(actual:IndicatorResult,expected:IndicatorResult,where:string)=>{
@@ -222,10 +219,10 @@ describe('guardrail 2e: session-anchored kinds reset at the right boundary',()=>
    const expected=bars.map(bar=>{if(day(bar.time)!==key){key=day(bar.time);sum=0;count=0;}sum+=(bar.open+bar.high+bar.low+bar.close)/4;count++;return sum/count;});
    const m=firstMismatch(result.series[0].values,expected,0,1e-9);expect(m,describeMismatch(m,bars)).toBeNull();
   });
-  // pivots: on US intraday bars only regular-session bars set the period OHLC (its policy). rbintrapivots documents only
-  // "the pivot calendar" (New York trading dates) and uses every bar of the date; 'rbintrapivots-regular' checks the two agree.
+  // pivots: on US intraday bars only regular-session bars set the period OHLC (its policy). Since 0.8.1 (R4) rbintrapivots
+  // follows the same regular-session rule, so on US data only 'rbintrapivots-regular' applies; UTC data counts every bar.
   for(const [kind,regularOnly,label] of [['pivots',true,'pivots'],['rbintrapivots',false,'rbintrapivots'],['rbintrapivots',true,'rbintrapivots-regular']] as const){
-   if(!us&&label==='rbintrapivots-regular')continue;
+   if(!us&&label==='rbintrapivots-regular'||us&&label==='rbintrapivots')continue;
    const {run,title}=flagged(`2e:${label}:${series}`,`${series}: ${kind} P = (H + L + C) / 3 of the prior ${us?(regularOnly?'regular session':'New York trading date, all bars'):'UTC day'}, constant over the period`);
    run(title,()=>{
     const inputs={...defaultInputs(kind),...(kind==='pivots'?{timeframe:'Daily'}:{})},result=calculateIndicator(kind,bars,inputs,options);expect(result.diagnostics).toEqual([]);

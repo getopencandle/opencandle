@@ -88,7 +88,9 @@ function sources(bars:readonly Bar[],from:number,to:number,ltf:LowerTimeframeBar
  for(let i=from;i<=to;i++){
   const bar=bars[i];
   if(usable){
-   const end=i+1<bars.length?bars[i+1].time:bar.time+(chartStep??(i>0?bar.time-bars[i-1].time:fine!));
+   // A chart bar spans its declared interval (capped by the next bar): reading up to the next bar's time would pull finer
+   // rows from a gap after the bar (overnight, weekend) into it, and only once that next bar exists (a look-ahead).
+   const next=i+1<bars.length?bars[i+1].time:Infinity,end=chartStep!==null?Math.min(next,bar.time+chartStep):Number.isFinite(next)?next:bar.time+(i>0?bar.time-bars[i-1].time:fine!);
    const list=ltf!.bars;while(j<list.length&&list[j].time<bar.time)j++;
    const inside:Source[]=[];let k=j,ok=true;
    while(k<list.length&&list[k].time<end){const row=list[k];if(![row.high,row.low,row.open,row.close,row.volume].every(finite)||row.volume<0||row.high<row.low){ok=false;break;}inside.push(row);k++;}

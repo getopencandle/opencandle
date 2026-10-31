@@ -226,7 +226,7 @@ export function sma(values: Values, period: number): NumericSeries {
  * bar 25 with the signal on bar 33. The SMA seed is the consensus convention every EMA-based indicator uses: StockCharts
  * ChartSchool ("Moving Averages": a simple moving average is used as the previous period's EMA in the first
  * calculation), TA-Lib (TA_EMA, default classic seed = SMA of the first period values) and Wilder's own RMA seed. The
- * first-value seed (smaSeed false) remains for movingAverage('EMA') only (see there). */
+ * first-value seed (smaSeed false) is kept only for the exported ema() kernel, which no indicator uses. */
 export function emaStepper(period:number,smaSeed=false):Stepper<{previous:number|null;sum:number;count:number}>{
  const alpha = 2 / (period + 1);
  return {create:()=>({previous:null,sum:0,count:0}),copy:state=>({...state}),step:(state,value)=>{
@@ -236,14 +236,14 @@ export function emaStepper(period:number,smaSeed=false):Stepper<{previous:number
   return state.previous;
  }};
 }
-/** First-finite-value seed (movingAverage 'EMA' only; the EMA indicator and catalog kinds take emaSmaSeed); missing values
- * emit null and retain the accumulator. */
+/** First-finite-value seed. No indicator uses it (every EMA takes emaSmaSeed); missing values emit null and retain the
+ * accumulator. */
 export function ema(values: Values, period: number): NumericSeries {
   length(period);
   return runStepper(emaStepper(period),values);
 }
-/** The SMA-seeded EMA, unavailable until period finite values, then seeded by their mean (as rma). Used by the EMA and
- * MACD indicators and every catalog kind (the toolkit's ema), see emaStepper. */
+/** The SMA-seeded EMA, unavailable until period finite values, then seeded by their mean (as rma). Used by every EMA in
+ * the app: the EMA and MACD indicators, the EMA choice of each MA type input and every catalog kind (the toolkit's ema). */
 export function emaSmaSeed(values: Values, period: number): NumericSeries {
   length(period);
   return runStepper(emaStepper(period,true),values);
@@ -293,9 +293,9 @@ export function vwma(values: Values, volumes: Values, period: number): NumericSe
 
 export function movingAverage(values: Values, period: number, kind: MovingAverageType = 'SMA', volumes?: Values): NumericSeries {
   if (kind === 'SMA') return sma(values, period);
-  // The built-in MA-type EMA (Volume MA, ATR smoothing, BB basis, additional smoothing) keeps the first-value seed for now:
-  // the incremental engine (indicator-incremental.ts) and the dialog warm-up model mirror it. See emaStepper.
-  if (kind === 'EMA') return ema(values, period);
+  // The EMA choice of every MA type input (Volume MA, ATR smoothing, BB basis, additional smoothing) is SMA-seeded like the
+  // EMA indicator (see emaStepper); indicator-incremental.ts and the dialog warm-up model mirror it.
+  if (kind === 'EMA') return emaSmaSeed(values, period);
   if (kind === 'RMA') return rma(values, period);
   if (kind === 'WMA') return wma(values, period);
   if (kind === 'VWMA' && volumes) return vwma(values, volumes, period);
@@ -443,7 +443,7 @@ export function vwap(bars: readonly Bar[], sessions?: readonly string[], source:
   });
 }
 
-/** The VWAP anchor time zone. 'Exchange' (the planned new-instance default; kernel 1 only until the src/vwap worker resolves it) is the source exchange zone, so a US equity session
+/** The VWAP anchor time zone. 'Exchange' (the new-instance default; src/vwap/settings.ts resolves it the same way for kernel 2) is the source exchange zone, so a US equity session
  * day runs on New York dates and after-hours bars stay in their session; 24/7 (UTC calendar) sources and sources without
  * a declared zone use UTC 00:00. A saved explicit zone (older instances were saved with 'UTC') is used as is. */
 export const VWAP_EXCHANGE_ZONE='Exchange';
@@ -485,7 +485,7 @@ export interface IndicatorCalculationOptions {sourceValues?:NumericSeries;resolu
 // The toolkit ema is the SMA-seeded EMA (the consensus seed, see emaStepper), so every catalog EMA matches the EMA indicator.
 const CATALOG_TOOLKIT:CatalogToolkit={sma,ema:emaSmaSeed,emaSmaSeed,rma,wma,rsi:(values,period)=>rsi(values,period),trueRange};
 export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[], inputs: IndicatorInputs = {}, options: IndicatorCalculationOptions = {}): IndicatorResult {
-  const result: IndicatorResult = { id, series: [], diagnostics: [], policies: ['EMA averages use an SMA seed (StockCharts, TA-Lib), except the first-value-seeded EMA choice of an MA type input; RMA uses initial SMA; missing values remain gaps.', 'Offsets belong to rendering and never change signal values.'] };
+  const result: IndicatorResult = { id, series: [], diagnostics: [], policies: ['EMA averages use an SMA seed (StockCharts, TA-Lib); RMA uses initial SMA; missing values remain gaps.', 'Offsets belong to rendering and never change signal values.'] };
   const num = (key: string, fallback: number) => { const v = Object.hasOwn(inputs,key)?inputs[key]:fallback; if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`${key} must be a finite number.`); return v; };
   const plot = (key: string, label: string, values: NumericSeries) => {if(values.some(value=>value!==null&&!finite(value)))throw new Error(`The ${key} calculation overflowed or has an invalid numeric input.`);result.series.push({ id: key, label, values });};
   try {
@@ -495,7 +495,9 @@ export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[
     if(!Object.hasOwn(allowed,kind)||Object.keys(inputs).some(key=>!allowed[kind].includes(key)&&!(smoothingKinds.has(kind)&&['smoothingType','smoothingLength','smoothingMultiplier'].includes(key))))throw new Error('Unsupported indicator calculation input.');
     if(kind==='vwap'&&indicatorVwapKernelVersion(inputs)===2){indicatorVwapBandSettings(inputs);throw new Error('VWAP kernel 2 requires the owned asynchronous worker service; no synchronous or legacy fallback was run.');}
     const work=indicatorCalculationWork(kind,bars.length,inputs);if(work>20000000)throw new Error(`Indicator calculation requires ${work} estimated operations, above the local 20000000 limit.`);
-    const rawSource=Object.hasOwn(inputs,'source')?inputs.source:'close',reference=parseIndicatorSource(rawSource);
+    // An omitted Source is the kind's own default (hlc3 for CCI, hl2 for Median, ohlc4 for TWAP...), not close, so alerts,
+    // scripts and partial inputs calculate what a new instance shows.
+    const rawSource=Object.hasOwn(inputs,'source')?inputs.source:(catalogDefinition(kind)?.inputs.find(input=>input.key==='source')?.defval??'close'),reference=parseIndicatorSource(rawSource);
     if(reference){if(!INDICATOR_SOURCE_KINDS.includes(kind))throw new Error('This indicator does not accept another indicator as its source.');if(!options.sourceValues)throw new Error('The selected source indicator is unavailable.');if(!Array.isArray(options.sourceValues)||options.sourceValues.length!==bars.length)throw new Error('The source indicator series does not match the chart bars.');}
     const source = (reference?'close':rawSource) as PriceSource;
     if(source!==undefined&&!['open','high','low','close','hl2','hlc3','ohlc4'].includes(source))throw new Error(`Unsupported source: ${source}`);

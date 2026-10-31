@@ -221,12 +221,13 @@ it('second review L3: typing a colliding name loads its stored scope and Save ke
 const warmBars=Array.from({length:120},(_,i)=>{const close=100+10*Math.sin(i/3)+i%5;return {time:1700000000+i*86400,open:close-1,high:close+2+i%3,low:close-2-i%2,close,volume:1000+i};});
 // The EMA indicator and the MACD EMAs are SMA-seeded (reference ARM 1D: EMA 9 first on bar 8, MACD on bar 25
 // signal on bar 33), so EMA 9 needs 9 bars (was 1) and MACD 12/26/9 needs 34 with an EMA signal (was 1 and 26).
+// 0.8.1: the EMA choice of every MA type input is SMA-seeded too, so ATR/Volume EMA and EMA smoothing need full windows (were 1).
 const warmCases:[IndicatorId,Record<string,unknown>,number][]=[
  ['sma',{length:9,source:'close'},9],['ema',{length:9,source:'close'},9],['rsi',{length:14,source:'close'},15],
  ['macd',{fast:12,slow:26,signal:9,source:'close',oscillatorType:'EMA',signalType:'EMA'},34],['macd',{fast:12,slow:26,signal:9,source:'close',oscillatorType:'SMA',signalType:'SMA'},34],['macd',{fast:12,slow:26,signal:9,source:'close',oscillatorType:'SMA',signalType:'EMA'},34],
- ['bb',{length:20,multiplier:2,basisType:'EMA',source:'close'},20],['stochastic',{length:14,smoothK:3,smoothD:3},18],['atr',{length:14,smoothing:'RMA'},14],['atr',{length:14,smoothing:'EMA'},1],
- ['volume',{length:20},20],['volume',{length:20,maType:'EMA'},1],['vwap',{anchor:'Session',timezone:'UTC',source:'hlc3'},1],['obv',{},1],
- ['sma',{length:9,source:'close',smoothingType:'SMA',smoothingLength:14,smoothingMultiplier:2},22],['rsi',{length:14,source:'close',smoothingType:'SMA+BB',smoothingLength:5,smoothingMultiplier:2},19],['ema',{length:9,source:'close',smoothingType:'EMA',smoothingLength:14,smoothingMultiplier:2},9],
+ ['bb',{length:20,multiplier:2,basisType:'EMA',source:'close'},20],['stochastic',{length:14,smoothK:3,smoothD:3},18],['atr',{length:14,smoothing:'RMA'},14],['atr',{length:14,smoothing:'EMA'},14],
+ ['volume',{length:20},20],['volume',{length:20,maType:'EMA'},20],['vwap',{anchor:'Session',timezone:'UTC',source:'hlc3'},1],['obv',{},1],
+ ['sma',{length:9,source:'close',smoothingType:'SMA',smoothingLength:14,smoothingMultiplier:2},22],['rsi',{length:14,source:'close',smoothingType:'SMA+BB',smoothingLength:5,smoothingMultiplier:2},19],['ema',{length:9,source:'close',smoothingType:'EMA',smoothingLength:14,smoothingMultiplier:2},22],
 ];
 it.each(warmCases)('second review L4: %s warm-up matches the engine (%j -> %i bars)',(kind,inputs,expected)=>{
  expect(indicatorWarmupBars(kind,inputs)).toBe(expected);

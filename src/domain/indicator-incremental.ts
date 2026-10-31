@@ -44,8 +44,8 @@ type Values=(number|null)[];
 interface Pipeline {plots:readonly string[];volume:boolean;create():unknown[];copy(states:readonly unknown[]):unknown[];step(states:unknown[],index:number,bars:readonly Bar[],out:readonly Values[]):Values}
 function averageStepper(type:unknown,period:number):Stepper<unknown>|null{
  if(type==='SMA')return smaStepper(period) as Stepper<unknown>;
- if(type==='EMA')return emaStepper(period) as Stepper<unknown>;
- if(type==='EMA_SMA_SEED')return emaStepper(period,true) as Stepper<unknown>;// The EMA and MACD indicators
+ // Every EMA is SMA-seeded (movingAverage 'EMA' and emaSmaSeed alike, src/domain/indicators.ts emaStepper).
+ if(type==='EMA'||type==='EMA_SMA_SEED')return emaStepper(period,true) as Stepper<unknown>;
  if(type==='RMA')return rmaStepper(period) as Stepper<unknown>;
  if(type==='WMA')return wmaStepper(period) as Stepper<unknown>;
  return null;

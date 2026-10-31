@@ -15,7 +15,7 @@ it('preserves omitted and explicit v1 arithmetic and unchanged factory/default b
  const before=calculateIndicator('vwap',bars,settings().inputs),explicit=calculateIndicator('vwap',bars,settings(1).inputs);
  expect(before).toEqual(explicit);expect(before.series[0].values).toEqual([10,17.5]);
  expect(indicatorLegacyDefaults.vwap).toEqual({anchor:'Session',timezone:'UTC',source:'hlc3'});
- expect(indicatorDefaults.vwap).toEqual({anchor:'Session',timezone:'UTC',source:'hlc3',...VWAP_BAND_DEFAULTS});
+ expect(indicatorDefaults.vwap).toEqual({anchor:'Session',timezone:'Exchange',source:'hlc3',...VWAP_BAND_DEFAULTS});// 0.8.1: new VWAPs anchor sessions in the exchange zone; the legacy (saved) default above stays 'UTC'
  expect(factoryIndicatorDefault('vwap').inputs).not.toHaveProperty('kernelVersion');
  expect(indicatorVwapKernelVersion({})).toBe(1);expect(indicatorVwapKernelVersion({kernelVersion:1})).toBe(1);expect(indicatorVwapKernelVersion({kernelVersion:2})).toBe(2);
 });

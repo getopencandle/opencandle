@@ -169,7 +169,7 @@ const definitions:readonly CatalogDefinition[]=[
   unknownDefaults:['Lengths 20/5/5 are the author defaults; the histogram style is OpenCandle-defined. The combined SMI ergodic indicator/oscillator kind stays as it is.',COLORS_LV],
   policies:['Momentum is the 1-bar change; the long EMA is applied first. EMAs use the SMA seed (StockCharts, TA-Lib). A zero denominator is unavailable.'],
   calculate({source,tk,num}){const {smi,signal}=smiErgodic(tk,source,num('longLength'),num('shortLength'),num('signalLength'));return {oscillator:smi.map((a,i)=>{const b=signal[i];return finite(a)&&finite(b)?zero(a-b):null;})};},
-  warmup:()=>2,work:count=>count*24},
+  warmup:value=>value('longLength')+value('shortLength')+value('signalLength')-1,work:count=>count*24},
  {id:'ratio',name:'Ratio',acronym:'Ratio',overlay:false,secondSymbol:true,sourceSeries:true,
   inputs:[SECOND_SYMBOL_INPUT,SOURCE],
   plots:[{id:'ratio',label:'Ratio',color:C.cyan,width:2}],

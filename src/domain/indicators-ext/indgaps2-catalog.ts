@@ -1,7 +1,8 @@
 import type {Bar,NumericSeries} from '../types';
 import type {CatalogContext,CatalogDefinition,CatalogInput} from '../indicator-catalog';
 import {parseInterval} from '../intervals';
-import {pivotCalendar,pivotPeriodKey,zigzagPivots} from './r23-catalog';
+import {dailyOrLonger,pivotCalendar,pivotPeriodKey,zigzagPivots} from './r23-catalog';
+import {usSessionPhase} from '../us-market-hours';
 import type {PatternBox,PatternCandle,PatternLine,PatternMarker} from './patterns-catalog';
 
 /**
@@ -127,13 +128,18 @@ function periodKeys(ctx:CatalogContext):(string|null)[]{
 }
 /** `developing` false: each period carries the previous complete period's levels. true: the levels of the current period so far
  *  (the next period's levels as they form). */
+/** Daily periods of US equity intraday data use the Pivot points standard rule (r23 pivotPoints): only regular-session
+ *  bars build a date's high, low and close; pre- and after-hours bars belong to the date but do not count, and a date
+ *  without regular-session bars is skipped (the prior levels carry on). */
 function bookerPivots(ctx:CatalogContext,developing:boolean,ids:readonly typeof PIVOT_IDS[number][]):Record<string,NumericSeries>{
  const {bars}=ctx,n=bars.length,keys=periodKeys(ctx),out:Record<string,NumericSeries>=Object.fromEntries(ids.map(id=>[id,nulls(n)]));
- let key:string|null=null,H=-Infinity,L=Infinity,Cl=NaN,valid=false,levels:ReturnType<typeof floorPivots>|null=null;
+ const regularOnly=ctx.str('timeframe')!=='4 hours'&&pivotCalendar(bars,ctx.chart?.resolution,ctx.chart?.calendar)==='us-equity'&&!dailyOrLonger(bars,ctx.chart?.resolution);
+ const counts=(bar:Bar)=>!regularOnly||Number.isFinite(bar.time)&&usSessionPhase(bar.time)==='regular';
+ let key:string|null=null,H=-Infinity,L=Infinity,Cl=NaN,valid=false,counted=false,levels:ReturnType<typeof floorPivots>|null=null;
  for(let i=0;i<n;i++){
   const k=keys[i];if(k===null){valid=false;continue;}
-  if(k!==key){levels=key!==null&&valid&&finite(Cl)?floorPivots(H,L,Cl):null;key=k;H=-Infinity;L=Infinity;Cl=NaN;valid=true;}
-  const bar=bars[i];if(hlc(bar)){H=Math.max(H,bar.high);L=Math.min(L,bar.low);Cl=bar.close;}else valid=false;
+  if(k!==key){if(key===null||counted)levels=key!==null&&valid&&finite(Cl)?floorPivots(H,L,Cl):null;key=k;H=-Infinity;L=Infinity;Cl=NaN;valid=true;counted=false;}
+  const bar=bars[i];if(counts(bar)){if(hlc(bar)){H=Math.max(H,bar.high);L=Math.min(L,bar.low);Cl=bar.close;counted=true;}else valid=false;}
   const shown=developing?(valid&&finite(Cl)?floorPivots(H,L,Cl):null):levels;
   if(shown)for(const id of ids)out[id][i]=zero(shown[id]);
  }
@@ -258,7 +264,7 @@ const definitions:readonly CatalogDefinition[]=[
   plots:PIVOT_IDS.map(id=>({id,label:PIVOT_LABELS[id],color:PIVOT_COLORS[id],width:1})),
   provenance:[{url:TV_LIST,facts:'"Rob Booker - Intraday Pivot Points" is a built-in (Rob Booker section).'},{url:LV+'traditional-floor-pivots',facts:'P = (H + L + C) / 3; R1 = 2P - L; S1 = 2P - H; R2 = P + (H - L); S2 = P - (H - L); R3 = H + 2(P - L); S3 = L - 2(H - P) from the previous period.'}],
   unknownDefaults:['The Daily / 4 hours period choice (default Daily) and the traditional formula are OpenCandle-defined; the reference inputs were not read.',COLORS_LV],
-  policies:['Periods: Daily follows the pivot calendar (New York trading dates for US equities, UTC days otherwise); 4 hours are UTC blocks from 00:00. The first period and any period after one with a missing price are unavailable.'],
+  policies:['Periods: Daily follows the pivot calendar (New York trading dates for US equities, UTC days otherwise); 4 hours are UTC blocks from 00:00. The first period and any period after one with a missing price are unavailable.','US equity intraday Daily periods count only regular-session bars, as Pivot points standard does; pre- and after-hours bars belong to their date but do not count, and a date without regular-session bars is skipped.'],
   calculate:ctx=>bookerPivots(ctx,false,PIVOT_IDS),warmup:()=>2,work:count=>count*10},
  {id:'rbknoxville',name:'Rob Booker - Knoxville divergence',acronym:'RB Knoxville',overlay:true,pattern:'chart',
   inputs:[{key:'barsBack',title:'Bars back',type:'int',defval:150,min:2,max:1000,step:1},{key:'rsiLength',title:'RSI period',type:'int',defval:21,min:1,max:500,step:1},{key:'momLength',title:'Momentum period',type:'int',defval:20,min:1,max:500,step:1}],

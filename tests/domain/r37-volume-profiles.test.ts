@@ -46,8 +46,10 @@ describe(' Session volume profile (SYNTHETIC)',()=>{
   // target 70% of 400 = 280; the POC row alone holds 350.
   expect([day2.pocPrice,day2.vah,day2.val]).toEqual([11.5,12,11]);
   // Day 3: C spreads 100/100 over [20,21],[21,22]; D adds 50 down to [21,22]. POC 21.5; target 175, POC row 150, add [20,21].
-  expect([values(result,'poc')[2],values(result,'vah')[3],values(result,'val')[3]]).toEqual([21.5,22,20]);
-  expect(values(result,'poc')).toEqual([11.5,11.5,21.5,21.5]);
+  expect([values(result,'poc')[3],values(result,'vah')[3],values(result,'val')[3]]).toEqual([21.5,22,20]);
+  // 0.8.1 (R2): the per-bar POC is the session's developing POC (A alone ties [10,11]/[11,12]: the lower row; C alone
+  // likewise); the last bar of each session carries the profile POC.
+  expect(values(result,'poc')).toEqual([10.5,11.5,20.5,21.5]);
  });
  it('Regular, 2 rows: only B on day 2; equal rows tie at the middle, so the lower row is the POC (hand oracle)',()=>{
   const result=calculateIndicator('svp',TWO_DAYS,{rowSize:2,session:'Regular'},US);

@@ -52,9 +52,10 @@ export function indicatorInstanceLabels(instances:readonly Pick<IndicatorInstanc
 export type IndicatorDataState='hidden'|'unavailable'|'waiting'|'short-history'|'calculated'|'partial';
 const finiteNumber=(value:unknown,fallback:number)=>typeof value==='number'&&Number.isFinite(value)&&value>=1?Math.floor(value):fallback;
 /** Bars before an average of this type emits its first value, per src/domain/indicators.ts: EMA seeds on the first finite value; SMA, RMA, WMA and VWMA need a full window. */
-const averageLag=(type:unknown,period:number)=>type==='EMA'?0:period-1;
-// The EMA indicator and the MACD EMAs are SMA-seeded, so they lag like a full window.
-const seededLag=(type:unknown,period:number)=>type==='EMA'?period-1:averageLag(type,period);
+// Every average lags a full window: SMA, WMA, VWMA and RMA by construction, and every EMA (the EMA and MACD indicators
+// and each EMA choice of an MA type input) because all EMAs take the SMA seed (src/domain/indicators.ts emaStepper).
+const averageLag=(_type:unknown,period:number)=>period-1;
+const seededLag=averageLag;
 /**
  * Bars needed before every active plot of this instance can have a value, derived from the
  * engine definitions in src/domain/indicators.ts (calculateIndicator), not from the reference.
@@ -77,7 +78,7 @@ export function indicatorWarmupBars(kind:IndicatorId,inputs:Record<string,unknow
   case 'vwap':case 'obv':last=0;break;
  }
  const smoothing=inputs.smoothingType;
- if(typeof smoothing==='string'&&smoothing!=='None'&&Object.hasOwn(indicatorDefaults[kind],'smoothingType'))last+=smoothing==='EMA'?0:value('smoothingLength')-1;
+ if(typeof smoothing==='string'&&smoothing!=='None'&&Object.hasOwn(indicatorDefaults[kind],'smoothingType'))last+=value('smoothingLength')-1;// every smoothing type, the SMA-seeded EMA included, needs a full window
  return last+1;
 }
 /**

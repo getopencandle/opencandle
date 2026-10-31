@@ -70,7 +70,7 @@ export function pivotAutoTimeframe(bars:readonly {time:number}[],resolution?:str
  return spacing<=900?'Daily':spacing<72000?'Weekly':'Monthly';
 }
 /** True when the bars are daily or longer (declared resolution, else a spacing of 20 hours or more). */
-function dailyOrLonger(bars:readonly {time:number}[],resolution?:string|null):boolean{const declared=resolutionSeconds(resolution);return declared!==null?declared>=DAY:barSpacing(bars)>=72000;}
+export function dailyOrLonger(bars:readonly {time:number}[],resolution?:string|null):boolean{const declared=resolutionSeconds(resolution);return declared!==null?declared>=DAY:barSpacing(bars)>=72000;}
 /** New York trading date of a bar. A daily-or-longer bar is read 12 hours after its stamp, so New York midnight and UTC midnight stamps both land on their own trading date. */
 function newYorkDate(time:number,daily:boolean):string{return newYorkClock(daily?time+DAY/2:time).date;}
 /**

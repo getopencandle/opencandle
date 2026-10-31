@@ -52,7 +52,8 @@ describe(' developing levels (calculation)',()=>{
  it('the developing line breaks only where a period starts; POC keeps its per-value segments',()=>{
   const r=rig();const id=r.port.add('pvp',{period:'Week',rowSize:6,developingPoc:true}),out=r.emitted(id);
   const dev=out.series.find((row:any)=>row.title==='Developing POC'),values=r.values(id,'devPoc'),pocAll=r.values(id,'poc');
-  const starts=pocAll.flatMap((value,i)=>i>0&&value!==pocAll[i-1]?[i]:[]);
+  // 0.8.1 (R2): the POC develops inside a period too, so period starts come from the profiles; the POC still steps per value.
+  const starts=(r.port.values(id).profiles??[]).map((p:any)=>p.from).filter((i:number)=>i>0);expect(pocAll.length).toBeGreaterThan(0);
   const breaks=dev.points.flatMap((p:any,i:number)=>p.color==='rgba(0,0,0,0)'?[i]:[]);
   expect(breaks.every((i:number)=>starts.includes(i))).toBe(true);
   expect(values.some((value,i)=>i>0&&value!==values[i-1]&&!starts.includes(i))).toBe(true);// it moves inside a period without breaking

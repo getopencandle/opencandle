@@ -321,7 +321,7 @@ const definitions:CatalogDefinition[]=[
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'The twelve lengths are the author values; the source input, titles and the two color ramps are OpenCandle-defined.'],
   policies:['Each line is an EMA with the SMA seed (StockCharts, TA-Lib).'],
   calculate({source,tk,num}){const out:Record<string,NumericSeries>={};for(let i=1;i<=6;i++){out[`short${i}`]=tk.ema(source,num(`short${i}`));}for(let i=1;i<=6;i++){out[`long${i}`]=tk.ema(source,num(`long${i}`));}return out;},
-  warmup:()=>1,work:count=>count*12*8},
+  warmup:value=>Math.max(...[1,2,3,4,5,6].flatMap(i=>[value(`short${i}`),value(`long${i}`)])),work:count=>count*12*8},
  {id:'sebands',name:'Standard error bands',acronym:'SEB',overlay:true,sourceSeries:true,
   inputs:[{key:'length',title:'Length',defval:21,...LENGTH_3},{key:'smoothing',title:'Smoothing',defval:3,...LENGTH},{key:'multiplier',title:'Standard errors',type:'float',defval:2,min:0.1,max:100,step:0.1},SOURCE],
   plots:[{id:'middle',label:'Middle',color:ORANGE,width:1},{id:'upper',label:'Upper',color:BLUE,width:1},{id:'lower',label:'Lower',color:BLUE,width:1}],

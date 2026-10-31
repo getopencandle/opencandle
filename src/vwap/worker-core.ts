@@ -2,7 +2,7 @@ import { createExactVwapAccumulator } from '../domain/vwap-exact';
 import { vwapPercentageBounds } from '../domain/vwap-percentage';
 import { createVwapDeviationAccumulator, vwapDeviationBounds, vwapSourcePrice } from '../domain/vwap-stdev-bands';
 import { copyWireRequest, reject, vwapPlots } from './protocol';
-import { VWAP_WORKER_LIMITS as LIMIT, type VwapAnchor, type VwapDiagnostic, type VwapPlotId, type VwapWireResult } from './types';
+import { VWAP_EXCHANGE_TIMEZONE, VWAP_WORKER_LIMITS as LIMIT, type VwapAnchor, type VwapDiagnostic, type VwapPlotId, type VwapWireResult } from './types';
 
 /** Same calendar keys as legacy anchorKeys; this copy does not alter the v1 kernel. */
 function anchorKey(formatter: Intl.DateTimeFormat, seconds: number, anchor: VwapAnchor): string {
@@ -34,7 +34,8 @@ export function calculateVwapWorkerMessage(input: unknown): VwapWireResult {
     previousTime = time;
   }
   const values = new Float64Array(cells), mask = new Uint8Array(cells), accumulator = createExactVwapAccumulator(settings.source);
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: settings.timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+  // An unresolved Exchange choice (no exchange zone was known) is UTC 00:00, as in vwapAnchorZone.
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: settings.timezone === VWAP_EXCHANGE_TIMEZONE ? 'UTC' : settings.timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
   const diagnostics: VwapDiagnostic[] = [], failed = new Set<VwapPlotId>();
   let priorAnchor: string | null = null, priorHaOpen = 0, priorHaClose = 0;
   // Standard Deviation mode (src/domain/vwap-stdev-bands.ts), reset with the same anchor keys.

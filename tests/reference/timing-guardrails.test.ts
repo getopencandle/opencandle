@@ -26,10 +26,6 @@ const INTRADAY:Record<string,Chart>={'US equity 30m extended hours (New York)':{
 const calc=(id:string,rows:readonly Bar[]=bars,inputs=defaultInputs(id),chart:Chart=DAILY)=>calculateIndicator(id,rows,inputs as Record<string,unknown>,optionsFor(id,rows,chart.resolution,chart.calendar));
 const close=(a:unknown,b:unknown)=>a===null&&b===null||finite(a)&&finite(b)&&Math.abs(a-b)<=1e-9*Math.max(1,Math.abs(b));
 export const KNOWN_FAILURES:Record<string,string>={
- // R1: calculateIndicator reads an omitted Source as close instead of the catalog default.
- 'defaults:cci':'R1','defaults:median':'R1','defaults:twap':'R1',
- // R2: Periodic / Session volume profile POC, VAH and VAL show the whole period's levels on its earlier bars.
- '2a-intraday:pvp':'R2','2a-intraday:svp':'R2',
 };
 function plotsOf(result:IndicatorResult):Map<string,readonly (number|null)[]>{return new Map(result.series.map(row=>[row.id,row.values]));}
 /** First (t, plot, bar) where the prefix calculation disagrees with the full one on bars <= t - delay. */

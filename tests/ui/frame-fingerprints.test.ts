@@ -8,7 +8,8 @@ const cell=()=>{const workspace=createInitialWorkspace();return workspace.grid!.
 it('keeps VWAP legacy descriptor bytes while version2 has a distinct numerical identity',async()=>{
  const calculate=createFrameFingerprintCalculator(),legacy=cell();legacy.indicators=[{id:'vwap-one',kind:'vwap',...factoryIndicatorDefault('vwap'),paneId:'price'}];
  const original=await calculate(legacy,[]),explicit=structuredClone(legacy);explicit.indicators[0].inputs.kernelVersion=1;expect(await calculate(explicit,[])).toEqual(original);expect(explicit.indicators[0].inputs.kernelVersion).toBe(1);
- const exact=structuredClone(explicit);exact.indicators[0].inputs.kernelVersion=2;const descriptor=[1,'built','vwap',[['anchor','Session'],['kernelVersion',2],['source','hlc3'],['timezone','UTC']],0,[['vwap','line']]],expected='sha256:'+createHash('sha256').update(JSON.stringify(descriptor)).digest('hex');expect((await calculate(exact,[]))['["built","vwap-one"]']).toBe(expected);expect(await calculate(exact,[])).not.toEqual(original);expect(legacy.indicators[0].inputs).not.toHaveProperty('kernelVersion');
+ const exact=structuredClone(explicit);exact.indicators[0].inputs.kernelVersion=2;// 0.8.1: new VWAPs default to the Exchange session zone, so the factory descriptor carries it (saved 'UTC' instances keep theirs).
+ const descriptor=[1,'built','vwap',[['anchor','Session'],['kernelVersion',2],['source','hlc3'],['timezone','Exchange']],0,[['vwap','line']]],expected='sha256:'+createHash('sha256').update(JSON.stringify(descriptor)).digest('hex');expect((await calculate(exact,[]))['["built","vwap-one"]']).toBe(expected);expect(await calculate(exact,[])).not.toEqual(original);expect(legacy.indicators[0].inputs).not.toHaveProperty('kernelVersion');
 });
 it('Volume omitted and explicit SMA preserve the historical descriptor while EMA and WMA differ',async()=>{
  const calculate=createFrameFingerprintCalculator(),input=cell();input.indicators=[{id:'volume-one',kind:'volume',...factoryIndicatorDefault('volume'),paneId:'volume-pane'}];
@@ -23,13 +24,17 @@ it('preserves the pre-band VWAP descriptor for legacy and fully disabled bands',
  const legacy=structuredClone(input);legacy.indicators[0].inputs={anchor:'Session',timezone:'UTC',source:'hlc3'};legacy.indicators[0].plots={vwap:legacy.indicators[0].plots.vwap};delete legacy.indicators[0].presentation;
  // Independently computed with Python hashlib over the original pre-band JSON descriptor.
  const expected='sha256:3395a2079a1abb242924aa7ae960eb260ef1f1a157358255b425a00b93ffd127';
- expect((await calculate(legacy,[]))['["built","vwap-one"]']).toBe(expected);expect((await calculate(input,[]))['["built","vwap-one"]']).toBe(expected);
- const dormant=structuredClone(input);dormant.indicators[0].inputs.band2Multiplier=17;dormant.indicators[0].plots.upper2.kind='histogram';dormant.indicators[0].presentation!.hideOnDaily=true;expect(await calculate(dormant,[])).toEqual(await calculate(legacy,[]));
+ expect((await calculate(legacy,[]))['["built","vwap-one"]']).toBe(expected);
+ // 0.8.1: the factory default differs from the legacy snapshot only by its Exchange zone (the pre-band descriptor shape is unchanged).
+ const fresh='sha256:'+createHash('sha256').update(JSON.stringify([1,'built','vwap',[['anchor','Session'],['source','hlc3'],['timezone','Exchange']],0,[['vwap','line']]])).digest('hex');
+ expect((await calculate(input,[]))['["built","vwap-one"]']).toBe(fresh);
+ const utc=structuredClone(input);utc.indicators[0].inputs.timezone='UTC';expect((await calculate(utc,[]))['["built","vwap-one"]']).toBe(expected);
+ const dormant=structuredClone(utc);dormant.indicators[0].inputs.band2Multiplier=17;dormant.indicators[0].plots.upper2.kind='histogram';dormant.indicators[0].presentation!.hideOnDaily=true;expect(await calculate(dormant,[])).toEqual(await calculate(legacy,[]));
  const invalid=structuredClone(dormant);invalid.indicators[0].inputs.band3Multiplier=-1;await expect(calculate(invalid,[])).rejects.toThrow();
 });
 it('includes only enabled VWAP pair multipliers and emitted plot kinds in historical identity',async()=>{
  const calculate=createFrameFingerprintCalculator(),input=cell(),settings=factoryIndicatorDefault('vwap');settings.inputs.band2Enabled=true;input.indicators=[{id:'vwap-two',kind:'vwap',...settings,paneId:'price'}];
- const descriptor=[1,'built','vwap',[['anchor','Session'],['band2Enabled',true],['band2Multiplier',2],['bandMode','Percentage'],['source','hlc3'],['timezone','UTC']],0,[['lower2','line'],['upper2','line'],['vwap','line']]];
+ const descriptor=[1,'built','vwap',[['anchor','Session'],['band2Enabled',true],['band2Multiplier',2],['bandMode','Percentage'],['source','hlc3'],['timezone','Exchange']],0,[['lower2','line'],['upper2','line'],['vwap','line']]];
  const expected='sha256:'+createHash('sha256').update(JSON.stringify(descriptor)).digest('hex'),initial=await calculate(input,[]);expect(initial['["built","vwap-two"]']).toBe(expected);
  const inactive=structuredClone(input);inactive.indicators[0].inputs.band1Multiplier=42;inactive.indicators[0].plots.upper1.kind='step';expect(await calculate(inactive,[])).toEqual(initial);
  for(const mutate of [(row:typeof input.indicators[0])=>{row.inputs.band2Multiplier=3;},(row:typeof input.indicators[0])=>{row.inputs.band3Enabled=true;},(row:typeof input.indicators[0])=>{row.plots.lower2.kind='histogram';}]){const changed=structuredClone(input);mutate(changed.indicators[0]);expect(await calculate(changed,[])).not.toEqual(initial);}

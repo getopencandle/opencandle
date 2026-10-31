@@ -1,6 +1,9 @@
 import type { VwapExactSource } from '../domain/vwap-exact';
 
 export const VWAP_WORKER_LIMITS = Object.freeze({ rows: 100_000, queued: 16, activeBytes: 16 * 1024 * 1024, resultBytes: 32 * 1024 * 1024, startupMs: 10_000, totalMs: 60_000, chunkRows: 128, sliceMs: 4, errorCharacters: 1024 });
+/** The VWAP timezone choice that means the source exchange zone (src/domain/indicators.ts vwapAnchorZone). Settings
+ *  resolve it before a request is built; a request that still carries it (no exchange known) anchors at UTC 00:00. */
+export const VWAP_EXCHANGE_TIMEZONE = 'Exchange';
 export const VWAP_ANCHORS = ['Session', 'Week', 'Month', 'Quarter', 'Year', 'Decade', 'Century'] as const;
 export type VwapAnchor = typeof VWAP_ANCHORS[number];
 export type VwapPlotId = 'vwap' | 'upper1' | 'lower1' | 'upper2' | 'lower2' | 'upper3' | 'lower3';

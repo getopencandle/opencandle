@@ -33,5 +33,5 @@ export function profileAdapterHarness(primary:BarDataset){
  return{port:indicators,controller:{${set}\n${transaction}},read:()=>({bars:currentBars,source:currentSource}),dispose(){disposed=true;indicators.dispose();}};`;
  const build=new Function('return '+stripTypeScriptTypes('(function(injected){'+code+'})',{mode:'strip'}))();
  const result=build({bars:primary.bars,sourceContext:sourceContextForDataset(primary),chart:host.chart,createMarketQueue,cloneProfileInputBars,sourceContextForInput,sameChartSourceBasis,barInputIdentity,isLiveInputIdentity,createCalculationBarCache,isDerivedStyle,requireVolume,createIndicatorPort,profileSourceContext});port=result.port;
- const id=port!.add('pvp',{period:'Month',valueAreaVolume:0});return{...result,id,profile:()=>port!.values(id).profiles![0],poc:()=>port!.values(id).series[0].values[0],failNext(){fail=true;}};
+ const id=port!.add('pvp',{period:'Month',valueAreaVolume:0});return{...result,id,profile:()=>port!.values(id).profiles![0],poc:()=>{const value=port!.values(id),first=value.profiles![0];return value.series[0].values[first.to];},/* the profile POC: causal per-bar levels reach it on the period's last bar (0.8.1) */failNext(){fail=true;}};
 }

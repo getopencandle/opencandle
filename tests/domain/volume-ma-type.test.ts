@@ -13,7 +13,8 @@ import type {Bar} from '../../src/domain/types';
 const volumes=[3,9,6,12];
 const bars:Bar[]=volumes.map((volume,index)=>({time:1700000000+index*60,open:10,high:12,low:9,close:11,volume}));
 const settings=(maType?:string):IndicatorInstanceSettings=>({...factoryIndicatorDefault('volume'),id:'volume-owned',kind:'volume',inputs:{length:3,...(maType===undefined?{}:{maType})}});
-const expected={SMA:[null,null,6,9],EMA:[3,6,6,9],WMA:[null,null,6.5,9.5]};
+// 0.8.1: every EMA in the app takes the SMA seed (6 on bar 2, then 0.5 x 12 + 0.5 x 6 = 9); it was first-value seeded.
+const expected={SMA:[null,null,6,9],EMA:[null,null,6,9],WMA:[null,null,6.5,9.5]};
 
 it('matches literal equal, exponential and weighted sums without changing Volume or old defaults',()=>{
  expect(VOLUME_MA_TYPES).toEqual(['SMA','EMA','WMA']);expect(Object.isFrozen(VOLUME_MA_TYPES)).toBe(true);
@@ -23,15 +24,14 @@ it('matches literal equal, exponential and weighted sums without changing Volume
  for(const maType of VOLUME_MA_TYPES){const result=calculateIndicator('volume',bars,{length:3,maType});expect(result.diagnostics).toEqual([]);expect(result.series.map(row=>row.id)).toEqual(['volume','ma']);expect(result.series[0].values).toEqual(volumes);expect(result.series[1].values).toEqual(expected[maType]);}
 });
 
-it('keeps prefix agreement, full-window warmup, first-value EMA and zero-volume semantics explicit',()=>{
+it('keeps prefix agreement, full-window warmup, SMA-seeded EMA and zero-volume semantics explicit',()=>{
  for(const maType of VOLUME_MA_TYPES){
   const full=calculateIndicator('volume',bars,{length:3,maType});
   for(let count=0;count<=bars.length;count++){let futureReads=0;const prefix=new Proxy(bars.slice(0,count),{get(target,key,receiver){if(typeof key==='string'&&/^\d+$/.test(key)&&Number(key)>=count){futureReads++;throw Error('Future row read');}return Reflect.get(target,key,receiver);}});expect(calculateIndicator('volume',prefix,{length:3,maType}).series.map(row=>row.values)).toEqual(full.series.map(row=>row.values.slice(0,count)));expect(futureReads).toBe(0);}
   expect(calculateIndicator('volume',bars,{length:1,maType}).series[1].values).toEqual(volumes);
-  expect(calculateIndicator('volume',bars.map(row=>({...row,volume:0})),{length:2,maType}).series[1].values).toEqual(maType==='EMA'?[0,0,0,0]:[null,0,0,0]);
+  expect(calculateIndicator('volume',bars.map(row=>({...row,volume:0})),{length:2,maType}).series[1].values).toEqual([null,0,0,0]);
  }
- expect(calculateIndicator('volume',bars,{length:7,maType:'EMA'}).series[1].values).toEqual([3,4.5,4.875,6.65625]);
- for(const maType of ['SMA','WMA'])expect(calculateIndicator('volume',bars,{length:7,maType}).series[1].values).toEqual([null,null,null,null]);
+ for(const maType of ['SMA','EMA','WMA'])expect(calculateIndicator('volume',bars,{length:7,maType}).series[1].values).toEqual([null,null,null,null]);
 });
 
 it('rejects malformed optional values and descriptor tricks before executing accessors',()=>{
@@ -49,7 +49,7 @@ it('gaps only the bar with missing volume, refuses a series with no volume, and 
  // 0.8.1: a missing or negative volume is unavailable at that bar (the obvStep rule), not the whole series.
  for(const maType of VOLUME_MA_TYPES)for(const volume of [undefined,null,NaN,Infinity,-Infinity,-1]){
   const input=bars.map(row=>({...row}));input[1].volume=volume as number;const result=calculateIndicator('volume',input,{length:3,maType});expect(result.diagnostics).toEqual([]);
-  expect(result.series[0].values).toEqual([3,null,6,12]);expect(result.series[1].values).toEqual(maType==='EMA'?[3,null,4.5,8.25]:[null,null,null,null]);// windowed MAs gap while the window holds the gap; the EMA skips it
+  expect(result.series[0].values).toEqual([3,null,6,12]);expect(result.series[1].values).toEqual(maType==='EMA'?[null,null,null,7]:[null,null,null,null]);// windowed MAs gap while the window holds the gap; the EMA skips it
   const none=calculateIndicator('volume',bars.map(row=>({...row,volume:volume as number})),{length:3,maType});expect(none.series).toEqual([]);expect(none.diagnostics).toEqual(['This base indicator requires available nonnegative source volume.']);
  }
  const huge=bars.slice(0,2).map(row=>({...row,volume:1e308})),result=calculateIndicator('volume',huge,{length:2,maType:'WMA'});expect(indicatorCalculationWork('volume',2,{length:2,maType:'WMA'})).toBe(66);expect(result.series).toEqual([]);expect(result.diagnostics[0]).toContain('ma calculation overflowed');expect(result.diagnostics[0]).not.toContain('estimated operations');
@@ -93,5 +93,5 @@ it('canonicalizes only new SMA captures and keeps frozen alternative type/source
  expect(new Set(frozen.map(technicalSourceKey)).size).toBe(3);row.inputs.maType='EMA';
  const evaluated=await evaluateTechnicalAlertSources(bars,frozen,'USD');expect(frozen.map(source=>evaluated.results.get(technicalSourceKey(source))!.sample.value)).toEqual([9,9,9.5]);
  const explicitSaved={...legacy,inputs:{length:3,maType:'SMA'}},serialized=JSON.stringify(explicitSaved);validateTechnicalAlertSource(explicitSaved);expect(JSON.stringify(explicitSaved)).toBe(serialized);expect(Object.hasOwn(explicitSaved.inputs,'maType')).toBe(true);
- const prefix=await evaluateTechnicalAlertSources(bars.slice(0,2),frozen,'USD');expect(frozen.map(source=>prefix.results.get(technicalSourceKey(source))!.sample.value)).toEqual([null,6,null]);expect(legacy.inputs).toEqual({length:3});
+ const prefix=await evaluateTechnicalAlertSources(bars.slice(0,2),frozen,'USD');expect(frozen.map(source=>prefix.results.get(technicalSourceKey(source))!.sample.value)).toEqual([null,null,null]);// 0.8.1: the SMA-seeded EMA 3 needs 3 bars (was first-value seeded: 6)expect(legacy.inputs).toEqual({length:3});
 });

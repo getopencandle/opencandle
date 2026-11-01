@@ -15,6 +15,8 @@ All notable changes to OpenCandle are listed here. The format follows [Keep a Ch
 - Watchlist columns for ADR (14), % of ADR used, position in the day's range, and price versus the prior day's range and today's open, with a one-click Day range columns preset.
 - Long and short position tools can set the stop from ATR (k x ATR, default 2 x ATR 14) and size the quantity from your risk.
 - An **About** tab in every indicator's and drawing tool's settings (and an info button in the Indicators list, Ctrl+I) explains what the tool is for, how its author meant it to be used, how it is calculated, its defaults, and where OpenCandle makes its own choices, with sources.
+- The Indicators list shows common acronyms after full names, for example "Relative Strength Index (RSI)", and typing an acronym finds the indicator.
+- In the Indicators list, clicking an indicator's "N on chart" count removes the one added most recently (Ctrl+Z brings it back).
 - Historical volatility and the Volatility indicators have an Annualization setting. Auto, the default for new instances, follows the chart interval and market.
 - Every chart pattern offers Require breakout confirmation (on for new instances). With it on, flags, pennants, wedges, cup and handle, triangles and rectangles signal only on the breakout close, and patterns that fail first are not reported.
 

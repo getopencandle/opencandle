@@ -29,13 +29,13 @@ describe('tool About in the indicator dialog',()=>{
  });
  it('picker rows carry an info button that opens the About dialog; rows without a file have none',()=>{
   const ui=dialog();
-  expect(findAll(ui.render(),node=>node.props?.['aria-label']==='About Simple Moving Average')).toEqual([]);
-  const info=find(ui.render(),node=>node.type==='button'&&node.props['aria-label']==='About Relative Strength Index');
+  expect(findAll(ui.render(),node=>node.props?.['aria-label']==='About Simple Moving Average (SMA)')).toEqual([]);
+  const info=find(ui.render(),node=>node.type==='button'&&node.props['aria-label']==='About Relative Strength Index (RSI)');
   expect(info.props.tabIndex).toBe(-1);expect(info.props['aria-keyshortcuts']).toBe('Control+I');
   expect(findAll(ui.render(),node=>node.type===ToolAboutDialog)).toEqual([]);
   info.props.onClick();
   const opened=find(ui.render(),node=>node.type===ToolAboutDialog);
-  expect(opened.props).toMatchObject({file:'rsi',title:'Relative Strength Index'});
+  expect(opened.props).toMatchObject({file:'rsi',title:'Relative Strength Index (RSI)'});
   opened.props.onClose();
   expect(findAll(ui.render(),node=>node.type===ToolAboutDialog)).toEqual([]);
  });

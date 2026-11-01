@@ -60,8 +60,8 @@ describe('picker search',()=>{
  it('filters as you type and marks the matched text in each name',()=>{
   const ui=dialog();search(ui).props.onChange({target:{value:'moving exp'}});
   const names=rows(ui).map(row=>text(find(row,node=>node.props?.className==='indicator-catalog-name')));
-  expect(names).toContain('Exponential Moving Average');
-  const name=find(ui.render(),node=>node.props?.className==='indicator-catalog-name'&&text(node)==='Exponential Moving Average');
+  expect(names).toContain('Exponential Moving Average (EMA)');
+  const name=find(ui.render(),node=>node.props?.className==='indicator-catalog-name'&&text(node)==='Exponential Moving Average (EMA)');
   expect(findAll(name,node=>node.type==='mark').map(text)).toEqual(['Exp','Moving']);
  });
  it('with a query and no arrow press, the first match is marked as the Enter target',()=>{
@@ -170,6 +170,10 @@ describe('search ranking and short-name highlight',()=>{
   const ui=dialog();search(ui).props.onChange({target:{value:'rsi'}});
   const strong=findAll(ui.render(),node=>String(node.props?.className??'')==='indicator-catalog-acronym');
   expect(strong.length).toBeGreaterThan(0);expect(findAll(strong[0],node=>node.type==='mark')).toHaveLength(1);
+  // Relative Strength Index carries "(RSI)" in its name, which is marked, and has no separate short-title column.
+  const rsi=find(ui.render(),node=>node.type==='button'&&node.props?.['aria-label']==='Add Relative Strength Index');
+  expect(findAll(rsi,node=>node.type==='strong')).toEqual([]);
+  expect(findAll(rsi,node=>node.type==='mark').map(text)).toEqual(['RSI']);
  });
  it('the On this chart help sentence is a tooltip on the section header, also described by hidden text',()=>{
   const ui=dialog({seed:['atr']});const head=find(ui.render(),node=>node.type==='h3'&&node.props?.children==='On this chart');

@@ -10,27 +10,48 @@ export const indicatorNames:Record<IndicatorId,string>={volume:'Volume',sma:'Sim
 /** Short titles used in instance labels and as searchable acronyms. LV wording, not a reference claim. */
 export const indicatorAcronyms:Record<IndicatorId,string>={volume:'Vol',sma:'SMA',ema:'EMA',rsi:'RSI',macd:'MACD',bb:'BB',vwap:'VWAP',stochastic:'Stoch',atr:'ATR',obv:'OBV',...Object.fromEntries(CATALOG_INDICATORS.map(definition=>[definition.id,definition.acronym]))} as Record<IndicatorId,string>;
 
+/** Acronyms that are standard in trading literature (StockCharts ChartSchool, TA-Lib names, common usage), shown after the
+ *  full name in the Indicators list and the About title, and searchable. A value of true reuses the short title; a string
+ *  is the standard form where the short title differs. Kinds whose name already carries the acronym, or that have no
+ *  common one, are not listed. */
+const STANDARD_ACRONYMS:Partial<Record<IndicatorId,true|string>>={
+ sma:true,ema:true,rsi:true,bb:true,vwap:true,atr:true,obv:true,cci:true,mfi:true,cmf:true,roc:true,ao:true,dmi:true,adx:true,
+ kc:true,dc:true,lsma:true,wma:true,hma:true,smma:'SMMA',vwma:true,hv:true,uo:true,cmo:'CMO',alma:true,dema:true,tema:true,
+ efi:true,adr:true,dpo:true,klinger:true,kst:true,ppo:true,tsi:true,vortex:true,ad:'A/D',pvt:true,bop:true,kama:true,guppy:true,
+ smi:true,twap:true,asi:true,accelosc:true,cvd:true,avwap:true,orb:true,relvolume:true,
+};
+/** The standard acronym of an indicator, or '' when none is shown. */
+export function standardAcronym(kind:IndicatorId):string{
+ const entry=STANDARD_ACRONYMS[kind];
+ return entry===undefined?'':entry===true?(indicatorAcronyms[kind]??''):entry;
+}
+/** The name as listed in the Indicators dialog, e.g. "Relative Strength Index (RSI)". Saved data and labels keep the plain name. */
+export function indicatorDisplayName(kind:IndicatorId):string{
+ const name=indicatorNames[kind]??kind,acronym=standardAcronym(kind);
+ return acronym?name+' ('+acronym+')':name;
+}
+
 export type CatalogTab='All'|'Favorites';
 export interface CatalogView {rows:IndicatorId[];empty:''|'favorites-empty'|'no-match'}
 /** Rows sort alphabetically by name, ignoring case. */
 const byName=(a:IndicatorId,b:IndicatorId)=>(indicatorNames[a]??a).localeCompare(indicatorNames[b]??b,'en',{sensitivity:'base'})||a.localeCompare(b);
 /** 0 exact, 1 prefix, 2 word start, 3 substring; the weakest term decides (the whole phrase can lift a multi-word query). */
 function matchRank(kind:IndicatorId,terms:readonly string[]):number{
- const fields=[indicatorNames[kind],indicatorAcronyms[kind],kind,catalogKeywords(kind)].map(value=>value.toLocaleLowerCase('en-US'));
+ const fields=[indicatorNames[kind],indicatorAcronyms[kind],standardAcronym(kind),kind,catalogKeywords(kind)].map(value=>value.toLocaleLowerCase('en-US'));
  const rankOf=(text:string):number=>{
-  if(fields.slice(0,2).includes(text))return 0;
-  if(fields.slice(0,2).some(field=>field.startsWith(text)))return 1;
+  if(fields.slice(0,3).includes(text))return 0;
+  if(fields.slice(0,3).some(field=>field&&field.startsWith(text)))return 1;
   if(fields.some(field=>field.split(/[^a-z0-9]+/).some(word=>word.startsWith(text))))return 2;
   return 3;
  };
  return terms.length>1?Math.min(Math.max(...terms.map(rankOf)),rankOf(terms.join(' '))):rankOf(terms[0]);
 }
-/** Whitespace-separated terms must all match the full name, acronym, kind or catalog keywords, case-insensitively. */
+/** Whitespace-separated terms must all match the full name, acronym, standard acronym, kind or catalog keywords, case-insensitively. */
 export function filterIndicatorCatalog(catalog:readonly IndicatorId[],tab:string,favorites:readonly IndicatorId[],query:string):CatalogView{
  const inTab=catalog.filter(kind=>tab!=='Favorites'||favorites.includes(kind)).sort(byName);
  if(tab==='Favorites'&&!inTab.length)return {rows:[],empty:'favorites-empty'};
  const terms=query.toLocaleLowerCase('en-US').split(/\s+/).filter(Boolean);
- const matching=inTab.filter(kind=>{const haystack=(indicatorNames[kind]+' '+indicatorAcronyms[kind]+' '+kind+' '+catalogKeywords(kind)).toLocaleLowerCase('en-US');return terms.every(term=>haystack.includes(term));});
+ const matching=inTab.filter(kind=>{const haystack=(indicatorNames[kind]+' '+indicatorAcronyms[kind]+' '+standardAcronym(kind)+' '+kind+' '+catalogKeywords(kind)).toLocaleLowerCase('en-US');return terms.every(term=>haystack.includes(term));});
  // Ranking: exact name/short name, then prefix, then word start, then substring; ties keep the alphabetical order.
  const rows=terms.length?matching.map((kind,index)=>({kind,index,rank:matchRank(kind,terms)})).sort((a,b)=>a.rank-b.rank||a.index-b.index).map(row=>row.kind):matching;
  return {rows,empty:rows.length?'':'no-match'};

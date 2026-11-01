@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {beforeEach,expect,it,vi} from 'vitest';
-import {find,makeHarness,text} from './indicator-real-port-harness';
+import {find,findAll,makeHarness,text} from './indicator-real-port-harness';
 
 // Release 6 tour: the indicator catalog showed the acronym and the name run together ("SMASimple Moving
 // Average"). The stylesheet grid targeted .indicator-catalog>button, but each entry is now a row (favorite star + add
@@ -28,9 +28,15 @@ it('catalog entries lay out the acronym and the name as separate columns',()=>{
  const add=find(tree,node=>node.type==='button'&&node.props['aria-label']==='Add Simple Moving Average');
  expect(add.props.style).toBeUndefined();
  expect(rule('.lv-picker-add')).toMatch(/display:flex;align-items:center;gap:12px/);expect(rule('.lv-picker-add')).toContain('min-width:0');
- const acronym=find(add,node=>node.type==='strong'),name=find(add,node=>node.type==='span');
- expect(acronym.props.className).toBe('indicator-catalog-acronym');expect(text(acronym)).toBe('SMA');
+ // The name carries the standard acronym, so this row has no separate short-title column.
+ const name=find(add,node=>node.type==='span');
+ expect(findAll(add,node=>node.type==='strong')).toEqual([]);
+ expect(name.props.className).toBe('indicator-catalog-name');expect(text(name)).toBe('Simple Moving Average (SMA)');
+ // A row without a standard acronym keeps the short-title column.
+ const stoch=find(tree,node=>node.type==='button'&&node.props['aria-label']==='Add Stochastic Oscillator');
+ const acronym=find(stoch,node=>node.type==='strong'),stochName=find(stoch,node=>node.type==='span');
+ expect(acronym.props.className).toBe('indicator-catalog-acronym');expect(text(acronym)).toBe('Stoch');
  expect(rule('.indicator-catalog-acronym')).toContain('flex:none');
- expect(name.props.className).toBe('indicator-catalog-name');expect(text(name)).toContain('Simple Moving Average');
+ expect(stochName.props.className).toBe('indicator-catalog-name');expect(text(stochName)).toBe('Stochastic Oscillator');
  expect(rule('.indicator-catalog-name')).toMatch(/flex:1;min-width:0/);
 });

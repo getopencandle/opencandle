@@ -236,6 +236,15 @@ const referenceLinkInput=value=>{
   if(!url||(url.protocol!=='https:'&&url.protocol!=='http:')||url.username||url.password||!REFERENCE_LINK_HOSTS.has(url.hostname))throw new validation.BoundaryError('INVALID_ARGUMENT','This link is not a reference source.');
   return url.href;
 };
+// The candlestick guide on the project website: one fixed address, plus an optional #fragment of lowercase letters,
+// digits and hyphens. No query, no other path, no other host.
+const CANDLE_GUIDE_URL='https://getopencandle.com/candles/';
+const candleGuideTarget=value=>{
+  if(value===undefined)return CANDLE_GUIDE_URL;
+  validation.exactKeys(value,[],['fragment']);const fragment=value.fragment;
+  if(fragment!==undefined&&(typeof fragment!=='string'||!/^[a-z0-9-]{1,64}$/.test(fragment)))throw new validation.BoundaryError('INVALID_ARGUMENT','This is not a candlestick guide section.');
+  return fragment===undefined?CANDLE_GUIDE_URL:CANDLE_GUIDE_URL+'#'+fragment;
+};
 const startupOpenArg=argv=>{const a=(Array.isArray(argv)?argv:[]).find(x=>typeof x==='string'&&x.startsWith('--lv-open-symbol='));const v=a?a.slice(17):'';return /^[A-Za-z0-9.\-]{1,13}$/.test(v)?v:null;};
 // Symbols are at most 13 characters (ALPACA_SYMBOL: GME.WS, XYZ.WS.A). --lv-open-symbols=GME,SPY,GME.WS takes
 // at most 16 (one full layout), spaces around commas allowed. Main forwards the raw capped text; the renderer validates.
@@ -307,6 +316,7 @@ function installIPC(store) {
     // Help > Report where you got stuck: opens the fixed GitHub issue form in the default browser. No input, and the
     // renderer never names the address.
     'lv:help:report-stuck': async value => {noInput(value);await require('electron').shell.openExternal(REPORT_STUCK_URL);return {opened:true};},
+    'lv:help:open-candle-guide': async value => {const url=candleGuideTarget(value);await require('electron').shell.openExternal(url);return {opened:true};},
     'lv:help:open-reference': async value => {const url=referenceLinkInput(value);await require('electron').shell.openExternal(url);return {opened:true};},
     'lv:datasources:open-folder': async value => {noInput(value);const directory=app.getPath('userData');await fs.mkdir(directory,{recursive:true});const failure=await require('electron').shell.openPath(directory);if(failure)throw new validation.BoundaryError('OPEN_FAILED','The folder could not be opened.');return {opened:true};},
     'lv:datasources:export': async (value,event) => {const sources=dataSourcesModule(),settings=sources.exportInput(value);return exportFile(Buffer.from(sources.serializeSettings(settings),'utf8'),sources.SETTINGS_FILE_NAME,'json',event,'Save data source settings');},

@@ -4,7 +4,7 @@ const {BoundaryError,exactKeys,jsonData,cancelInput}=require('./validation.cjs')
 const MAX_BYTES=32*1024*1024;
 const TIMEOUT_MS=10000;
 const MIN_REQUEST_INTERVAL_MS=1000;
-const USER_AGENT='OpenCandle/0.8.1 (getopencandle.com; optional public SEC data reader)';
+const USER_AGENT='OpenCandle/0.8.2 (getopencandle.com; optional public SEC data reader)';
 const coverage='SEC non-custom entity-wide XBRL concepts only; filing periods, units and restatements require explicit normalization. Not quotes or complete fundamentals.';
 function secInput(value){
   exactKeys(value,['requestId','cik']);

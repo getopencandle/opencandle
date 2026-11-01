@@ -79,6 +79,10 @@
 [data-lv-picker] .lv-picker-entry:hover{background:transparent}
 [data-lv-picker] .lv-picker-entry[data-active=true]{background:var(--lv-hover-strong)}
 .lv-picker-section{padding:14px 12px 4px 36px;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--lv-text-secondary)}
+.lv-picker-section:has(.lv-picker-guide){display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lv-picker-guide{flex:none;height:auto;padding:0 4px;border:0;background:transparent;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;color:var(--lv-accent-secondary);text-decoration:underline;cursor:pointer}
+.lv-picker-guide:hover{color:var(--lv-text-primary)}
+.lv-picker-guide:focus-visible{outline:2px solid var(--lv-accent-secondary);outline-offset:2px}
 .lv-picker-empty{margin:56px 24px;text-align:center;font-size:14px;line-height:1.6;color:var(--lv-text-secondary)}
 
 /* Footer: a slim status line with the add or remove confirmation */

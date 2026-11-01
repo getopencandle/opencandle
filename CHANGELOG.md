@@ -2,7 +2,7 @@
 
 All notable changes to OpenCandle are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.8.2 - 2026-11-01
 
 ### Added
 - New **Export all indicators (.xlsx)** item in the chart menu. It calculates every built-in indicator at its default settings on the chart's bars and saves one workbook with Data, Patterns, Drawings and Key sheets.
@@ -17,6 +17,7 @@ All notable changes to OpenCandle are listed here. The format follows [Keep a Ch
 - An **About** tab in every indicator's and drawing tool's settings (and an info button in the Indicators list, Ctrl+I) explains what the tool is for, how its author meant it to be used, how it is calculated, its defaults, and where OpenCandle makes its own choices, with sources.
 - The Indicators list shows common acronyms after full names, for example "Relative Strength Index (RSI)", and typing an acronym finds the indicator.
 - In the Indicators list, clicking an indicator's "N on chart" count removes the one added most recently (Ctrl+Z brings it back).
+- Links to the candlestick guide on getopencandle.com from the Patterns tab and from each candlestick pattern's About tab.
 - Historical volatility and the Volatility indicators have an Annualization setting. Auto, the default for new instances, follows the chart interval and market.
 - Every chart pattern offers Require breakout confirmation (on for new instances). With it on, flags, pennants, wedges, cup and handle, triangles and rectangles signal only on the breakout close, and patterns that fail first are not reported.
 

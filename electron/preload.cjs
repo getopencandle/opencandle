@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('lv', Object.freeze({
   reportStuck: () => invoke('lv:help:report-stuck'),
   // Opens a source link of a tool's About panel; main accepts only http/https addresses on the reference hosts.
   openReferenceLink: value => invoke('lv:help:open-reference', value),
+  // Opens the website's candlestick guide, optionally at one #section; main builds the address from the fixed origin.
+  openCandleGuide: value => invoke('lv:help:open-candle-guide', value),
   alpacaKeyStatus:() => invoke('lv:alpaca:key-status'),
   saveAlpacaKey: value => invoke('lv:alpaca:key-save', value),
   clearAlpacaKey: () => invoke('lv:alpaca:key-clear'),

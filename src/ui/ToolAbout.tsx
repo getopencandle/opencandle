@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import {Modal} from './Modal';
 import {REFERENCE_EXTRAS,confidenceNote,loadToolReference,referenceFileFor,sourceTitle,sourceYear,type Block,type Inline,type ToolReference,type ToolReferenceSource} from './tool-reference';
+import {candleGuideSlugFor,openCandleGuide} from './candle-guide';
 import './tool-about.css';
 
 /** Opens a source address in the default browser (main checks it); absent outside the desktop main window. */
@@ -42,13 +43,14 @@ function sourceItem(source:ToolReferenceSource,index:number,open?:ReferenceLinkO
  return <li key={index}>{nodes}{detail&&<span className="lv-tool-about-meta"> {detail}</span>}</li>;
 }
 /** The About view itself: shown sections (How OpenCandle does it last, when the file has it), extra feature sections, then sources and confidence. */
-export function ToolAboutView({reference,extras=[],open}:{reference:ToolReference;extras?:readonly ToolReference[];open?:ReferenceLinkOpener}){
+export function ToolAboutView({reference,extras=[],open,guideSlug,onGuide}:{reference:ToolReference;extras?:readonly ToolReference[];open?:ReferenceLinkOpener;guideSlug?:string|null;onGuide?:(slug:string)=>void}){
  const sources:ToolReferenceSource[]=[];const seen=new Set<string>();
  for(const row of [reference,...extras].flatMap(item=>item.meta.sources)){const key=sourceTitle(row.title)+'|'+row.url;if(!seen.has(key)){seen.add(key);sources.push(row);}}
  const confidence=confidenceNote(reference.meta.confidence);
  return <div className="lv-tool-about" aria-label={'About '+(reference.meta.name||'this tool')} role="region">
   {reference.sections.map(section=><section key={section.title}><h4>{section.title}</h4>{referenceBlocks(section.blocks,open)}</section>)}
   {extras.map(extra=><section key={extra.meta.id} className="lv-tool-about-extra"><h4>{extra.meta.name}</h4>{extra.sections.map(section=><React.Fragment key={section.title}><h5>{section.title}</h5>{referenceBlocks(section.blocks,open)}</React.Fragment>)}</section>)}
+  {guideSlug&&onGuide&&<p className="lv-tool-about-guide"><a href={'https://getopencandle.com/candles/#'+guideSlug} title="Opens getopencandle.com/candles in your browser" onClick={event=>{event.preventDefault();onGuide(guideSlug);}}>See it in the candlestick guide</a></p>}
   {sources.length>0&&<section><h4>Sources</h4><ul className="lv-tool-about-sources">{sources.map((row,index)=>sourceItem(row,index,open))}</ul>{confidence&&<p className="lv-tool-about-confidence">{confidence}.</p>}</section>}
  </div>;
 }
@@ -65,7 +67,7 @@ export function ToolAbout({file}:{file:string|null}){
  if(!file)return null;
  if(!state||state.file!==file)return <p className="help" role="status">Loading the description.</p>;
  if('error' in state)return <p className="help" role="status">The description could not be loaded.</p>;
- return <ToolAboutView reference={state.reference} extras={state.extras} open={defaultReferenceLinkOpener()}/>;
+ return <ToolAboutView reference={state.reference} extras={state.extras} open={defaultReferenceLinkOpener()} guideSlug={candleGuideSlugFor(file)} onGuide={typeof window!=='undefined'&&typeof window.lv?.openCandleGuide==='function'?openCandleGuide:undefined}/>;
 }
 /** The same view in its own dialog (the Indicators picker's info buttons). Rendered inside another dialog, so its keys
  * and presses stop here instead of reaching the outer dialog's Escape, Tab and backdrop handlers through the portal. */

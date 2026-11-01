@@ -76,6 +76,8 @@ export interface LVBridge {
   reportStuck?():Promise<BridgeResult<{opened:boolean}>>;
   /** Tool About panels: main opens a source link of the bundled reference notes (http/https on the reference hosts only). */
   openReferenceLink?(input:{url:string}):Promise<BridgeResult<{opened:boolean}>>;
+  /** Opens getopencandle.com/candles/ (optionally at #fragment, lowercase letters, digits and hyphens) in the default browser. */
+  openCandleGuide?(input?:{fragment?:string}):Promise<BridgeResult<{opened:boolean}>>;
   alpacaKeyStatus?:AlpacaBridge['alpacaKeyStatus'];
   saveAlpacaKey?:AlpacaBridge['saveAlpacaKey'];
   clearAlpacaKey?:AlpacaBridge['clearAlpacaKey'];

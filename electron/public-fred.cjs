@@ -17,7 +17,7 @@ const TIMEOUT_MS=15000;
 const SERIES_ID=/^[A-Z0-9_]{1,25}$/;
 const RECORD_FILE=/^[0-9a-f]{64}\.json$/;
 const TEMP_FILE=/^[0-9a-f]{64}\.json\.tmp-[0-9a-f-]{36}$/;
-const USER_AGENT='OpenCandle/0.8.1 (getopencandle.com; optional public FRED data reader)';
+const USER_AGENT='OpenCandle/0.8.2 (getopencandle.com; optional public FRED data reader)';
 const urlOf=series=>'https://fred.stlouisfed.org/graph/fredgraph.csv?id='+series;
 
 function seriesInput(value){

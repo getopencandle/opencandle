@@ -67,17 +67,12 @@
 [data-lv-picker] .indicator-catalog-name{flex:1;min-width:0;font-size:14px;color:var(--lv-text-primary);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 [data-lv-picker] .indicator-catalog-acronym{flex:none;max-width:120px;font-size:12px;font-weight:400;color:var(--lv-text-secondary);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 [data-lv-picker] .lv-picker-count{flex:none;padding:1px 6px;border-radius:9px;font-size:11px;line-height:16px;color:var(--lv-toggle-active-text);background:var(--lv-toggle-active-bg)}
-/* The "N on chart" badge is its own button (Remove the last added instance), a sibling of the Add button. It sits exactly over
-   the badge-sized spacer kept inside the Add button, so the row looks as before; hover and keyboard focus show the remove state. */
-[data-lv-picker] .lv-picker-count-remove{height:auto;margin:0 4px 0 0;border:0;cursor:pointer}
+/* The "N on chart" badge is its own button (Remove the last added instance): a plain flex item of the row, right after the Add
+   button and before the About button. It never shrinks or wraps, so the name in the Add button is what ellipsizes. Hover and
+   keyboard focus show the remove state. */
+[data-lv-picker] .lv-picker-count-remove{flex:none;align-self:center;height:auto;margin:0 4px 0 0;border:0;white-space:nowrap;cursor:pointer}
 [data-lv-picker] .lv-picker-count-remove:hover,[data-lv-picker] .lv-picker-count-remove:focus-visible{color:var(--lv-error-text);background:var(--lv-error-bg)}
 [data-lv-picker] .lv-picker-count-remove:hover::before,[data-lv-picker] .lv-picker-count-remove:focus-visible::before{content:'\00d7';margin-right:4px}
-[data-lv-picker] .lv-picker-add .lv-picker-count{display:none}
-@supports (anchor-name:--lv-a) and (anchor-scope:--lv-a){
-[data-lv-picker] .indicator-catalog-row:has(>.lv-picker-count-remove){position:relative;anchor-scope:--lv-picker-count}
-[data-lv-picker] .lv-picker-add .lv-picker-count{display:inline;visibility:hidden;anchor-name:--lv-picker-count}
-[data-lv-picker] .lv-picker-count-remove{position:absolute;position-anchor:--lv-picker-count;right:anchor(right);top:anchor(top);margin:0;white-space:nowrap}
-}
 [data-lv-picker] mark{background:transparent;color:var(--lv-accent-secondary);font-weight:600}
 
 [data-lv-picker] .lv-picker-entry{display:flex;align-items:center;width:100%;height:32px;padding:0 12px 0 36px;font-size:14px;text-align:left;border-radius:var(--lv-radius-plate);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}

@@ -97,7 +97,7 @@ describe('add without closing',()=>{
   ui.click('Add Simple Moving Average');
   expect(status().key).not.toBe(first.key);expect(text(status())).toContain('Simple Moving Average added (2 on chart)');
   expect(ui.props.onClose).not.toHaveBeenCalled();expect(findAll(ui.render(),node=>node.type===IndicatorSettings)).toHaveLength(0);
-  expect(text(find(ui.render(),node=>node.props?.className==='lv-picker-count'))).toBe('2 on chart');
+  expect(text(find(ui.render(),node=>node.props?.['data-count-remove']==='sma'))).toBe('2 on chart');
  });
 });
 

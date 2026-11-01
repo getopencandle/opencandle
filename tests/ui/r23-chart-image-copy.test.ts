@@ -1,6 +1,5 @@
 import {describe,expect,it,vi} from 'vitest';
 import {CHART_IMAGE_COPIED,CHART_IMAGE_COPY_NEEDS_DESKTOP,copyChartImage} from '../../src/ui/chart-image-copy';
-import {LIVE_EXPORT_NOTICE} from '../../src/domain/live-provider';
 import {chartMenuEntries} from '../../src/ui/ChartContextMenu';
 import type {ChartContextActions,ChartMenuSnapshot} from '../../src/chart/context-menu';
 
@@ -33,7 +32,6 @@ describe('copyChartImage',()=>{
  it('a live chart copies like a demo chart',async()=>{
   for(const datasetId of ['live:alpaca-iex:GME:5m','fred:DGS10']){const bridge={copyChartImage:vi.fn(async()=>({ok:true as const,value:{bytes:1,width:1,height:1}}))};
    expect(await copyChartImage({render:ok,datasetId,bridge})).toEqual({ok:true,message:CHART_IMAGE_COPIED});expect(bridge.copyChartImage).toHaveBeenCalledWith({pngDataUrl:PNG});}
-  expect(LIVE_EXPORT_NOTICE).toMatch(/personal display only/);
  });
 });
 

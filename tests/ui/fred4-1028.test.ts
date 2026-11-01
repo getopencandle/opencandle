@@ -2,7 +2,8 @@ import {describe,expect,it} from 'vitest';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {comparisonSourceTag,comparisonSourceText} from '../../src/chart/compare-port';
-import {exportNoticeFor,FRED_EXPORT_NOTICE,LIVE_EXPORT_NOTICE} from '../../src/domain/live-provider';
+import {personalUseNote} from '../../src/domain/live-provider';
+import {seasonalTermsLabel} from '../../src/market-views/seasonal-view';
 import {liveDataOf,restoreLiveData} from '../../src/ui/live-workspace';
 import {FredCacheSection} from '../../src/ui/FredCacheSection';
 
@@ -13,10 +14,11 @@ describe('FRED-4',()=>{
   expect(comparisonSourceTag(d)).toBe('FRED');expect(comparisonSourceText(d)).toMatch(/^FRED/);
   expect(comparisonSourceTag(prov('live:coinbase-public:BTC-USD:1m','coinbase-public'))).toBe('LIVE');
  });
- it('gives FRED its own export wording and keeps the live wording',()=>{
-  expect(exportNoticeFor('fred:fred-public:DGS10:1D')).toBe(FRED_EXPORT_NOTICE);
-  expect(FRED_EXPORT_NOTICE).not.toMatch(/live|—/i);
-  expect(exportNoticeFor('live:coinbase-public:BTC-USD:1m')).toBe(LIVE_EXPORT_NOTICE);
+ it('FRED and live data export for personal analysis with the provider terms line',()=>{
+  const live={provenance:{datasetId:'live:coinbase-public:BTC-USD:1m',providerId:'coinbase-public',providerName:'Coinbase',fixture:false}} as never;
+  expect(seasonalTermsLabel(prov('fred:fred-public:DGS10:1D','fred-public'))).toBe('FRED');expect(seasonalTermsLabel(live)).toBe('Coinbase');
+  expect(personalUseNote('FRED')).toBe("Market data from FRED, saved for your personal analysis. The provider's terms apply: do not share or resell this file.");
+  expect(personalUseNote('')).toMatch(/^Market data from a connected provider, /);expect(personalUseNote('FRED')).not.toMatch(/\u2014|tradingview/i);
  });
  it('fred flag: absent means on, false round-trips, junk is refused',()=>{
   expect(liveDataOf({liveData:{coinbase:true,alpacaSymbols:[]}}).fred).toBeUndefined();

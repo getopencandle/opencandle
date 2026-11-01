@@ -11,7 +11,7 @@ export const CHART_IMAGE_COPY_NEEDS_DESKTOP='Copying a chart image needs the des
 
 /** Renders the chart image and asks the main process to put it on the clipboard. `ok` is true only after the main process
  * reports the clipboard write. owner-approved 2026-10-29: live chart screenshots allowed for personal use, so a live chart copies
- * like a demo chart (datasetId is kept for callers; the CSV data export keeps its live-data refusal). */
+ * like a demo chart (datasetId is kept for callers). */
 export async function copyChartImage(input:{render:()=>ChartImageRender;datasetId:string|null|undefined;bridge:ChartImageClipboardBridge|null|undefined}):Promise<{ok:boolean;message:string}>{
  if(!input.bridge||typeof input.bridge.copyChartImage!=='function')return{ok:false,message:CHART_IMAGE_COPY_NEEDS_DESKTOP};
  let rendered:ChartImageRender;

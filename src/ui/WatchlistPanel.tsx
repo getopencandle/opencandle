@@ -19,7 +19,7 @@ function noLiveNote(reference:WatchReference):{text:string;title:string}|null{re
 import {Modal} from './Modal';
 import './watchlist.css';
 import {AddSymbolIcon,ChevronDownIcon,ExportIcon,MoreHorizontalIcon,SettingsIcon} from './icons';
-import {FLAG_COLORS,WATCH_LIMITS,activeWatchList,addWatchList,copyWatchList,cycleWatchSort,deleteWatchSection,editWatchSection,exportWatchText,favoriteWatchList,importWatchText,insertWatchSection,marketKey,mergeWatchBook,moveWatchRow,rebindWatchRow,recolorWatchFlags,referenceFromDataset,removeWatchRows,renameWatchFlag,renameWatchList,resetWatchColumnWidth,resolveWatchSource,restoreWatchBook,restoreWatchOrder,selectWatchList,setWatchColumnVisible,setWatchManualOrder,setWatchSort,watchColumnWidth,WATCH_BYTES,WATCH_DEFAULT_WIDTHS,type FlagColor,type WatchBook,type WatchColumn,type WatchReference,type WatchRow} from '../watchlists/model';
+import {FLAG_COLORS,WATCH_DAY_RANGE_COLUMNS,WATCH_LIMITS,activeWatchList,addWatchList,copyWatchList,cycleWatchSort,deleteWatchSection,editWatchSection,exportWatchText,favoriteWatchList,importWatchText,insertWatchSection,marketKey,mergeWatchBook,moveWatchRow,rebindWatchRow,recolorWatchFlags,referenceFromDataset,removeWatchRows,renameWatchFlag,renameWatchList,resetWatchColumnWidth,resolveWatchSource,restoreWatchBook,restoreWatchOrder,selectWatchList,setWatchColumnVisible,showWatchColumns,setWatchManualOrder,setWatchSort,watchColumnWidth,WATCH_BYTES,WATCH_DEFAULT_WIDTHS,type FlagColor,type WatchBook,type WatchColumn,type WatchReference,type WatchRow} from '../watchlists/model';
 import {orderedWatchRows,visibleWatchRows,watchCellDisplay,watchCellTone,watchMarketStatus,watchQuote,withLiveQuote} from '../watchlists/quotes';
 import {liveQuotes,LIVE_QUOTE_STALE_MS} from '../domain/live-quotes';
 import {useLiveQuotesVersion} from './use-live-quote';
@@ -40,7 +40,7 @@ import {createRowDrag} from './watchlist-row-drag';
 import {plainErrorText} from './user-error';
 const labels=WATCH_COLUMN_LABELS;
 /** Compact column headings (reference: Symbol / Last / Chg / Chg%); full names stay in titles and the column menu. */
-const headings:Record<keyof typeof WATCH_COLUMN_LABELS,string>={...WATCH_COLUMN_LABELS,volume:'Vol',change:'Chg',changePercent:'Chg%',extended:'Ext',extendedChange:'Ext Chg',extendedChangePercent:'Ext Chg%',relativeVolume:'Rel Vol'};
+const headings:Record<keyof typeof WATCH_COLUMN_LABELS,string>={...WATCH_COLUMN_LABELS,volume:'Vol',change:'Chg',changePercent:'Chg%',extended:'Ext',extendedChange:'Ext Chg',extendedChangePercent:'Ext Chg%',relativeVolume:'Rel Vol',adr:'ADR',adrUsed:'ADR used',rangePosition:'In range',vsPriorDay:'Vs prior',vsOpen:'Vs open'};
 const uid=()=>crypto.randomUUID();
 /** How long the "Removed GME. Undo" toast stays. */
 export const REMOVED_TOAST_MS=8000;
@@ -154,7 +154,7 @@ export function WatchlistPanel(props:Props){
     const column=opened.column;
     if((action==='sort-asc'||action==='sort-desc')&&column){change(setWatchSort(book,active.id,{column,direction:action==='sort-asc'?'asc':'desc'}));return;}
     if(action==='hide'&&column){change(setWatchColumnVisible(book,column,false));return;}if(action==='reset-width'&&column){change(resetWatchColumnWidth(book,column));return;}
-    if(action==='restore'){change(restoreWatchOrder(book,active.id));return;}if(action==='column'){const target=argument as WatchColumn;change(setWatchColumnVisible(book,target,!book.display.columns.includes(target)));return;}if(action==='display')return openDialog('settings');if(action==='import-export')return openDialog('import');if(action==='notes')return openNotes(chosen?.reference??null);if(action==='advanced'){if(!resize.isEnabled())return;clicks.cancel();resize.cancel();if(latest.current.onAdvanced?.()===false)throw new Error('Advanced View could not be opened.');return;}
+    if(action==='restore'){change(restoreWatchOrder(book,active.id));return;}if(action==='column'){const target=argument as WatchColumn;change(setWatchColumnVisible(book,target,!book.display.columns.includes(target)));return;}if(action==='preset'&&argument==='day-range'){change(showWatchColumns(book,WATCH_DAY_RANGE_COLUMNS));return;}if(action==='display')return openDialog('settings');if(action==='import-export')return openDialog('import');if(action==='notes')return openNotes(chosen?.reference??null);if(action==='advanced'){if(!resize.isEnabled())return;clicks.cancel();resize.cancel();if(latest.current.onAdvanced?.()===false)throw new Error('Advanced View could not be opened.');return;}
     throw new Error('This column action is unavailable.');
    }
    const rows=assertWatchRowTarget(book,opened.target!),focus=rows[0],symbols=rows.flatMap(row=>row.kind==='symbol'?[row]:[]),references=symbols.map(row=>row.reference);

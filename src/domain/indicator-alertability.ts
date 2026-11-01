@@ -1,6 +1,7 @@
 import {catalogDefinition,catalogInputValue} from './indicator-catalog';
 import {isIntradayResolution} from './indicators-ext/r40-volume-catalog';
 import {VP_ALERTABLE_IDS} from './indicators-ext/vp-catalog';
+import {STRUCTURE_PROFILE_IDS} from './indicators-ext/structure-catalog';
 import {sourcePivotCalendar,type PivotCalendar} from './indicators-ext/r23-catalog';
 import type {BarDataset} from './types';
 
@@ -29,7 +30,7 @@ export function indicatorAlertBlock(kind:string,inputs?:Readonly<Record<string,u
  if(definition.finerBars)return `${definition.name} needs lower-timeframe history that background alerts do not receive, so it cannot be alerted on.`;
  if(definition.viewport&&!definition.profile)return `${definition.name} depends on the chart's visible range, so it cannot be alerted on.`;
  if(definition.profile){
-  if(definition.viewport||!(VP_ALERTABLE_IDS as readonly string[]).includes(kind))return `${definition.name} depends on the chart's visible range and finer bars, so it cannot be alerted on.`;
+  if(definition.viewport||![...VP_ALERTABLE_IDS,...STRUCTURE_PROFILE_IDS].includes(kind as never))return `${definition.name} depends on the chart's visible range and finer bars, so it cannot be alerted on.`;
   let layout:unknown;try{layout=catalogInputValue(definition,inputs??{},'rowsLayout');}catch{layout=undefined;}
   if(layout!=='Number Of Rows')return `${definition.name} with Ticks Per Row needs the instrument tick size, which alerts do not have. Use Number Of Rows to alert on it.`;
  }

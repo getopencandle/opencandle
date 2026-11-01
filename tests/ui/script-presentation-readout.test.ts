@@ -9,9 +9,9 @@ function snapshot(f:ReturnType<typeof fixture>,id=SYNTHETIC_BINDING.id):ScriptRe
 function ready(f:ReturnType<typeof fixture>,id=SYNTHETIC_BINDING.id){const view=snapshot(f,id);expect(view.state).toBe('ready');if(view.state!=='ready')throw Error(view.message);return view;}
 async function accepted(f:ReturnType<typeof fixture>){const runtime=f.runtime();runtime.update(f.context());f.complete();await settle();return runtime;}
 
-it('retains accepted live UI scalars even when the independent CSV permission is absent',async()=>{
+it('retains accepted live UI scalars, and the live job is accepted for a personal-use CSV export',async()=>{
  const f=fixture({live:true});await accepted(f);expect(f.port.list()).toHaveLength(1);
- expect(()=>assertScriptCsvJobModel(f.model(),f.model().result,f.input,'ordinary',SYNTHETIC_BINDING.id)).toThrow();
+ expect(()=>assertScriptCsvJobModel(f.model(),f.model().result,f.input,'ordinary',SYNTHETIC_BINDING.id)).not.toThrow();
  const value=ready(f).readAt(100);expect(value.title).toBe('Synthetic study');expect(value.paneId).toBe('price');expect(value.plots).toEqual([{label:'Value',color:'#123456',value:7}]);
 });
 it('keeps a requested accepted UI result independent of missing dependency export receipts',async()=>{

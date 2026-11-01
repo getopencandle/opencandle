@@ -31,8 +31,10 @@ it('distinguishes missing or whole-hidden models from legitimate warmup nulls',(
 it('refuses a configured study absent from the accepted graph rather than silently omitting it',()=>{
  const f=fixture();expect(()=>captureChartCsvColumns(f.chart,f.input,'ordinary',{indicators:['not-yet-mounted'],scripts:[],comparisons:[]},()=>{})).toThrow('still loading or unavailable');
 });
-it('keeps the live-data export boundary for a comparison attached to a local chart',()=>{
- const f=fixture(),value=f.add(1,'SPY',[f.line('SPY',[0,10,20])]);value.row.dataset.provenance.datasetId='live:synthetic-policy-test';expect(()=>capture(f)).toThrow('cannot be exported');
+it('exports a live comparison on a local chart and reports its provider for the terms line',()=>{
+ const f=fixture(),value=f.add(1,'SPY',[f.line('SPY',[0,10,20])]);value.row.dataset.provenance.datasetId='live:synthetic-policy-test';value.row.dataset.provenance.fixture=false;value.row.dataset.provenance.providerName='Synthetic live provider';
+ const result=capture(f);expect(result.personalUse).toEqual(['Synthetic live provider']);expect(result.columns[0].label).toMatch(/^Compare SPY/);
+ expect(capture(fixture()).personalUse).toBeUndefined();
 });
 it('refuses request-bearing script and second-symbol study values without accepted dependency permission proof',()=>{
  const f=fixture(),value=f.add(2,'Synthetic request',[f.line('Plot',[1,2,3])]);f.publishScript(value.id,[{id:'dependency',symbol:'SPY',interval:'1D'}],[{id:'plot',title:'Plot'}]);expect(()=>capture(f)).toThrow('accepted export permission');

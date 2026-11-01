@@ -4,6 +4,7 @@
 // (they need a hosted catalog; there are no accounts). Pure data: no dialog state, no chart access.
 import {STATEMENT_LINES,DERIVED_METRICS,UNAVAILABLE_METRICS} from '../fundamentals/statements';
 import {VP_INDICATOR_IDS} from './indicators-ext/vp-catalog';
+import {STRUCTURE_PROFILE_IDS} from './indicators-ext/structure-catalog';
 import {catalogKeywords} from './indicator-catalog';
 import {CHART_PATTERN_INDICATOR_IDS,PATTERN_SECTIONS,isPatternIndicator} from './indicators-ext/patterns-catalog';
 
@@ -45,7 +46,7 @@ export const FUNDAMENTALS_TABS:readonly {id:FundamentalsTabId;label:string}[]=Ob
 export type SelectorCategory='indicators'|'profiles'|'patterns'|'options';
 /** The volume profile built-ins belong to the Profiles tab (with
  *  Periodic and Visible range volume profile), not the Indicators tab. */
-export const PROFILE_INDICATOR_IDS:readonly string[]=Object.freeze([...VP_INDICATOR_IDS]);
+export const PROFILE_INDICATOR_IDS:readonly string[]=Object.freeze([...VP_INDICATOR_IDS,...STRUCTURE_PROFILE_IDS]);
 export const isProfileIndicator=(id:string)=>PROFILE_INDICATOR_IDS.includes(id);
 /** The chart and candlestick pattern built-ins belong to the Patterns tab. */
 export {isPatternIndicator};

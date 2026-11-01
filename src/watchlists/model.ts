@@ -15,18 +15,22 @@ export type FlagColor=typeof FLAG_COLORS[number];
 /** Adds bid and ask (the live best bid and ask, see quotes.ts withLiveQuote). */
 /** Adds open, high, low, previousClose and dayRange: the daily bar of the day and the
  * previous daily close from the same daily snapshot the Chg columns use (quotes.ts). They are offered, not shown by default. */
-export type WatchColumn='symbol'|'last'|'change'|'changePercent'|'volume'|'extended'|'extendedChange'|'extendedChangePercent'|'relativeVolume'|'open'|'high'|'low'|'previousClose'|'dayRange'|'bid'|'ask';
+/** Adds the day-range dashboard columns adr, adrUsed, rangePosition, vsPriorDay and vsOpen (quotes.ts dayRangeStats), from the
+ * same daily snapshot; offered, not shown by default (WATCH_DAY_RANGE_COLUMNS turns them on together). */
+export type WatchColumn='symbol'|'last'|'change'|'changePercent'|'volume'|'extended'|'extendedChange'|'extendedChangePercent'|'relativeVolume'|'open'|'high'|'low'|'previousClose'|'dayRange'|'adr'|'adrUsed'|'rangePosition'|'vsPriorDay'|'vsOpen'|'bid'|'ask';
 export interface WatchReference {symbol:string;exchange:string;datasetId:string|null;dailyDatasetId:string|null;synthetic:boolean}
 export type WatchRow={id:string;kind:'symbol';reference:WatchReference}|{id:string;kind:'section';name:string;collapsed:boolean};
 export interface WatchList {id:string;name:string;favorite:boolean;rows:WatchRow[];sort:{column:WatchColumn;direction:'asc'|'desc'}|null}
 export interface WatchBook {schemaVersion:1;detailBlocks?:DetailPreferences;/** List/details split, persisted with the workspace. */detailPane?:DetailPane;lists:WatchList[];activeId:string;flags:{reference:WatchReference;color:FlagColor}[];lastFlag:FlagColor;flagSorts?:Partial<Record<FlagColor,WatchList['sort']>>;flagNames?:Partial<Record<FlagColor,string>>;notes?:WatchNote[];display:{label:'ticker'|'description'|'both';monogram:boolean;separators:boolean;density:'compact'|'comfortable';columns:WatchColumn[];widths:Record<WatchColumn,number>}}
 export const WATCH_BYTES=2*1024*1024;
-const columns:WatchColumn[]=['symbol','last','change','changePercent','volume','extended','extendedChange','extendedChangePercent','relativeVolume','open','high','low','previousClose','dayRange','bid','ask'];
+const columns:WatchColumn[]=['symbol','last','change','changePercent','volume','extended','extendedChange','extendedChangePercent','relativeVolume','open','high','low','previousClose','dayRange','adr','adrUsed','rangePosition','vsPriorDay','vsOpen','bid','ask'];
 /** Columns added after books were first saved. A saved book without their widths restores unchanged (byte-identical
  * serialization) and reads the default width through watchColumnWidth. */
-const LATER_COLUMNS:readonly WatchColumn[]=['extendedChange','extendedChangePercent','relativeVolume','open','high','low','previousClose','dayRange','bid','ask'];
+const LATER_COLUMNS:readonly WatchColumn[]=['extendedChange','extendedChangePercent','relativeVolume','open','high','low','previousClose','dayRange','adr','adrUsed','rangePosition','vsPriorDay','vsOpen','bid','ask'];
 export const WATCH_COLUMNS:readonly WatchColumn[]=Object.freeze([...columns]);
-export const WATCH_DEFAULT_WIDTHS:Readonly<Record<WatchColumn,number>>=Object.freeze({symbol:100,last:85,change:85,changePercent:85,volume:95,extended:95,extendedChange:85,extendedChangePercent:85,relativeVolume:85,open:85,high:85,low:85,previousClose:85,dayRange:130,bid:85,ask:85});
+export const WATCH_DEFAULT_WIDTHS:Readonly<Record<WatchColumn,number>>=Object.freeze({symbol:100,last:85,change:85,changePercent:85,volume:95,extended:95,extendedChange:85,extendedChangePercent:85,relativeVolume:85,open:85,high:85,low:85,previousClose:85,dayRange:130,adr:85,adrUsed:85,rangePosition:85,vsPriorDay:85,vsOpen:85,bid:85,ask:85});
+/** The day-range dashboard columns, shown together by the "Day range columns" preset (showWatchColumns). */
+export const WATCH_DAY_RANGE_COLUMNS:readonly WatchColumn[]=Object.freeze(['adr','adrUsed','rangePosition','vsPriorDay','vsOpen']);
 /** A fresh book stores the widths of the original six columns only: the later columns read their default
  * through watchColumnWidth, so a fresh profile keeps the shape the executable-flow fresh-profile preflight pins. */
 function freshWidths():WatchBook['display']['widths']{return Object.fromEntries(columns.filter(column=>!LATER_COLUMNS.includes(column)).map(column=>[column,WATCH_DEFAULT_WIDTHS[column]])) as WatchBook['display']['widths'];}
@@ -138,4 +142,6 @@ export function setWatchSort(book:WatchBook,id:string,sort:WatchList['sort']):Wa
 /** Persist a displayed order as the manual order. The IDs must be an exact permutation of the current rows. */
 export function setWatchManualOrder(book:WatchBook,id:string,rowIds:readonly string[]):WatchBook{return updateList(book,id,list=>{const byId=new Map(list.rows.map(row=>[row.id,row]));if(rowIds.length!==list.rows.length||new Set(rowIds).size!==rowIds.length||rowIds.some(rowId=>!byId.has(rowId)))throw new Error('The displayed order no longer matches this list.');return{...list,sort:null,rows:rowIds.map(rowId=>byId.get(rowId)!)};});}
 export function setWatchColumnVisible(book:WatchBook,column:WatchColumn,visible:boolean):WatchBook{if(!columns.includes(column))throw new Error('Unknown watchlist column.');if(column==='symbol'&&!visible)throw new Error('The Symbol column is required.');const current=book.display.columns,shown=visible?(current.includes(column)?current:[...current,column]):current.includes(column)?current.filter(item=>item!==column):current;return shown===current?book:restoreWatchBook({...book,display:{...book.display,columns:[...shown]}});}
+/** Shows every given column that is hidden, appended in the given order (the column presets); the book is unchanged when all are shown. */
+export function showWatchColumns(book:WatchBook,shown:readonly WatchColumn[]):WatchBook{if(shown.some(column=>!columns.includes(column)))throw new Error('Unknown watchlist column.');const add=shown.filter((column,index)=>!book.display.columns.includes(column)&&shown.indexOf(column)===index);return add.length?restoreWatchBook({...book,display:{...book.display,columns:[...book.display.columns,...add]}}):book;}
 export function resetWatchColumnWidth(book:WatchBook,column:WatchColumn):WatchBook{if(!columns.includes(column))throw new Error('Unknown watchlist column.');return watchColumnWidth(book,column)===WATCH_DEFAULT_WIDTHS[column]?book:restoreWatchBook({...book,display:{...book.display,widths:{...book.display.widths,[column]:WATCH_DEFAULT_WIDTHS[column]}}});}

@@ -43,6 +43,8 @@ export const RSI_DIVERGENCE_INPUTS:readonly RsiDivergenceInputField[]=Object.fre
  // Display-only options, off by default (the owner's RSI has both off).
  {key:'divergencePricePane',title:'Price pane divergences',type:'bool',defval:false},
  {key:'divergenceBackground',title:'Background divergences',type:'bool',defval:false},
+ // Display-only, off by default: the latest unconfirmed extreme against the last confirmed pivot (dashed, "forming").
+ {key:'divergenceForming',title:'Show forming divergences',type:'bool',defval:false},
 ] as RsiDivergenceInputField[]);
 /**
  * Inputs written only when a NEW RSI is created (the factory default), never by the defaults above: absent still
@@ -51,7 +53,7 @@ export const RSI_DIVERGENCE_INPUTS:readonly RsiDivergenceInputField[]=Object.fre
 export const RSI_DIVERGENCE_CREATION_INPUTS:Readonly<Record<string,boolean>>=Object.freeze({divergenceBodyOnly:true});
 export const RSI_DIVERGENCE_INPUT_KEYS=Object.freeze(RSI_DIVERGENCE_INPUTS.map(field=>field.key));
 const KIND_INPUT:Readonly<Record<RsiDivergenceKind,string>>=Object.freeze({bullish:'divergenceRegularBullish',bearish:'divergenceRegularBearish',hiddenBullish:'divergenceHiddenBullish',hiddenBearish:'divergenceHiddenBearish'});
-export interface RsiDivergenceSettings {policy:RsiDivergencePolicy;kinds:readonly RsiDivergenceKind[];bodyOnly:boolean;labels:boolean;pricePane:boolean;background:boolean}
+export interface RsiDivergenceSettings {policy:RsiDivergencePolicy;kinds:readonly RsiDivergenceKind[];bodyOnly:boolean;labels:boolean;pricePane:boolean;background:boolean;forming:boolean}
 /** Reads and validates the divergence inputs (absent = default). Throws on a wrong type, an out-of-range value or min above max. */
 export function rsiDivergenceSettings(inputs:Readonly<Record<string,unknown>>):RsiDivergenceSettings{
  const value=(key:string)=>{
@@ -62,7 +64,7 @@ export function rsiDivergenceSettings(inputs:Readonly<Record<string,unknown>>):R
  };
  const policy={left:value('divergenceLeft') as number,right:value('divergenceRight') as number,minBetween:value('divergenceRangeMin') as number,maxBetween:value('divergenceRangeMax') as number};
  if(policy.minBetween>policy.maxBetween)throw new Error('Min bars between pivots must not exceed Max bars between pivots.');
- return {policy,kinds:RSI_DIVERGENCE_KINDS.filter(kind=>value(KIND_INPUT[kind])===true),bodyOnly:value('divergenceBodyOnly') as boolean,labels:value('divergenceLabels') as boolean,pricePane:value('divergencePricePane') as boolean,background:value('divergenceBackground') as boolean};
+ return {policy,kinds:RSI_DIVERGENCE_KINDS.filter(kind=>value(KIND_INPUT[kind])===true),bodyOnly:value('divergenceBodyOnly') as boolean,labels:value('divergenceLabels') as boolean,pricePane:value('divergencePricePane') as boolean,background:value('divergenceBackground') as boolean,forming:value('divergenceForming') as boolean};
 }
 
 export interface RsiDivergenceSegment {kind:RsiDivergenceKind;fromIndex:number;toIndex:number;confirmIndex:number;fromRsi:number;toRsi:number}
@@ -98,8 +100,9 @@ function isPivot(values:readonly (number|null)[],index:number,left:number,right:
 /** The price a pivot compares: the wick (low/high), or with Candle body only min/max(open, close). Shared with the price-pane lines. */
 export function rsiDivergencePivotPrice(bar:Bar,low:boolean,bodyOnly:boolean):number{return bodyOnly?(low?Math.min(bar.open,bar.close):Math.max(bar.open,bar.close)):low?bar.low:bar.high;}
 export const rsiDivergenceIsBullish=(kind:RsiDivergenceKind)=>kind==='bullish'||kind==='hiddenBullish';
-export function rsiDivergence(rsiValues:readonly (number|null)[],bars:readonly Bar[],policy:RsiDivergencePolicy=RSI_DIVERGENCE_POLICY,options:RsiDivergenceOptions={}):RsiDivergenceResult{
- if(rsiValues.length!==bars.length)throw new Error('RSI divergence needs one RSI value per bar.');
+/** Pivot scan shared by the confirmed and the forming divergences; lastLow/lastHigh are the last confirmed pivots. */
+function scanDivergence(values:readonly (number|null)[],bars:readonly Bar[],policy:RsiDivergencePolicy,options:RsiDivergenceOptions,name:string):RsiDivergenceResult&{lastLow:number|null;lastHigh:number|null}{
+ if(values.length!==bars.length)throw new Error(`${name} divergence needs one ${name} value per bar.`);
  const kinds=new Set<RsiDivergenceKind>(options.kinds??['bullish','bearish']),body=options.bodyOnly===true;
  const empty=()=>Array<number|null>(bars.length).fill(null);
  const markers:Record<RsiDivergenceKind,(number|null)[]>={bullish:empty(),bearish:empty(),hiddenBullish:empty(),hiddenBearish:empty()},segments:RsiDivergenceSegment[]=[];
@@ -107,7 +110,7 @@ export function rsiDivergence(rsiValues:readonly (number|null)[],bars:readonly B
  let previousLow:number|null=null,previousHigh:number|null=null;
  const last=bars.length-policy.right-1;
  const pair=(low:boolean,before:number,index:number,confirmIndex:number)=>{
-  const price=low?lowOf(bars[index]):highOf(bars[index]),earlierPrice=low?lowOf(bars[before]):highOf(bars[before]),rsi=rsiValues[index] as number,earlierRsi=rsiValues[before] as number;
+  const price=low?lowOf(bars[index]):highOf(bars[index]),earlierPrice=low?lowOf(bars[before]):highOf(bars[before]),rsi=values[index] as number,earlierRsi=values[before] as number;
   if(!finite(earlierPrice)||!rsiDivergenceSeparationAccepted(before,index,policy))return;
   for(const kind of (low?['bullish','hiddenBullish']:['bearish','hiddenBearish']) as RsiDivergenceKind[]){
    if(!kinds.has(kind)||!rsiDivergencePairQualifies(kind,{price:earlierPrice,rsi:earlierRsi},{price,rsi}))continue;
@@ -116,10 +119,45 @@ export function rsiDivergence(rsiValues:readonly (number|null)[],bars:readonly B
  };
  for(let index=policy.left;index<=last;index++){
   const confirmIndex=index+policy.right;
-  if(isPivot(rsiValues,index,policy.left,policy.right,true)&&finite(lowOf(bars[index]))){if(previousLow!==null)pair(true,previousLow,index,confirmIndex);previousLow=index;}
-  if(isPivot(rsiValues,index,policy.left,policy.right,false)&&finite(highOf(bars[index]))){if(previousHigh!==null)pair(false,previousHigh,index,confirmIndex);previousHigh=index;}
+  if(isPivot(values,index,policy.left,policy.right,true)&&finite(lowOf(bars[index]))){if(previousLow!==null)pair(true,previousLow,index,confirmIndex);previousLow=index;}
+  if(isPivot(values,index,policy.left,policy.right,false)&&finite(highOf(bars[index]))){if(previousHigh!==null)pair(false,previousHigh,index,confirmIndex);previousHigh=index;}
  }
- return {...markers,segments};
+ return {...markers,segments,lastLow:previousLow,lastHigh:previousHigh};
+}
+/** The divergence engine for any oscillator series (RSI, MACD line, MACD histogram): the pivot, separation and pair rules
+ *  above, with the oscillator in place of the RSI (segment fromRsi/toRsi then hold the oscillator values). */
+export function oscillatorDivergence(values:readonly (number|null)[],bars:readonly Bar[],policy:RsiDivergencePolicy=RSI_DIVERGENCE_POLICY,options:RsiDivergenceOptions={},name='Oscillator'):RsiDivergenceResult{
+ const {lastLow:_low,lastHigh:_high,...result}=scanDivergence(values,bars,policy,options,name);return result;
+}
+export function rsiDivergence(rsiValues:readonly (number|null)[],bars:readonly Bar[],policy:RsiDivergencePolicy=RSI_DIVERGENCE_POLICY,options:RsiDivergenceOptions={}):RsiDivergenceResult{
+ return oscillatorDivergence(rsiValues,bars,policy,options,'RSI');
+}
+/** A forming divergence: the latest pivot candidate that cannot be confirmed yet (fewer than Right bars after it) against the
+ *  last confirmed pivot of the same side. Display only, never a calculation output or an alert operand. */
+export interface RsiFormingSegment {kind:RsiDivergenceKind;fromIndex:number;toIndex:number;fromRsi:number;toRsi:number}
+/**
+ * Forming rule (OpenCandle-defined). The candidate is the most extreme oscillator value among the last Right bars that is
+ * strictly beyond its Left bars on the left and every later bar so far (a pivot still waiting for its right side). It is
+ * paired with the last confirmed pivot of the same side under the same separation and pair rules. It reads only bars
+ * that exist, so it may change or vanish on the next bar and it is replaced by the confirmed divergence once Right bars
+ * have passed (the candidate then either becomes a confirmed pivot or stops qualifying).
+ */
+export function oscillatorFormingDivergence(values:readonly (number|null)[],bars:readonly Bar[],policy:RsiDivergencePolicy=RSI_DIVERGENCE_POLICY,options:RsiDivergenceOptions={},name='Oscillator'):RsiFormingSegment[]{
+ const scan=scanDivergence(values,bars,policy,options,name),kinds=new Set<RsiDivergenceKind>(options.kinds??['bullish','bearish']),body=options.bodyOnly===true,n=values.length,out:RsiFormingSegment[]=[];
+ for(const low of [true,false]){
+  const before=low?scan.lastLow:scan.lastHigh;if(before===null)continue;
+  let candidate:number|null=null;
+  for(let index=Math.max(policy.left,n-policy.right,before+1);index<n;index++){
+   const center=values[index];if(!finite(center)||!finite(rsiDivergencePivotPrice(bars[index],low,body)))continue;let ok=true;
+   for(let i=index-policy.left;ok&&i<n;i++){if(i===index)continue;const other=values[i];if(!finite(other)||(low?!(center<other):!(center>other)))ok=false;}
+   if(ok&&(candidate===null||(low?center<(values[candidate] as number):center>(values[candidate] as number))))candidate=index;
+  }
+  if(candidate===null||!rsiDivergenceSeparationAccepted(before,candidate,policy))continue;
+  const earlier={price:rsiDivergencePivotPrice(bars[before],low,body),rsi:values[before] as number},later={price:rsiDivergencePivotPrice(bars[candidate],low,body),rsi:values[candidate] as number};
+  for(const kind of (low?['bullish','hiddenBullish']:['bearish','hiddenBearish']) as RsiDivergenceKind[])
+   if(kinds.has(kind)&&rsiDivergencePairQualifies(kind,earlier,later))out.push({kind,fromIndex:before,toIndex:candidate,fromRsi:earlier.rsi,toRsi:later.rsi});
+ }
+ return out;
 }
 /**
  * Display-only values for the native line plot: each segment is a straight line between its two RSI pivots, so a

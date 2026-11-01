@@ -3,9 +3,10 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import { listPackage, extractFile, getRawHeader } from '@electron/asar';
-import { NtExecutable, NtExecutableResource } from 'resedit';
+import { NtExecutable, NtExecutableResource, Resource } from 'resedit';
 import { getCurrentFuseWire, FuseV1Options, FuseState } from '@electron/fuses';
 import {retainedVelaNotice} from './package-vela-modification.mjs';
+import {exeVersionStringProblems} from './package-metadata.mjs';
 const latest=JSON.parse(await readFile('out/latest.json','utf8'));
 const manifest=JSON.parse(await readFile(latest.manifest,'utf8'));
 const exe=path.join(latest.directory,'OpenCandle.exe');
@@ -17,6 +18,10 @@ check('executable SHA-256 matches manifest',await hash(exe)===manifest.executabl
 check('ASAR SHA-256 matches manifest',await hash(asar)===manifest.asarSha256);
 const pe=NtExecutable.from(await readFile(exe));
 const resources=NtExecutableResource.from(pe);
+// Windows file properties (company, description, copyright) name OpenCandle instead of keeping Electron's defaults.
+const versionInfo=Resource.VersionInfo.fromEntries(resources.entries),versionLanguages=versionInfo.length===1?versionInfo[0].getAllLanguagesForStringValues():[];
+const versionProblems=versionLanguages.length===1?exeVersionStringProblems(versionInfo[0].getStringValues(versionLanguages[0])):['no single version string table'];
+check('executable version strings name OpenCandle'+(versionProblems.length?' ('+versionProblems.join('; ')+')':''),versionProblems.length===0);
 const integrityEntries=resources.entries.filter(entry=>entry.type==='INTEGRITY'&&entry.id==='ELECTRONASAR');
 check('one embedded Electron ASAR integrity resource',integrityEntries.length===1);
 const integrity=JSON.parse(Buffer.from(integrityEntries[0].bin).toString('utf8'));

@@ -11,6 +11,7 @@ export const REPAINT_EXEMPT:Record<string,{delay:number|null;reason:RegExp;why:s
  autofibext:{delay:null,reason:/Repaints/i,why:'Pivots move when a new leg completes.'},
  autopitchfork:{delay:null,reason:/Repaints/i,why:'Pivots move when a new leg completes.'},
  aavp:{delay:null,reason:/levels move with the anchor/i,why:'One profile from the latest anchor through the last bar.'},
+ autofibvp:{delay:null,reason:/levels move with the anchor/i,why:'One profile from the latest auto fib swing start through the last bar.'},
  vrvp:{delay:null,reason:/^$/,why:'Visible-range kind (viewport): values describe the bars on screen.'},
  svphd:{delay:null,reason:/^$/,why:'Visible-range kind (viewport): values describe the bars on screen.'},
  visibleavg:{delay:null,reason:/^$/,why:'Visible-range kind (viewport): mean of the bars on screen.'},
@@ -19,6 +20,11 @@ export const REPAINT_EXEMPT:Record<string,{delay:number|null;reason:RegExp;why:s
 export const HEADLESS_UNAVAILABLE:Record<string,string>={
  seasonality:'Requires the chart-owned original candle source service (refuses bare bars by design).',
  tradingsessions:'Intraday-only clock windows with observed boxes; covered on the intraday series in session-guardrails.',
+};
+/** Intraday-only kinds: on a daily chart they refuse with a notice by design, so guardrail 2a runs them on the intraday series only. */
+export const INTRADAY_ONLY:Record<string,string>={
+ sessionvwap:'One VWAP per Tokyo, London and New York session; daily bars have no sessions.',
+ orb:'The opening range is the first minutes of the session; daily bars have no opening minutes.',
 };
 /** Kinds that revise values only on intraday charts (several chart bars per period), with the documented reason. */
 export const INTRADAY_EXEMPT:Record<string,{reason:RegExp;why:string}>={

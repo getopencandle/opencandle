@@ -34,13 +34,13 @@ export function legendValueName(kind:string):(plot:string)=>string{
 }
 /** Legend parts read by `text(values, barIndex)` (barIndex null = the last bar), e.g. the data window's indicatorPlotTextAt,
  * so the legend shows what the data window shows at the same bar (display offset and formatting included). */
-export function indicatorLegendTexts(port:{values(id:string):{series:readonly LegendValueSeries[]}},row:{id:string;kind:string;plots?:Readonly<Record<string,LegendPlotStyle|undefined>>},barIndex:number|null,styleOf:(kind:string,plot:string)=>LegendPlotStyle,text:(values:ArrayLike<number>,barIndex:number|null)=>string):LegendValuePart[]{
+export function indicatorLegendTexts(port:{values(id:string):{series:readonly LegendValueSeries[]}},row:{id:string;kind:string;plots?:Readonly<Record<string,LegendPlotStyle|undefined>>},barIndex:number|null,styleOf:(kind:string,plot:string)=>LegendPlotStyle,text:(values:ArrayLike<number>,barIndex:number|null,plot:string)=>string):LegendValuePart[]{
  try{
   const out:LegendValuePart[]=[],name=legendValueName(row.kind);
   for(const series of port.values(row.id).series){
    const style=row.plots?.[series.id]??styleOf(row.kind,series.id);
    if(!style||style.visible===false||style.legend===false)continue;
-   out.push({plot:series.id,text:name(series.id)+text(series.values,barIndex),color:style.color});
+   out.push({plot:series.id,text:name(series.id)+text(series.values,barIndex,series.id),color:style.color});
   }
   return out;
  }catch{return[];}

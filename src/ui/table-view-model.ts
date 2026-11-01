@@ -22,7 +22,7 @@ export function buildTableView(input:{series:DataWindowSeriesInput;bars:readonly
   const bar=bars[index]!,previous=index>0?bars[index-1]:undefined;
   const cells=[formatDataWindowDate(bar.time,input.timezone)+(withTime?' '+formatDataWindowTime(bar.time,input.timezone):''),formatPrice(bar.open,series.tickSize),formatPrice(bar.high,series.tickSize),formatPrice(bar.low,series.tickSize),formatPrice(bar.close,series.tickSize),formatChange(bar.close,previous?.close,series.tickSize),formatVolume(bar.volume)];
   // The shared reader of the data window and the legend (display offset, precision, tick size).
-  for(const {study,plots} of studies)for(const plot of plots)cells.push(indicatorPlotTextAt(plot.values,index,study,series.tickSize));
+  for(const {study,plots} of studies)for(const plot of plots)cells.push(indicatorPlotTextAt(plot.values,index,{...study,plot:plot.id},series.tickSize));
   rows.push({key:String(bar.time),time:bar.time,cells});
  }
  return{columns,rows,total:bars.length};

@@ -66,4 +66,4 @@ Data sources shows the exact folder and has an **Open folder** button.
 
 ## Your responsibility
 
-You use your own accounts and keys, and each provider's terms apply to the data you connect. Data from Alpaca, Coinbase and FRED is shown for your personal viewing, and OpenCandle does not export it. Imported data keeps whatever rights it came with. OpenCandle is not affiliated with any of these providers, and nothing in OpenCandle is financial advice.
+You use your own accounts and keys, and each provider's terms apply to the data you connect. You can export data from Alpaca, Coinbase and FRED to files on your own computer for your own analysis, for example with **Export chart data (CSV)** or **Export all indicators (.xlsx)**. Each provider's terms still apply: don't share or resell those files. Exported files say so in their notes or in the message shown after saving. Imported data keeps whatever rights it came with. OpenCandle is not affiliated with any of these providers, and nothing in OpenCandle is financial advice.

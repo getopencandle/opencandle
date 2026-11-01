@@ -4,7 +4,7 @@ import {alpacaSearchDatasets} from '../../src/domain/alpaca-live';
 import {describeSourceRevision} from '../../src/domain/data';
 import {isLiveDatasetId,isLiveProviderId,liveStatusLabel} from '../../src/domain/live-provider';
 import {buildSymbolSearchCandidates,searchSymbols,sourceLabel,switchRequest,createSymbolSearchSession} from '../../src/ui/symbol-search';
-import {chartSourceCsv} from '../../src/ui/chart-source-export';
+import {chartSourceCsv,chartSourceTermsLabel} from '../../src/ui/chart-source-export';
 import {clearLiveDatasets,registerLiveDataset} from '../../src/ui/live-registry';
 import {liveDataOf,liveSiblings,persistableWorkspace,restoreLiveData} from '../../src/ui/live-workspace';
 import {patchWorkspace,selectedDataset,workspaceDatasets} from '../../src/ui/workspace-grid';
@@ -68,9 +68,10 @@ describe('live datasets are their own kind, never local imports',()=>{
   expect(siblings.every(row=>isLiveDatasetId(row.provenance.datasetId)&&row.bars.length===0)).toBe(true);
   handle.close();provider.dispose();
  });
- it('refuses source CSV export of live bars',async()=>{
+ it('source CSV of live bars is gated by bar count, not by the provider, and carries the provider terms',async()=>{
   const provider=new CoinbaseLiveProvider(bridge()),handle=provider.open('BTC-USD','5m');
-  expect(()=>chartSourceCsv({bars:[],source:{datasetId:handle.datasetId}} as never,'ordinary')).toThrow(/personal display only/);
+  expect(()=>chartSourceCsv({bars:[],source:{datasetId:handle.datasetId}} as never,'ordinary')).toThrow('Source CSV requires 1 through 1,000,000 supplied bars.');
+  expect(chartSourceTermsLabel({datasetId:handle.datasetId,fixture:false,label:'Coinbase public market data'} as never)).toBe('Coinbase public market data');
   handle.close();provider.dispose();
  });
 });

@@ -257,7 +257,7 @@ import type {MarketDataCacheBridge} from './MarketDataCacheSection';
 import {CoinbaseLiveProvider,coinbaseSearchDatasets,COINBASE_PROVIDER_ID,type CoinbaseBridge} from '../domain/coinbase-live';
 import {readSyntheticMarketClock,syntheticMarketClockLabel,type SyntheticMarketClock} from '../domain/synthetic-market-clock';
 import {AlpacaLiveProvider,alpacaSearchDatasets,ALPACA_SYMBOL,ALPACA_IEX_PROVIDER_ID,ALPACA_SIP_PROVIDER_ID,ALPACA_STUB_PROVIDER_ID,ALPACA_CAP_MESSAGE,preferAlpacaDailySession,preferAlpacaDataPlan,preferAlpacaDividendAdjustment,selectAlpacaSyntheticStub,type AlpacaBridge} from '../domain/alpaca-live';
-import {isFormingLiveDataset,isLiveDatasetId,isLiveProviderId,exportNoticeFor,type LiveHandle} from '../domain/live-provider';
+import {isFormingLiveDataset,isLiveDatasetId,isLiveProviderId,personalUseNote,type LiveHandle} from '../domain/live-provider';
 import {registerLiveDataset,unregisterLiveDataset,clearLiveDatasets,publishLiveDataset,liveDatasetById} from './live-registry';
 import {liveHoldGateFor} from './live-hold-gate';
 import {holdLiveHistory,liveAlertBars,liveAlertView,liveHistoryState,requestLiveHistory} from '../domain/live-history';
@@ -318,7 +318,8 @@ import {chartTimeZone,formatChartDateTime} from './chart-time-text';
 import {assertStartupStorageAvailable,assertStartupEditable,type WorkspaceStartup} from './workspace-startup';
 import {WorkspaceRestoreDialog,type WorkspaceRestorePreview} from './WorkspaceRestoreDialog';
 import {prepareWorkspaceReplacement,prepareWorkspaceData} from './workspace-transfer';
-import {chartExportBasename,chartSourceCsv} from './chart-source-export';
+import {chartExportBasename,chartSourceCsv,chartSourceTermsLabel,chartCsvSavedMessage} from './chart-source-export';
+import {allIndicatorsFileName,allIndicatorsWorkbook,chartIndicatorOptions,computeAllIndicators,drawingExportRows,ALL_INDICATORS_EXPORT_LIMIT} from './all-indicators-export';
 import {captureChartCsvColumns} from '../chart/chart-csv-capture';
 import {followLiveComparisons} from './comparison-live-follow';
 import {MagnetControl} from './MagnetControl';
@@ -1513,18 +1514,36 @@ export function App(){
    const name=chartExportBasename(snapshot.instrument.symbol,snapshot.input.source.fixture);
    if(action==='source-csv'){
     if(!window.lv)throw new Error('Export needs the desktop app.');
-    if(isLiveDatasetId(snapshot.input.source.datasetId))throw new Error(exportNoticeFor(snapshot.input.source.datasetId));
+    // Live, FRED and licensed data may be saved for the user's own analysis; the save status states the provider terms.
     // A study just added (or its frame recapture) may still be settling; wait for it instead of failing silently.
     const csvAttempt=()=>{const state=current.current,captured=captureChartCsvColumns(snapshot.controller,snapshot.input,snapshot.executionIdentity,csvInventory(snapshot.cellId),()=>{ownership!.assertCurrent();if(current.current!==state)throw Error('The chart configuration changed before CSV export.');});
      const text=chartSourceCsv(snapshot.input,snapshot.executionIdentity,captured.columns,captured.assertCurrent);captured.assertCurrent();return{captured,text};},firstCsv=tryCsvCapture(csvAttempt);
     const {captured,text}=firstCsv.ok?firstCsv.value:await settledCsvCapture(csvAttempt,canReport);
-    const result=await window.lv.exportData({text,suggestedName:name+'-bars.csv',format:'csv'}),canReportCsv=()=>{try{captured.assertCurrent();return canReport();}catch{return false;}};const message=result.ok?'Selected chart source bars exported locally'+(captured.omitted?.length?'. Left out (uses additional history): '+captured.omitted.join(', '):''):result.error.message;if(canReportCsv())setMessage(message);return{ok:result.ok,...(canReportCsv()?{message}:{})};
+    const result=await window.lv.exportData({text,suggestedName:name+'-bars.csv',format:'csv'}),canReportCsv=()=>{try{captured.assertCurrent();return canReport();}catch{return false;}};const message=result.ok?chartCsvSavedMessage('Selected chart source bars exported locally',snapshot.input.source,captured):result.error.message;if(canReportCsv())setMessage(message);return{ok:result.ok,...(canReportCsv()?{message}:{})};
+   }
+   // Every built-in indicator at its defaults, calculated off-chart with this chart's facts, saved as one workbook.
+   if(action==='indicators-xlsx'){
+    const save=(window.lv as {exportBinary?:(value:{data:Uint8Array;suggestedName:string;format:'xlsx'})=>ReturnType<NonNullable<typeof window.lv>['exportBinary']>}|undefined)?.exportBinary;
+    if(!window.lv||typeof save!=='function')throw new Error('Export needs the desktop app.');
+    // Live, FRED and licensed data may be saved for the user's own analysis; the Key sheet states the provider terms.
+    const termsLabel=chartSourceTermsLabel(snapshot.input.source);
+    const input=snapshot.input,assertOwner=()=>{ownership!.assertCurrent();};if(!input.bars.length)throw new Error('This chart has no bars to export.');
+    if(canReport())setMessage('Exporting all indicators...');
+    let viewport:{from:number;to:number}|null=null;try{viewport=snapshot.controller.getViewport();}catch{viewport=null;}
+    let drawings:ReturnType<typeof drawingExportRows>=[];try{drawings=drawingExportRows(snapshot.controller.drawingManager.list() as unknown as Record<string,unknown>[]);}catch{drawings=[];}
+    const entries=await computeAllIndicators(input.bars,chartIndicatorOptions(input,viewport),{assertCurrent:assertOwner});assertOwner();
+    const style=input.style,notes=[...(termsLabel!==null?[personalUseNote(termsLabel)]:[]),...(style==='heikinashi'||isDerivedStyle(style)?['This chart is drawn as '+style+'. Every value here is calculated from the source candles in the Data sheet, which can differ from what that chart type draws.']:[]),...(viewport?['Visible range at export time: '+new Date(viewport.from*1000).toISOString().slice(0,19).replace('T',' ')+' to '+new Date(viewport.to*1000).toISOString().slice(0,19).replace('T',' ')+' UTC.']:[])];
+    const book=await allIndicatorsWorkbook({bars:input.bars,symbol:snapshot.instrument.symbol,interval:input.source.resolution??'',exampleData:!!input.source.fixture,sourceName:input.source.label||'the loaded source',exportedAt:new Date(),entries,drawings,notes});assertOwner();
+    if(book.bytes.length>ALL_INDICATORS_EXPORT_LIMIT)throw new Error('The workbook is larger than 20 MB. Load fewer bars and try again.');
+    const result=await save.call(window.lv,{data:book.bytes,suggestedName:allIndicatorsFileName(name),format:'xlsx'});
+    const message=result.ok?`Saved ${result.value.fileName}, ${book.indicators} indicators, ${book.dataColumns+book.patternColumns} columns`+(book.unavailable?` (${book.unavailable} not available on this data, listed in the Key sheet)`:''):result.error.message;
+    if(canReport())setMessage(message);return{ok:result.ok,...(canReport()?{message}:{})};
    }
    // Copy chart image puts the same composite on the clipboard; success only after the main process wrote it.
    if(action==='png-copy'){const copied=await copyChartImage({render:()=>snapshot.controller.exportChartImage(snapshot.controller===chart?{overlay:chartSnapshotOverlay(),footer:snapshotFooter()}:undefined),datasetId:snapshot.input.source.datasetId,bridge:window.lv});if(!copied.ok)throw new Error(copied.message);if(canReport())setMessage(copied.message);return{ok:true};}
    if(action==='png-save'){
     if(!window.lv)throw new Error('Image export needs the desktop app.');
-    // Live chart screenshots are allowed for personal use. The live-data refusal stays on data exports (source CSV) only.
+    // Live chart screenshots are allowed for personal use, like live data exports.
     const rendered=snapshot.controller.exportChartImage(snapshot.controller===chart?{overlay:chartSnapshotOverlay(),footer:snapshotFooter()}:undefined);if(!rendered.ok)throw new Error(rendered.diagnostic.message);
     const result=await window.lv.exportChart({pngDataUrl:rendered.dataUrl,suggestedName:name+'.png'}),message=result.ok?'Selected chart image exported locally':result.error.message;if(canReport())setMessage(message);return{ok:result.ok,...(canReport()?{message}:{})};
    }
@@ -1546,12 +1565,12 @@ export function App(){
   for(;;){try{return attempt();}catch(cause){if(Date.now()>=deadline||!live())throw cause;}await new Promise(resolve=>setTimeout(resolve,150));}
  }
  async function exportBars(){
-  if(!window.lv){setMessage('Export needs the desktop app.');return;}if(isLiveDatasetId(dataset.provenance.datasetId)){setMessage(exportNoticeFor(dataset.provenance.datasetId));return;}
+  if(!window.lv){setMessage('Export needs the desktop app.');return;}
   const state=current.current,opening=currentInput.current,controller=activeController.current,epoch=gridGeneration.current,execution=currentReplay.current?.runId??'ordinary';
   const assertOwner=()=>{if(current.current!==state||(currentInput.current?.dataset!==opening?.dataset||currentInput.current?.bars!==opening?.bars||currentInput.current?.datasets!==opening?.datasets)||activeController.current!==controller||gridGeneration.current!==epoch||(currentReplay.current?.runId??'ordinary')!==execution)throw Error('The chart source or configuration changed before CSV export.');};
   const canReportCsv=()=>{try{assertOwner();return true;}catch{return false;}};
   try{if(!opening)throw Error('The chart is unavailable.');const input={bars:opening.bars,source:sourceContextForDataset(opening.dataset,opening.bars),style:state.chartStyle},csvAttempt=()=>{const captured=captureChartCsvColumns(controller,input,execution,csvInventory(state.grid?.layout.activeCellId),assertOwner),text=chartSourceCsv(input,execution,captured.columns,captured.assertCurrent);captured.assertCurrent();return{captured,text};},firstCsv=tryCsvCapture(csvAttempt),{captured,text}=firstCsv.ok?firstCsv.value:await settledCsvCapture(csvAttempt,canReportCsv);
-   const result=await window.lv.exportData({text,suggestedName:chartExportBasename(state.symbol,opening.dataset.provenance.fixture)+'-bars.csv',format:'csv'});try{captured.assertCurrent();if(canReportCsv())setMessage(result.ok?'Chart data saved'+(captured.omitted?.length?'. Left out (uses additional history): '+captured.omitted.join(', '):''):result.error.message);}catch{/* The immutable file may finish after its chart retires; its replacement keeps its status. */}
+   const result=await window.lv.exportData({text,suggestedName:chartExportBasename(state.symbol,opening.dataset.provenance.fixture)+'-bars.csv',format:'csv'});try{captured.assertCurrent();if(canReportCsv())setMessage(result.ok?chartCsvSavedMessage('Chart data saved',input.source,captured):result.error.message);}catch{/* The immutable file may finish after its chart retires; its replacement keeps its status. */}
   }catch(cause){if(canReportCsv())reportFailure(cause);else setMessage(CSV_RETRY_NOTICE);}
  }
 
@@ -1585,7 +1604,7 @@ export function App(){
    const scene={watermark,watermarkFont:lvDarkChartExtras.canvasFontFamily,paper,alerts:{rows,color:getComputedStyle(document.documentElement).getPropertyValue('--lv-alert-line').trim()||'#f0a030',tickSize:dataset.instrument.tickSize,scaleSide:readSeriesSide(),obstacles:axisTagBoard.labelObstacles?.('alerts')??[],tags:new Map(axisTagBoard.placements('alerts'))},legend,events,title};
    return(ctx:CanvasRenderingContext2D,frame:ChartExportFrame)=>{assertSnapshot();paintChartSnapshotScene(ctx,scene,frame);};
   }
- async function exportImage(){if(!window.lv||!chart){setMessage('Image export needs a chart and the desktop app.');return;}/* Live chart screenshots are allowed for personal use; the live-data refusal covers data exports only. */try{const rendered=chart.exportChartImage({overlay:chartSnapshotOverlay(),footer:snapshotFooter()});if(!rendered.ok)throw new Error(rendered.diagnostic.message);const result=await window.lv.exportChart({pngDataUrl:rendered.dataUrl,suggestedName:snapshotFileName(workspace.symbol)});if(!result.ok&&(result.error.code==='CANCELLED'||result.error.code==='BUSY'))return;setMessage(result.ok?'Image saved':result.error.message);}catch(e){reportFailure(e);}}
+ async function exportImage(){if(!window.lv||!chart){setMessage('Image export needs a chart and the desktop app.');return;}/* Live chart screenshots are allowed for personal use, like live data exports. */try{const rendered=chart.exportChartImage({overlay:chartSnapshotOverlay(),footer:snapshotFooter()});if(!rendered.ok)throw new Error(rendered.diagnostic.message);const result=await window.lv.exportChart({pngDataUrl:rendered.dataUrl,suggestedName:snapshotFileName(workspace.symbol)});if(!result.ok&&(result.error.code==='CANCELLED'||result.error.code==='BUSY'))return;setMessage(result.ok?'Image saved':result.error.message);}catch(e){reportFailure(e);}}
  function installStoredWorkspace(next:Workspace,nextPaper:PaperAccount,nextAlerts:LocalAlert[],savedRevision:number,status:string,nextPaperBook:PaperBook|null,nextCompound:CompoundBookChange){
   // A loading layout (main or layout window) shows the globally synced drawings of its symbols.
   if(next.grid){const applied=applyGlobalDrawings(next.globalDrawings??{},next.grid);if(applied.grid!==next.grid||applied.store!==next.globalDrawings)next={...next,grid:applied.grid,globalDrawings:applied.store};}
@@ -1978,7 +1997,7 @@ export function App(){
   };
  })();
  const selectedDrawingOrder=(()=>{if(!chart||!selectedDrawing)return undefined;try{return chart.drawingManager.orderState([selectedDrawing]);}catch{return undefined;}})();
- const currentContextHandlers={note:contextHandler('note'),'copy-price':contextHandler('copy-price'),'cursor-lock':contextHandler('cursor-lock'),'table-view':contextHandler('table-view'),'source-csv':contextHandler('source-csv'),'png-save':contextHandler('png-save'),'png-copy':contextHandler('png-copy'),/* Reset chart view runs the Alt+R command on the clicked chart. */'reset-view':(snapshot:ChartMenuSnapshot)=>snapshot.controller.priceScale.execute('resetChart',{origin:'chart-pointer'}),/* Remove N drawings / indicators run the trash rail removal on the active chart (the only chart whose counts are published). */'remove-drawings':(snapshot:ChartMenuSnapshot)=>{if(snapshot.controller!==chart)return{ok:false,message:'This chart is no longer active. Try again.'};removeFromToolbar('drawings');return true;},'remove-indicators':(snapshot:ChartMenuSnapshot)=>{if(snapshot.controller!==chart)return{ok:false,message:'This chart is no longer active. Try again.'};removeFromToolbar('indicators');return true;},objects:contextHandler('objects'),theme:contextHandler('theme'),date:contextHandler('date'),interval:contextHandler('interval'),indicator:contextHandler('indicator'),'drawing-settings':contextHandler('drawing-settings'),'drawing-template':contextHandler('drawing-template'),'drawing-visibility':contextHandler('drawing-visibility'),'price-alert':contextHandler('price-alert'),'paper-ticket':contextHandler('paper-ticket'),'tpo-merge':tpoMergeAction('tpo-merge'),'tpo-unmerge':tpoMergeAction('tpo-unmerge'),command:(snapshot:ChartMenuSnapshot,_lease:ChartMenuActionLease,options?:ChartContextActionOptions)=>{if(snapshot.controller!==chart)return{ok:false,message:'This chart is no longer active. Try again.'};const id=options?.item;if(id==='hide-drawings'){changeUtility(toggleHide);return true;}const run=id?commandRuns[id as AppCommandId]:undefined;if(!run||run.disabled)return{ok:false,message:'That command is not available right now.'};run.run();return true;},...drawingContextHandlers,...indicatorMenuHandlers};
+ const currentContextHandlers={note:contextHandler('note'),'copy-price':contextHandler('copy-price'),'cursor-lock':contextHandler('cursor-lock'),'table-view':contextHandler('table-view'),'source-csv':contextHandler('source-csv'),'indicators-xlsx':contextHandler('indicators-xlsx'),'png-save':contextHandler('png-save'),'png-copy':contextHandler('png-copy'),/* Reset chart view runs the Alt+R command on the clicked chart. */'reset-view':(snapshot:ChartMenuSnapshot)=>snapshot.controller.priceScale.execute('resetChart',{origin:'chart-pointer'}),/* Remove N drawings / indicators run the trash rail removal on the active chart (the only chart whose counts are published). */'remove-drawings':(snapshot:ChartMenuSnapshot)=>{if(snapshot.controller!==chart)return{ok:false,message:'This chart is no longer active. Try again.'};removeFromToolbar('drawings');return true;},'remove-indicators':(snapshot:ChartMenuSnapshot)=>{if(snapshot.controller!==chart)return{ok:false,message:'This chart is no longer active. Try again.'};removeFromToolbar('indicators');return true;},objects:contextHandler('objects'),theme:contextHandler('theme'),date:contextHandler('date'),interval:contextHandler('interval'),indicator:contextHandler('indicator'),'drawing-settings':contextHandler('drawing-settings'),'drawing-template':contextHandler('drawing-template'),'drawing-visibility':contextHandler('drawing-visibility'),'price-alert':contextHandler('price-alert'),'paper-ticket':contextHandler('paper-ticket'),'tpo-merge':tpoMergeAction('tpo-merge'),'tpo-unmerge':tpoMergeAction('tpo-unmerge'),command:(snapshot:ChartMenuSnapshot,_lease:ChartMenuActionLease,options?:ChartContextActionOptions)=>{if(snapshot.controller!==chart)return{ok:false,message:'This chart is no longer active. Try again.'};const id=options?.item;if(id==='hide-drawings'){changeUtility(toggleHide);return true;}const run=id?commandRuns[id as AppCommandId]:undefined;if(!run||run.disabled)return{ok:false,message:'That command is not available right now.'};run.run();return true;},...drawingContextHandlers,...indicatorMenuHandlers};
  const contextHandlers=useRef(currentContextHandlers);contextHandlers.current=currentContextHandlers;
  const contextActions=useMemo(()=>ownedCallbacks(()=>contextHandlers.current,()=>gridGeneration.current===gridEpoch),[gridEpoch]);
  const renderedDialogAuthority=dialogAuthority.current;
@@ -2578,7 +2597,7 @@ export function App(){
   // Live plot values at the inspected bar (null reads the last bar); displayed.index indexes the calculation bars.
   // The shared reader (indicatorPlotTextAt) is the data window's: values[bar - offset] with the instance precision and tick size.
   const values=legendPort&&statusLine.indicators.values?hoverSlot(()=>hoverReadout().validInspection?.displayed.index??null,()=>{const {validInspection}=hoverReadout(),reading={kind:row.kind,offset:row.offset,precision:row.presentation?.precision??'auto'},tickSize=dataset.instrument.tickSize;
-   return legendValuesView(indicatorLegendTexts(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),(plotValues,bar)=>indicatorPlotTextAt(plotValues,bar,reading,tickSize)));}):null;
+   return legendValuesView(indicatorLegendTexts(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),(plotValues,bar,plot)=>indicatorPlotTextAt(plotValues,bar,{...reading,plot},tickSize)));}):null;
   const orderRows=menuOpen?indicatorViews.map(item=>({id:item.id,paneId:item.paneId})):[];
   const placement=menuOpen?scaleOf(row):null,moveTo:LegendSubmenuItem[]=menuOpen?indicatorMoveChoices(chart??{},row.rendererId,indicatorViews).map(choice=>({id:choice.id,label:choice.label,...(choice.disabled?{disabled:true,title:choice.disabled}:{})})):[];
   return <div key={row.id} className="lv-legend-row" data-legend-row={row.id} data-hidden={row.visible?undefined:'true'} style={{background:statusBackground??'transparent'}} {...legendRowMenuProps(()=>setLegendMenu({id:row.id,open:null}))}>

@@ -71,3 +71,11 @@ export function tradingSessions(bars:readonly Bar[],windows:readonly TradingWind
  if(tick===null&&sessions.length)diagnostics.push('Session range in ticks is unavailable because the source tick size is unknown.');
  return Object.freeze({series:Object.freeze(series.map(values=>Object.freeze(values) as unknown as NumericSeries)),sessions:Object.freeze(sessions),diagnostics:Object.freeze(diagnostics),timezoneReads});
 }
+/** The DST-aware local clock tradingSessions uses (local day number and minute of the day in a session zone). */
+export function tradingSessionClock(zoneText:string,exchangeZone?:string|null):(time:number)=>{day:number;minute:number}{return localClock(sessionZone(zoneText,exchangeZone),()=>{});}
+/** The tradingSessions membership rule for one local minute: start-inclusive, end-exclusive, equal times = the full local day,
+ *  an overnight window counts toward the day it opened. Returns that session day, or null outside the window. */
+export function tradingSessionDay(day:number,minute:number,start:number,end:number):number|null{
+ if(start<end?minute<start||minute>=end:start>end?minute<start&&minute>=end:false)return null;
+ return day-(start>=end&&minute<start?1:0);
+}

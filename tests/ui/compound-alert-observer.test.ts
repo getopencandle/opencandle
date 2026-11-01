@@ -3,7 +3,7 @@ import {publishedSource,flushMtf,unix,response,syntheticSession,type Request} fr
 import {ownedInputStylePipelineFixture} from '../fixtures/seasonality-input-style-pipeline';
 import {sourceContextForDataset} from '../../src/chart/source-context';
 import {CompoundAlertStore,COMPOUND_POLICY,compoundHistory,type CompoundDefinition,type CompoundOperator} from '../../src/domain/compound-alerts';
-import {CompoundAlertObserver,compoundSourceContext,compoundObservationSharedUsage,compoundPublicationBindingFacts,type CompoundRootOwner,type CompoundRootWriter,type CompoundChartInputPort,type CompoundPublicationBinding,type CompoundOwnedPublication} from '../../src/ui/compound-alert-observer';
+import {COMPOUND_HISTORY_EXPORT_NOTICE,CompoundAlertObserver,compoundSourceContext,compoundObservationSharedUsage,compoundPublicationBindingFacts,type CompoundRootOwner,type CompoundRootWriter,type CompoundChartInputPort,type CompoundPublicationBinding,type CompoundOwnedPublication} from '../../src/ui/compound-alert-observer';
 import * as kernels from '../../src/domain/indicators';
 import {isAlpacaSyntheticStub,selectAlpacaSyntheticStub} from '../../src/domain/alpaca-live';
 import type {BarDataset} from '../../src/domain/types';
@@ -107,7 +107,7 @@ it('bounds display pages and never allows restricted source history export',asyn
  const time=initial+1;f.p.setNow(time);f.p.emit({schemaVersion:1,kind:'batch',bars:[],trades:[{symbol:'GME',time,price:150,high:150,low:150,size:1}],receivedAt:''});await flushMtf();await f.update();expect((await f.observer.prepare(time)).commit()).toBe(true);
  const page=f.observer.historyPage(f.store,0,10);expect(page).toEqual([{at:time,values:[150,140],restriction:'restricted-live'}]);expect(f.observer.historyPage(f.store,0,10)).toBe(page);
  const deep=f.observer.historyPage(f.store,1,10);expect(deep).toEqual([]);f.p.setNow(time+1);f.p.emit({schemaVersion:1,kind:'batch',bars:[],trades:[{symbol:'GME',time:time+1,price:160,high:160,low:160,size:1}],receivedAt:''});await flushMtf();await f.update();expect((await f.observer.prepare(time+1)).commit()).toBe(true);expect(f.observer.historyPage(f.store,1,10)).toBe(deep);f.observer.refreshHistoryPage();expect(f.observer.historyPage(f.store,1,10)).toEqual(page);
- expect(()=>f.observer.historyPage(f.store,0,101)).toThrow(/page/);expect(()=>f.observer.exportHistory()).toThrow('Live market data is for personal display only and cannot be exported or shared.');
+ expect(()=>f.observer.historyPage(f.store,0,101)).toThrow(/page/);expect(()=>f.observer.exportHistory()).toThrow(COMPOUND_HISTORY_EXPORT_NOTICE);
 });
 
 it('keeps both paid cuts through closed-writer notification and releases only after unwind',async()=>{
@@ -150,7 +150,7 @@ it('bounds optional public comparisons while commit retains its mandatory source
 it('hands the closed writer original frozen declaration and restrictive actual provenance',async()=>{
  const f=await setup(),definition=f.store.current.definition,dataset=f.owner().dataset,source=sourceContextForDataset(dataset,dataset.bars),p=await f.observer.prepare(now);expect(p.commit()).toBe(true);
  expect(f.bindings).toHaveLength(1);const binding=f.bindings[0];expect(binding.declaration).toBe(definition);expect(binding.revision).toBe(1);expect(binding.restriction).toBe('restricted-live');expect(Object.isFrozen(binding)).toBe(true);expect(Object.isFrozen(binding.provenance)).toBe(true);expect(binding.provenance).toEqual({providerId:dataset.provenance.providerId,datasetId:source.datasetId,revision:source.revision,resolution:'15m',basis:source.basisIdentity});
- expect(()=>f.observer.exportHistory()).toThrow('Live market data is for personal display only and cannot be exported or shared.');
+ expect(()=>f.observer.exportHistory()).toThrow(COMPOUND_HISTORY_EXPORT_NOTICE);
 });
 
 it('shares descriptive form context without treating it or a copied dataset as source permission',async()=>{

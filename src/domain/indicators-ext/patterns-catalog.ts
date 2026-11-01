@@ -22,7 +22,10 @@ export type PatternMarkShape=typeof PATTERN_MARK_SHAPES[number];
 /** `plot` is the id of one of the kind's plots (its Style row colors the mark; a hidden plot hides it). Pattern kinds use
  *  bullish/bearish/neutral. `position` 'above'/'below' the bar or 'price' (at `price`); absent = below for
  *  bullish, above otherwise. */
-export interface PatternMarker {index:number;plot:string;text:string;tooltip:string;position?:'above'|'below'|'price';price?:number;shape?:PatternMarkShape}
+export interface PatternMarker {index:number;plot:string;text:string;tooltip:string;position?:'above'|'below'|'price';price?:number;shape?:PatternMarkShape;
+ /** A 'price' marker's direction: 'up' (bullish) draws below the point pointing up, 'down' (bearish) above it pointing
+  *  down, so it reads the same in an oscillator pane as above/below does on the price pane. Absent = above, pointing down. */
+ direction?:'up'|'down'}
 /** A line between two bars. `extendRight` makes it a ray through both points (an unbroken trendline), so only its two
  *  anchor prices reach the pane autoscale, never the projection. */
 export interface PatternLine {plot:string;from:{index:number;price:number};to:{index:number;price:number};extendRight?:boolean}
@@ -228,12 +231,12 @@ export function validPatternMarks(value:PatternMarks,bars:number,plots:readonly 
  if(!value||!Array.isArray(value.markers)||!Array.isArray(value.lines)||!Array.isArray(boxes)||!Array.isArray(candles)||value.markers.length>PATTERN_MARK_LIMIT||value.lines.length>PATTERN_MARK_LIMIT||boxes.length>PATTERN_MARK_LIMIT||candles.length>bars)bad();
  for(const row of value.markers){
   if(!ok(row.index)||!plots.includes(row.plot)||typeof row.text!=='string'||row.text.length>400||typeof row.tooltip!=='string'||row.tooltip.length>2000)bad();
-  if(row.position!==undefined&&!['above','below','price'].includes(row.position)||row.position==='price'&&!Number.isFinite(row.price)||row.shape!==undefined&&!(PATTERN_MARK_SHAPES as readonly string[]).includes(row.shape))bad();
+  if(row.position!==undefined&&!['above','below','price'].includes(row.position)||row.position==='price'&&!Number.isFinite(row.price)||row.direction!==undefined&&row.direction!=='up'&&row.direction!=='down'||row.shape!==undefined&&!(PATTERN_MARK_SHAPES as readonly string[]).includes(row.shape))bad();
  }
  for(const row of value.lines)if(!plots.includes(row.plot)||![row.from,row.to].every(point))bad();
  for(const row of boxes)if(!plots.includes(row.plot)||!point(row.from)||!point(row.to)||row.to.index<row.from.index)bad();
  for(const row of candles)if(!ok(row.index)||!plots.includes(row.plot))bad();
- const marker=(row:PatternMarker):PatternMarker=>Object.freeze({index:row.index,plot:row.plot,text:row.text,tooltip:row.tooltip,...(row.position!==undefined?{position:row.position}:{}),...(row.position==='price'?{price:row.price}:{}),...(row.shape!==undefined?{shape:row.shape}:{})});
+ const marker=(row:PatternMarker):PatternMarker=>Object.freeze({index:row.index,plot:row.plot,text:row.text,tooltip:row.tooltip,...(row.position!==undefined?{position:row.position}:{}),...(row.position==='price'?{price:row.price}:{}),...(row.shape!==undefined?{shape:row.shape}:{}),...(row.direction!==undefined?{direction:row.direction}:{})});
  return Object.freeze({markers:Object.freeze(value.markers.map(marker)),lines:Object.freeze(value.lines.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to},...(row.extendRight?{extendRight:true}:{})}))),
   ...(value.boxes?{boxes:Object.freeze(boxes.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to},...(row.extendRight?{extendRight:true}:{})})))}:{}),
   ...(value.candles?{candles:Object.freeze(candles.map(row=>Object.freeze({index:row.index,plot:row.plot,...(row.hollow?{hollow:true}:{})})))}:{})});

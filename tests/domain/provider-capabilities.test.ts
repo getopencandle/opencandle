@@ -72,7 +72,7 @@ describe('Data sources > What each source supplies (markup only; not executable 
   for(const row of PROVIDER_REGISTRY)expect(html).toContain(`data-lv-provider="${row.capabilities.id}"`);
   expect(html).toContain('Public, no key');expect(html).toContain('Your own key');expect(html).toContain('Example data (no key)');const page=renderToStaticMarkup(React.createElement(ProviderCapabilitiesSection,{records:dataSourceRecords()}));expect(page).not.toMatch(/SYNTHETIC|SYNTH|Listing identity|ohlcv|<symbol>|COINBASE:|US:/);
   expect(html).not.toMatch(/Checked against the real feed on/);expect(html).not.toMatch(/\bworking\b/i);expect(html).not.toMatch(/\u2014/);
-  expect(html).toContain('Display only; bars cannot be exported or shared');
+  expect(html).toContain('May be saved for your own analysis; the provider terms apply (no sharing or reselling)');
  });
  it('is part of the Data sources panel',()=>{
   const live={coinbaseEnabled:false,onCoinbaseEnabledChange:vi.fn(),alpacaSymbols:[],onAlpacaSymbolsChange:vi.fn(),bridge:null};

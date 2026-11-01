@@ -5,7 +5,7 @@ import type { Bar, BarDataset } from '../../src/domain/types';
 import { breadthFlow, extremes, outperformance, windowCutoff, windowReturn } from '../../src/market-views/breadth-extended';
 import { filterHotSets, hotFilterOptions, hotlist, sortHotRows } from '../../src/market-views/hotlists';
 import { seasonals } from '../../src/market-views/seasonals';
-import { defaultSeasonalOptions, seasonalCsv, seasonalExportRefusal, seasonalHover, seasonalRange, seasonalYears, yearFilter } from '../../src/market-views/seasonal-view';
+import { defaultSeasonalOptions, seasonalCsv, seasonalTermsLabel, seasonalHover, seasonalRange, seasonalYears, yearFilter } from '../../src/market-views/seasonal-view';
 import { resampleBars } from '../../src/market-views/rating-interval';
 import { technicalRating } from '../../src/market-views/rating';
 import { colorScale, macroHoverText, macroMonths, macroRows, macroSourceLine, metricOf, MACRO_COUNTRIES } from '../../src/market-views/macro';
@@ -13,9 +13,8 @@ import { curveAt, latestCurveTime, monthsBefore, spreadOf, SPREADS } from '../..
 import { FRED_OFF_NOTICE, loadFredSeriesList, valueAt } from '../../src/market-views/fred-views';
 import { defaultMarketViews, restoreMarketViews } from '../../src/market-views/state';
 import { fredDataset } from '../../src/domain/fred';
-import { FRED_EXPORT_NOTICE } from '../../src/domain/live-provider';
 import { BreadthPanel, HotTable, MarketViewsDialog, RatingConstituents, SeasonalChart } from '../../src/ui/MarketViewsDialog';
-import { MacroPanel, YieldPanel } from '../../src/ui/MarketMacroPanels';
+import { MacroPanel, YieldPanel, fredTableCsv } from '../../src/ui/MarketMacroPanels';
 
 const EM_DASH = String.fromCharCode(0x2014);
 const DAY = 86400;
@@ -102,9 +101,15 @@ describe('seasonal options', () => {
     const csv = seasonalCsv('SEA', only, o).split('\n');
     expect(csv[1]).toBe('series,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec'); expect(csv.some(l => l.startsWith('Range high,'))).toBe(true);
   });
-  it('export follows the data rights rule', () => {
-    expect(seasonalExportRefusal(set)).toBeNull();
-    expect(seasonalExportRefusal(ds('F', [], { fixture: false, providerId: 'fred-public', datasetId: 'fred:fred-public:DGS10:1D' }))).toBe(FRED_EXPORT_NOTICE);
+  it('export saves FRED, live and licensed data with the provider terms line; demo and local data carry none', () => {
+    const TERMS = "Market data from x, saved for your personal analysis. The provider's terms apply: do not share or resell this file.";
+    expect(seasonalTermsLabel(set)).toBeNull();expect(seasonalTermsLabel(ds('L', [], { fixture: false, providerId: 'local-import', datasetId: 'local:L' }))).toBeNull();
+    expect(seasonalTermsLabel(ds('F', [], { fixture: false, providerId: 'fred-public', datasetId: 'fred:fred-public:DGS10:1D' }))).toBe('x');
+    expect(seasonalTermsLabel(ds('B', [], { fixture: false, providerId: 'coinbase-public', datasetId: 'live:coinbase-public:BTC-USD:1D' }))).toBe('x');
+    expect(seasonalTermsLabel(ds('S', [], { fixture: false, providerId: 'alpaca-sip-delayed', datasetId: 'alpaca-sip-delayed:SPY:1D' }))).toBe('x');
+    const r = seasonals(set, yearFilter({ start: null, end: null, excluded: [] })), o = defaultSeasonalOptions();
+    const plain = seasonalCsv('SEA', r, o).split('\n'), terms = seasonalCsv('SEA', r, o, 'x').split('\n');
+    expect(plain[1]).toMatch(/^series,/);expect(terms[1]).toBe('# ' + TERMS);expect(terms.slice(2)).toEqual(plain.slice(1));
   });
   it('chart markup shows controls, legend toggles and the hover readout', () => {
     const html = renderToStaticMarkup(h(SeasonalChart, { set, options: { range: true, hidden: ['median'] }, onOptions: noop, onExport: noop, hoverMonth: 2 }));
@@ -175,6 +180,14 @@ describe('macro maps', () => {
     const html = renderToStaticMarkup(h(MacroPanel, { view, set: noop, fred, busy: null, enabled: true, available: true, onLoad: noop, hover: 'US' }));
     for (const s of ['aria-label="Dataset"', 'aria-label="Metric"', 'aria-label="Period"', 'aria-label="Compare"', 'aria-label="Color scale"', 'aria-label="Country"', 'Tile map of', 'data-code="NZ"', 'Change (pp)', 'United States: Unemployment rate', 'FRED (St. Louis Fed)', 'Not available']) expect(html).toContain(s);
     expect(html).not.toContain(EM_DASH);
+  });
+  it('Macro maps and Yield curves tables export as CSV with the FRED terms line', () => {
+    const csv = fredTableCsv('Unemployment rate by country; source FRED (St. Louis Fed)', ['Country', 'Value', 'Note'], [['United States', 4.1, null], ['=cmd', Number.NaN, 'a "quoted", note']]).split('\n');
+    expect(csv).toEqual(['# Unemployment rate by country; source FRED (St. Louis Fed)', "# Market data from FRED (St. Louis Fed), saved for your personal analysis. The provider's terms apply: do not share or resell this file.",
+      '"Country","Value","Note"', '"United States",4.1,', `"'=cmd",,"a ""quoted"", note"`, '']);
+    const fred = new Map([...series].map(([id, bars]) => [id, { id, bars: bars ?? [], status: bars ? 'ready' as const : 'missing' as const, notice: null, fromWorkspace: false }]));
+    const html = renderToStaticMarkup(h(MacroPanel, { view: { ...defaultMarketViews(), tab: 'macro' as const }, set: noop, fred, busy: null, enabled: true, available: true, onLoad: noop, onExport: noop }));
+    expect(html).toContain('Export CSV');expect(html).not.toMatch(/can.t be exported/);
   });
 });
 

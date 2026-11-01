@@ -72,6 +72,13 @@ it('column header menu sorts, restores manual order and toggles columns; Symbol 
  header().onContextMenu(mouse());ui.item('column:volume').onClick();expect(ui.props.book.display.columns).toContain('volume');
  find(ui.render(),node=>node.type==='th'&&node.key==='symbol').props.onContextMenu(mouse());expect(ui.item('hide').disabled).toBe(true);
 });
+it('the Day range columns preset in the column menu shows the five day-range columns with their headings',()=>{
+ const ui=setup(),header=()=>find(ui.render(),node=>node.type==='th'&&node.key==='last').props;
+ header().onContextMenu(mouse());ui.item('preset:day-range').onClick();
+ expect(ui.props.book.display.columns).toEqual(['symbol','last','changePercent','adr','adrUsed','rangePosition','vsPriorDay','vsOpen']);
+ expect(['adr','adrUsed','rangePosition','vsPriorDay','vsOpen'].map(key=>text(find(ui.render(),node=>node.type==='th'&&node.key===key)))).toEqual(['ADR','ADR used','In range','Vs prior','Vs open']);
+ header().onContextMenu(mouse());expect(ui.item('preset:day-range').disabled).toBe(true);
+});
 it('moving a row in a sorted list saves the displayed order first, then moves where the user sees it',()=>{
  // Manual SPY,GME,QQQ displays as GME,QQQ,SPY. Moving QQQ up must give QQQ,GME,SPY (manual-order moving would give SPY,QQQ,GME).
  let book=createWatchBook(['SPY','GME','QQQ']);book=setWatchSort(book,'initial-list',{column:'symbol',direction:'asc'});const ui=setup(book);

@@ -5,10 +5,17 @@ import type {ChartController} from '../chart/adapter';
 import type {ScriptBinding} from './script-library';
 import {scriptOutputs,sameScriptInputOverrides,type ScriptInputDescription} from './script-outputs';
 
+const TABLE_POSITIONS=new Set(['top_left','top_center','top_right','middle_left','middle_center','middle_right','bottom_left','bottom_center','bottom_right']);
+/** How a string input value reads in the legend and the Settings choices: a table position token ("bottom_right", the
+ *  value ctx.table.new takes) reads "Bottom right"; any other value is shown as it is. The stored value never changes. */
+export function scriptInputValueText(value:string):string{
+ if(!TABLE_POSITIONS.has(value))return value;
+ const text=value.replace('_',' ');return text.charAt(0).toUpperCase()+text.slice(1);
+}
 /** Accepted configuration text only; never a plot-value or current-bar authority. */
 export function formatScriptLegendInputs(description:ScriptInputDescription|null):string|null{
  if(!description)return null;
- const parts=description.parts.filter(row=>row.type!=='bool'&&row.type!=='color').map(row=>typeof row.value==='string'?(row.value===''?'""':row.value):String(row.value));
+ const parts=description.parts.filter(row=>row.type!=='bool'&&row.type!=='color').map(row=>typeof row.value==='string'?(row.value===''?'""':scriptInputValueText(row.value)):String(row.value));
  return parts.length?parts.join(' '):null;
 }
 type InputBinding=Pick<ScriptBinding,'id'|'source'|'inputs'>;

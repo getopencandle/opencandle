@@ -20,7 +20,7 @@ it('volume-dependent render calculations return unavailable for absent volume',(
   expect(evaluateDomainIndicator('obv',bars.map(bar=>({...bar,volume:NaN})),{})).toMatchObject({series:[],diagnostics:['This calculation requires nonnegative volume for every source bar.']});
 });
 it('exposes only currently supported calculator inputs',()=>{
-  expect(indicatorInputSchema('rsi').map(row=>row.key)).toEqual(['length','source','smoothingType','smoothingLength','smoothingMultiplier','divergence','divergenceLeft','divergenceRight','divergenceRangeMin','divergenceRangeMax','divergenceRegularBullish','divergenceRegularBearish','divergenceHiddenBullish','divergenceHiddenBearish','divergenceBodyOnly','divergenceLabels','divergencePricePane','divergenceBackground']);// RSI options
+  expect(indicatorInputSchema('rsi').map(row=>row.key)).toEqual(['length','source','smoothingType','smoothingLength','smoothingMultiplier','divergence','divergenceLeft','divergenceRight','divergenceRangeMin','divergenceRangeMax','divergenceRegularBullish','divergenceRegularBearish','divergenceHiddenBullish','divergenceHiddenBearish','divergenceBodyOnly','divergenceLabels','divergencePricePane','divergenceBackground','divergenceForming']);// RSI options
   expect(indicatorInputSchema('macd').map(row=>row.key)).toEqual(['fast','slow','signal','source','oscillatorType','signalType']);
   // RSI divergence is implemented (LV rule); the input is accepted for RSI only.
   expect(evaluateDomainIndicator('rsi',bars,{divergence:true})).toMatchObject({diagnostics:[]});

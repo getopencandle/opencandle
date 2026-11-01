@@ -27,11 +27,11 @@ it('does not acquire a receipt from accessors or coercible consumed values',()=>
  let invoked=0;const malformed={...base,source:{datasetId:base.datasetId,revision:'1',label:{toString(){invoked++;return 'Synthetic';}},fixture:true,resolution:'60m',basisIdentity:'not canonical'}} as any;
  const resolved=resolveScriptRequests(declarations,[{time:T0+23*H,open:10,high:11,low:9,close:10,volume:1}],malformed,resolver);expect(resolved.rows.dep[0]?.close).toBe(1000);expect(resolvedScriptRequestReceipt(resolved)).toBeNull();expect(invoked).toBe(0);
 });
-it('actual live provider and dataset denials win over misleading synthetic labels and flags',async()=>{
- const data=dependencyDataset('live');data.provenance.fixture=true;data.provenance.providerName='SYNTHETIC safe local history';const h=harness({dataset:data});h.start();await h.ready();expect(()=>h.csv()).toThrow('cannot be exported');
+it('actual live provider and dataset ancestry win over misleading synthetic labels and flags',async()=>{
+ const data=dependencyDataset('live');data.provenance.fixture=true;data.provenance.providerName='SYNTHETIC safe local history';const h=harness({dataset:data});h.start();await h.ready();expect(h.capture().personalUse).toEqual(['']);expect(h.csv()).toContain('1100');
 });
-it('retains live-provider denial when an identifier misleadingly has a local prefix',async()=>{
- const data=dependencyDataset('live');data.provenance.datasetId='local:misleading-live-provider';const h=harness({dataset:data});h.start();await h.ready();expect(()=>h.csv()).toThrow('cannot be exported');
+it('retains live-provider ancestry when an identifier misleadingly has a local prefix',async()=>{
+ const data=dependencyDataset('live');data.provenance.datasetId='local:misleading-live-provider';const h=harness({dataset:data});h.start();await h.ready();expect(h.capture().personalUse).toEqual(['']);expect(h.csv()).toContain('1100');
 });
 it('aborted and retired jobs cannot install dependency authority from a late response',async()=>{
  const h=harness({defer:true});h.start();await settle();expect(h.pending).toHaveLength(1);h.setBindings([]);h.finish();await settle();expect(h.port.list()).toEqual([]);

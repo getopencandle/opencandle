@@ -24,7 +24,7 @@ function defineShortPosition():DrawingTypeMeta{
    const ey=entry?proj.yOf(entry.price,this.paneId):null,ty=second?proj.yOf(second.price,this.paneId):null;
    const defaultBox=ey!=null&&(ty==null||Math.abs(ty-ey)<minDrag);
    super.onPlaced(proj);
-   if(defaultBox&&this.anchors.length===3)this.direction='short';
+   if(defaultBox&&this.anchors.length===3){this.direction='short';/* Stop from ATR: the mirrored stop goes back to entry + k x ATR. */(this as unknown as {lvSyncAtrStop(proj:Projector):unknown}).lvSyncAtrStop(proj);}
   }
  }
  return{type:lvKey(LV_SHORT_POSITION),group:base.meta.group,label:'Short position',icon:base.meta.icon,defaultStyle:cloneStyle(base.meta),create:init=>new LvShortPosition(init)};

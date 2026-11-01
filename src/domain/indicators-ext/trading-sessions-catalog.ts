@@ -6,6 +6,8 @@ const FAMILIES=['Tokyo','London','New York'],COLORS=['#2962ff','#ff6d00','#08998
 /** Default windows are the three cash-market sessions in their own exchange clocks (JPX 09:00-15:00 Tokyo, LSE 08:00-16:30
  *  London, NYSE 09:30-16:00 New York), so a fresh study draws boxes on any intraday chart whatever the symbol's exchange. */
 const DEFAULT_WINDOWS=[{start:'09:00',end:'15:00',zone:'Asia/Tokyo'},{start:'08:00',end:'16:30',zone:'Europe/London'},{start:'09:30',end:'16:00',zone:'America/New_York'}];
+/** The default Tokyo, London and New York windows with their names and colors (read by other session-based built-ins). */
+export const TRADING_SESSION_DEFAULT_WINDOWS:readonly Readonly<{name:string;start:string;end:string;zone:string;color:string}>[]=Object.freeze(FAMILIES.map((name,index)=>Object.freeze({name,...DEFAULT_WINDOWS[index],color:COLORS[index]})));
 /** Sessions drawn per window on the chart, newest first (statistics cover every session). */
 export const TRADING_SESSION_DRAW_LIMIT=500;
 export const TRADING_SESSION_PLOTS=['session1','session2','session3'] as const;

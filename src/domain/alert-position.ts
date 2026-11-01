@@ -29,6 +29,14 @@ export function samePositionLevels(a: AlertPositionLevels, b: AlertPositionLevel
   return a.side === b.side && a.entry === b.entry && a.target === b.target && a.stop === b.stop && a.quantity === b.quantity;
 }
 
+/** The lot size when the drawing's Stop from ATR (props.lvPositionAtr) is on, else null. The lot size is props.lvPositionInputs.lotSize
+ *  when it is a positive number, else 1 (a position without saved inputs shows quantities in lots of 1). */
+function atrStopLot(props: Record<string, unknown>): number | null {
+  const atr = props.lvPositionAtr as { enabled?: unknown } | undefined;
+  if (!atr || typeof atr !== 'object' || Array.isArray(atr) || atr.enabled !== true) return null;
+  const lot = (props.lvPositionInputs as { lotSize?: unknown } | undefined)?.lotSize;
+  return finite(lot) && lot > 0 ? lot : 1;
+}
 /** Read a placed Long/Short drawing: anchors are entry, stop, target; size = balance x risk% / |entry - stop|. No defaults are assumed. */
 export function capturePositionDrawing(drawing: unknown, instrument: { symbol: string; currency: string }): { ok: true; position: AlertPositionLevels } | { ok: false; diagnostics: string[] } {
   try {
@@ -40,9 +48,12 @@ export function capturePositionDrawing(drawing: unknown, instrument: { symbol: s
     const prices = record.anchors.map(anchor => (anchor as { price?: unknown })?.price);
     if (!prices.every(finite)) throw new Error('Long/Short drawing levels must be finite prices.');
     const [entry, stop, target] = prices as number[];
-    const props = record.props as { riskPercent?: unknown; accountBalance?: unknown } | undefined;
+    const props = record.props as { riskPercent?: unknown; accountBalance?: unknown; [key: string]: unknown } | undefined;
     if (!props || !finite(props.riskPercent) || !finite(props.accountBalance) || props.riskPercent < 0 || props.accountBalance < 0) throw new Error('The Long/Short drawing has no saved account size and risk, so its quantity is unknown.');
-    const risk = Math.abs(entry - stop), quantity = risk < 1e-9 ? 0 : props.accountBalance * (props.riskPercent / 100) / risk;
+    const risk = Math.abs(entry - stop), raw = risk < 1e-9 ? 0 : props.accountBalance * (props.riskPercent / 100) / risk, lot = atrStopLot(props);
+    // Stop from ATR sizes whole lots, as the drawing shows: floor(risk amount / (k x ATR x lot size)) lots of `lot` units
+    // (the saved stop is the ATR stop, so |entry - stop| is k x ATR). The tolerance reads 2999.9999999999995 as 3000.
+    const quantity = lot === null ? raw : Math.max(0, Math.floor(raw / lot * (1 + 1e-12))) * lot;
     const position: AlertPositionLevels = { schemaVersion: 1, drawingId: String(record.id), side: target >= entry ? 'long' : 'short', entry, target, stop, quantity, ticker: instrument.symbol, currency: instrument.currency };
     validateAlertPosition(position);
     return { ok: true, position };

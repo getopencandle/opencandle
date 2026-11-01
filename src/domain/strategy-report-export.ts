@@ -1,5 +1,6 @@
 import { STRATEGY_REPORT_METRICS } from './strategy-report-catalog';
 import { strategyOrderLabel } from './strategy';
+import { crc32, storedZip, xmlText, columnName } from './xlsx-zip';
 import { isStrategyReport, STRATEGY_REPORT_LIMITS, StrategyReportError, type StrategyReport, type StrategyReportSide } from './strategy-report';
 
 const encoder = new TextEncoder();
@@ -53,27 +54,7 @@ export function strategyReportJson(report: StrategyReport): string {
 // Sheets: Metrics, Trades, Orders (the same rows and columns as the CSV exports) and Assumptions (schema version,
 // execution identity, policies and diagnostics). Text cells keep the CSV formula-safety prefix.
 export const STRATEGY_XLSX_SCHEMA = 'lv-strategy-report-xlsx-1';
-const CRC_TABLE = (() => { const table = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; table[n] = c >>> 0; } return table; })();
-export function crc32(bytes: Uint8Array): number { let crc = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8); return (crc ^ 0xFFFFFFFF) >>> 0; }
-/** Minimal ZIP writer (method 0, stored). Fixed DOS timestamp 1980-01-01 keeps output deterministic. */
-export function storedZip(files: readonly { name: string; data: Uint8Array }[]): Uint8Array {
-  const locals: Uint8Array[] = [], centrals: Uint8Array[] = []; let offset = 0;
-  for (const file of files) {
-    const name = encoder.encode(file.name), crc = crc32(file.data), size = file.data.length;
-    const local = new Uint8Array(30 + name.length), lv = new DataView(local.buffer);
-    lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0x0800, true); lv.setUint16(8, 0, true); lv.setUint16(10, 0, true); lv.setUint16(12, 0x21, true);
-    lv.setUint32(14, crc, true); lv.setUint32(18, size, true); lv.setUint32(22, size, true); lv.setUint16(26, name.length, true); lv.setUint16(28, 0, true); local.set(name, 30);
-    const central = new Uint8Array(46 + name.length), cv = new DataView(central.buffer);
-    cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true); cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true); cv.setUint16(12, 0, true); cv.setUint16(14, 0x21, true);
-    cv.setUint32(16, crc, true); cv.setUint32(20, size, true); cv.setUint32(24, size, true); cv.setUint16(28, name.length, true); cv.setUint32(42, offset, true); central.set(name, 46);
-    locals.push(local, file.data); centrals.push(central); offset += local.length + size;
-  }
-  const centralSize = centrals.reduce((sum, row) => sum + row.length, 0), end = new Uint8Array(22), ev = new DataView(end.buffer);
-  ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, files.length, true); ev.setUint16(10, files.length, true); ev.setUint32(12, centralSize, true); ev.setUint32(16, offset, true);
-  const out = new Uint8Array(offset + centralSize + 22); let at = 0;
-  for (const part of [...locals, ...centrals, end]) { out.set(part, at); at += part.length; }
-  return out;
-}
+export { crc32, storedZip };
 type XlsxCell = string | number | null;
 /** Parse the CSV this module writes back into typed cells: quoted fields are text, bare fields numbers, empty is blank. */
 function csvRows(text: string): XlsxCell[][] {
@@ -89,8 +70,6 @@ function csvRows(text: string): XlsxCell[][] {
   }
   return rows;
 }
-const xmlText = (value: string) => value.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g, '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
-function columnName(index: number) { let name = ''; for (let n = index + 1; n > 0; n = Math.floor((n - 1) / 26)) name = String.fromCharCode(65 + (n - 1) % 26) + name; return name; }
 function sheetXml(rows: readonly XlsxCell[][]): string {
   const body = rows.map((row, r) => `<row r="${r + 1}">${row.map((cell, c) => {
     if (cell === null) return '';

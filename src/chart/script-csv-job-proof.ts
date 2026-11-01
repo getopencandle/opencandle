@@ -46,7 +46,7 @@ export function assertScriptCsvJobModel(model:object,result:object,input:ChartIn
 }
 
 /** Request permission belongs to this exact accepted job, independent of today's resolver or loaded sources. */
-export function assertScriptCsvJobDependencies(model:object,result:object,declarations:unknown):void{
+export function assertScriptCsvJobDependencies(model:object,result:object,declarations:unknown):boolean{
  const accepted=models.get(model),proof=accepted&&jobs.get(accepted.proof);if(!accepted||accepted.result!==result||!proof?.accepted)throw Error('This script requests additional data whose accepted export permission is unavailable.');current(proof);
- assertScriptRequestJobExport(proof.dependency,{source:proof.binding.source,inputs:proof.binding.inputs??null,identity:scriptExecutionIdentity(proof.owner.input.source,proof.owner.input.style,proof.execution),bars:proof.consumed,primary:proof.owner.input.source},declarations);
+ return assertScriptRequestJobExport(proof.dependency,{source:proof.binding.source,inputs:proof.binding.inputs??null,identity:scriptExecutionIdentity(proof.owner.input.source,proof.owner.input.style,proof.execution),bars:proof.consumed,primary:proof.owner.input.source},declarations);
 }

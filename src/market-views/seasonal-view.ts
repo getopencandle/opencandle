@@ -1,6 +1,6 @@
 import type { BarDataset } from '../domain/types';
-import { exportNoticeFor, isLiveDatasetId, isLiveProviderId } from '../domain/live-provider';
-import { exportRightsRefusal } from '../domain/provider-capabilities';
+import { personalUseNote } from '../domain/live-provider';
+import { providerTermsApply } from '../domain/provider-capabilities';
 import { MONTHS, monthEnds, type SeasonalResult } from './seasonals';
 
 /**
@@ -43,19 +43,18 @@ export function seasonalHover(r: SeasonalResult, month: number, o: SeasonalOptio
 const cell = (v: number | null) => v === null || !Number.isFinite(v) ? '' : v.toFixed(4);
 const q = (text: string) => /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
 /** CSV of the shown table: one row per selected year, then Average, Median and (when on) Range low/high. */
-export function seasonalCsv(symbol: string, r: SeasonalResult, o: SeasonalOptions): string {
+export function seasonalCsv(symbol: string, r: SeasonalResult, o: SeasonalOptions, terms: string | null = null): string {
   const n = (v: number | null) => cell(normalizeValue(v, o.normalize));
   const lines = [['series', ...MONTHS].join(','), ...r.years.map(y => [String(y.year), ...y.points.map(n)].join(',')),
     ['Average', ...r.average.map(n)].join(','), ['Median', ...r.median.map(n)].join(',')];
   if (o.range) { const g = seasonalRange(r); lines.push(['Range low', ...g.low.map(n)].join(','), ['Range high', ...g.high.map(n)].join(',')); }
   const unit = o.normalize === 'index' ? 'index, base close = 100' : 'cumulative percent from the base close';
-  return [`# ${q(symbol)} seasonals (${unit}); OpenCandle local calculation from loaded bars`, ...lines].join('\n') + '\n';
+  return [`# ${q(symbol)} seasonals (${unit}); OpenCandle local calculation from loaded bars`, ...(terms === null ? [] : ['# ' + personalUseNote(terms)]), ...lines].join('\n') + '\n';
 }
 
-/** Same rights rule as chart CSV export: live, FRED and display-only licensed data are refused; demo and local data pass. */
-export function seasonalExportRefusal(set: BarDataset): string | null {
+/** Same rule as chart CSV export: live, FRED and licensed data save for personal analysis with the provider terms line
+ * (the provider label returned here, passed to seasonalCsv); demo and local data return null and carry no terms. */
+export function seasonalTermsLabel(set: BarDataset): string | null {
   const p = set.provenance;
-  if (p.fixture) return null;
-  if (isLiveDatasetId(p.datasetId) || isLiveProviderId(p.providerId)) return exportNoticeFor(p.datasetId);
-  return exportRightsRefusal(p.providerId, p.fixture);
+  return providerTermsApply(p) ? p.providerName ?? '' : null;
 }

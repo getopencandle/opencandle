@@ -164,7 +164,7 @@ export function chartMenuEntries(snapshot:ChartMenuSnapshot,actions:ChartContext
   command('hide-drawings',3),
   {action:'hide-marks',label:extras.marksHidden?BAR_MARKS_SHOW_LABEL:BAR_MARKS_HIDE_LABEL,group:3},
   ...(counts==null?[]:[{action:'remove-drawings' as const,label:countLabel(counts.drawings,'drawing','drawings'),unavailable:removable(counts.drawings,'No drawings on this chart'),group:3},{action:'remove-indicators' as const,label:countLabel(counts.indicators,'indicator','indicators'),unavailable:removable(counts.indicators,'No indicators on this chart'),group:3}]),
-  {action:'source-csv',label:'Export chart data (CSV)',group:4},{action:'png-copy',label:'Copy chart image',hint:'Alt + S',group:4},{action:'png-save',label:'Save chart image',hint:'Ctrl + Alt + S',group:4},
+  {action:'source-csv',label:'Export chart data (CSV)',group:4},{action:'indicators-xlsx',label:'Export all indicators (.xlsx)',group:4},{action:'png-copy',label:'Copy chart image',hint:'Alt + S',group:4},{action:'png-save',label:'Save chart image',hint:'Ctrl + Alt + S',group:4},
   {action:'theme',label:'Settings…',group:6}];
  // On a TPO chart, the clicked profile can join the profile before it (a merge point) or split back out.
  if(snapshot.input?.style==='tpo'){let choice:ReturnType<typeof tpoMergeChoiceAt>=null;try{choice=tpoMergeChoiceAt(snapshot.input.bars,snapshot.controller.getChartSettingsBook?.()?.tpo,snapshot.input.source,snapshot.point.barTime);}catch{choice=null;}if(choice?.merge)rows.push({action:'tpo-merge',label:'Merge with previous profile',group:2});if(choice?.unmerge)rows.push({action:'tpo-unmerge',label:'Unmerge profile',group:2});}

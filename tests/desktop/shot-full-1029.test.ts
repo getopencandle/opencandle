@@ -98,8 +98,8 @@ it('toggleAppFullScreen falls back to HTML fullscreen without a bridge (browser 
  expect(await toggleAppFullScreen({bridge:null,doc:{fullscreenElement:null,documentElement:{requestFullscreen:async()=>{throw new Error('Permissions check failed');}}},report})).toBe('unavailable');
  expect(report).toHaveBeenCalledWith(FULLSCREEN_UNAVAILABLE+': Permissions check failed');
 });
-it('a refused snapshot (live data) disables both rows with the reason; otherwise the rows are unchanged',()=>{
- const notice='Live market data is for personal display only and cannot be exported or shared.';
+it('a blocked snapshot disables both rows with the reason; otherwise the rows are unchanged',()=>{
+ const notice='Image export is unavailable for this chart.';
  expect(snapshotMenuRows({hasChart:true,blocked:notice}).map(row=>[row.id,row.enabled,row.reason])).toEqual([['download-image',false,notice],['copy-image',false,notice]]);
  expect(snapshotMenuRows({hasChart:true}).map(row=>row.enabled)).toEqual([true,true]);
  expect(snapshotMenuRows({hasChart:true,blocked:null,busy:true}).map(row=>row.enabled)).toEqual([false,true]);

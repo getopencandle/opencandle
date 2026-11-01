@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {chartSourceCsv} from '../../src/ui/chart-source-export';
+import {chartSourceCsv,chartCsvSavedMessage,chartSourceTermsLabel} from '../../src/ui/chart-source-export';
 import {fixtureDataset} from '../../src/domain/fixtures';
 import {csvRows} from '../../src/domain/data';
 import {sourceContextForDataset} from '../../src/chart/source-context';
@@ -43,7 +43,13 @@ describe(' chart CSV exact timestamp joins on synthetic accepted plot samples',(
  it('enforces the existing UTF-8 byte limit incrementally even when headers alone would overflow it',()=>{
   const columns=Array.from({length:2400},(_,index)=>col('界'.repeat(3000)+' '+index,[]));expect(()=>chartSourceCsv(input(),'ordinary',columns)).toThrow('20 MiB');
  });
- it('keeps the live source export refusal even when no supplementary values are supplied',()=>{
-  const snapshot=input();snapshot.source={...snapshot.source,datasetId:'live:synthetic-policy-test'};expect(()=>chartSourceCsv(snapshot,'ordinary',[])).toThrow('cannot be exported');
+ it('exports a live source for personal analysis and states the provider terms after saving',()=>{
+  const dataset=data();Object.assign(dataset.provenance,{datasetId:'live:synthetic-policy-test',providerId:'coinbase-public',providerName:'Synthetic live provider',fixture:false});
+  const snapshot={bars:dataset.bars,source:sourceContextForDataset(dataset),style:'candles'},rows=csvRows(chartSourceCsv(snapshot,'ordinary',[]));
+  expect(rows).toHaveLength(4);expect(rows[1].slice(9,12)).toEqual(['Synthetic live provider','coinbase-public','live:synthetic-policy-test']);
+  expect(chartSourceTermsLabel(snapshot.source)).toBe('Synthetic live provider');expect(chartSourceTermsLabel(input().source)).toBeNull();
+  expect(chartCsvSavedMessage('Chart data saved',snapshot.source,{})).toBe("Chart data saved. Market data from Synthetic live provider, saved for your personal analysis. The provider's terms apply: do not share or resell this file.");
+  expect(chartCsvSavedMessage('Chart data saved',input().source,{omitted:['VRVP']})).toBe('Chart data saved. Left out (uses additional history): VRVP');
+  expect(chartCsvSavedMessage('Chart data saved',input().source,{personalUse:['']})).toBe("Chart data saved. Market data from a connected provider, saved for your personal analysis. The provider's terms apply: do not share or resell this file.");
  });
 });

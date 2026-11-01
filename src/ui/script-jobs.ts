@@ -26,7 +26,7 @@ export const scriptJobs=new ScriptJobQueue();
 export type ScriptDataKind='synthetic'|'live'|'imported';
 export function scriptDataKind(input:{fixture:boolean;live?:boolean}):ScriptDataKind{return input.fixture?'synthetic':input.live?'live':'imported';}
 /** Plain provenance label for a script run. Live data is not "local history". */
-export function scriptProvenanceLabel(kind:ScriptDataKind,identity:string):string{return(kind==='synthetic'?'Example data · ':kind==='live'?'Live market data (display only) · ':'User-supplied local history · ')+identity;}
+export function scriptProvenanceLabel(kind:ScriptDataKind,identity:string):string{return(kind==='synthetic'?'Example data · ':kind==='live'?'Live market data (personal use) · ':'User-supplied local history · ')+identity;}
 /** Panel footer wording for the data a script runs on. */
 export function scriptDataFooter(kind:ScriptDataKind):string{return kind==='synthetic'?'Example data':kind==='live'?'Live market data':'Local imported data';}
 /** Request declarations depend only on the source text. Bounded cache so the declaration pass runs once per source. */

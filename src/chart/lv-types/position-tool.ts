@@ -27,6 +27,15 @@
 //    the box ("Closed P&L"). While the trade is open and the box still runs, the middle plate reads "Open P&L". While no bar
 //    has traded through the entry (the order is still waiting, or the box ended first) it reads "Not filled" instead of a
 //    zero P&L (0.8.1).
+//  * Stop from ATR (props.lvPositionAtr, off when absent, so saved positions load and save unchanged): the stop sits at
+//    entry - k x ATR (long) or entry + k x ATR (short), ATR being Wilder's ATR (the RMA of the true range, as the ATR indicator)
+//    over the chart bars up to and including the entry bar, and the quantity is floor(risk amount / (k x ATR x lot size)) whole
+//    lots. This is the Turtle "N" unit (C. Faith, Way of the Turtle, 2007: N is the 20-day Wilder ATR, stops at 2N, units sized so
+//    that one N move risks a fixed fraction of equity) and Van Tharp's percent-risk position sizing (Trade Your Way to Financial
+//    Freedom, 1999; Definitive Guide to Position Sizing, 2008). k defaults to 2 and the ATR length to 14. The middle plate shows
+//    the ATR and k x ATR. The stop follows on every paint (a paint that moves it writes it to the saved record once, with no undo
+//    step, through the chart context's persist), handle drag and settings edit; a model rebuilt from its record reads the ATR back
+//    from the saved stop.
 //  * Always show stats off shows the plates only while the drawing is selected (the hook has no hover state). Without a chart
 //    context (tests, an unwired chart) the plates always show.
 // Fail closed: when the pin or the paint hook is missing, the native `position` registration stays untouched.
@@ -35,6 +44,9 @@ import type {FactoryDefaultDefinition} from '../drawing-factory-defaults';
 import type {LvPaintTheme} from '../lv-paint-hook';
 import {cloneStyle,fail,inherited,lvKey,method,nativeBase,roles,type Init,type NativeBase,type NativeModel,type Projector} from '../lv-drawing-pin';
 import {POSITION_CURRENCY_OPTIONS,POSITION_INPUTS_FACTORY_DEFAULTS,POSITION_INPUTS_FIELD,POSITION_PRECISION_MAX,effectivePositionInputs,readPositionInputs,riskDisplayValue,riskPercentFromDisplay,validatePositionInputs,type EffectivePositionInputs,type PositionInputsState} from '../position-inputs';
+import {rma,trueRange} from '../../domain/indicators';
+import type {Bar} from '../../domain/types';
+import {textInkFor} from '../drawing-text-ink';
 import {approxTextWidth,inRect,lineHeight,namedPx,paintPlate,strokePath,type Rect} from './paint-helpers';
 import {defineLvDrawingToolModule} from './contract';
 
@@ -48,11 +60,14 @@ export const POSITION_FACTORY_RISK_PERCENT=25;
 /** Zone fill alpha: profitBackground and stopBackground alpha 0.2 (transparency 80) in the Long defaults fact. */
 export const POSITION_ZONE_ALPHA=0.2;
 const PLATE_GAP=4,DEFAULT_TEXT='#ffffff';
+/** The Qty plate with no P&L sign on a light chart background: a light box with dark text (WCAG contrast about 14:1), so it reads
+ *  like the other labels on light charts instead of a dark grey box. A dark background keeps the line-colour box with white text. */
+export const POSITION_LIGHT_PLATE_FILL='#e0e3eb',POSITION_LIGHT_PLATE_TEXT='#131722';
 
 // ---------------------------------------------------------------- pure numbers and labels
 
 export interface PositionLevels{readonly entry:number;readonly stop:number;readonly target:number}
-export interface PositionMoney{readonly accountBalance:number;readonly riskPercent:number;readonly lotSize:number;readonly precision:number;readonly tick:number}
+export interface PositionMoney{readonly accountBalance:number;readonly riskPercent:number;readonly lotSize:number;readonly precision:number;readonly tick:number;/** Floor the quantity to whole lots (Stop from ATR sizing) instead of rounding it to Qty precision. */readonly wholeLots?:boolean}
 export interface PositionSide{readonly offset:number;readonly percent:number;readonly ticks:number;readonly amount:number}
 export interface PositionStats{readonly direction:'long'|'short';readonly target:PositionSide;readonly stop:PositionSide;readonly riskAmount:number;readonly qty:number;readonly rr:number}
 const finiteOr=(value:number,fallback=0)=>Number.isFinite(value)?value:fallback;
@@ -69,7 +84,8 @@ export function positionStats(levels:PositionLevels,money:PositionMoney):Positio
  const reward=Math.abs(target-entry),risk=Math.abs(entry-stop),lot=money.lotSize;
  const riskAmount=Math.max(0,finiteOr(money.accountBalance))*Math.max(0,finiteOr(money.riskPercent))/100;
  const raw=risk<1e-12||!(lot>0)?0:riskAmount/(risk*lot);
- const qty=Number(finiteOr(raw).toFixed(Math.min(POSITION_PRECISION_MAX,Math.max(0,Math.trunc(money.precision)))));
+ // Whole lots: floor, with a relative tolerance so 2.9999999999 from binary fractions reads as the 3 it is.
+ const qty=money.wholeLots?Math.max(0,Math.floor(finiteOr(raw)*(1+1e-12))):Number(finiteOr(raw).toFixed(Math.min(POSITION_PRECISION_MAX,Math.max(0,Math.trunc(money.precision)))));
  const side=(offset:number):PositionSide=>({offset,percent:entry!==0?offset/Math.abs(entry)*100:0,ticks:Math.round(offset/tick),amount:qty*lot*offset});
  return{direction:target>=entry?'long':'short',target:side(reward),stop:side(risk),riskAmount,qty,rr:risk<1e-12?0:reward/risk};
 }
@@ -100,26 +116,60 @@ export function positionTrade(bars:readonly PositionBar[]|null|undefined,levels:
  return active&&last!==null?{state:'open',price:last,pnl:pnl(last)}:{state:'waiting'};
 }
 
+// ---------------------------------------------------------------- Stop from ATR
+
+export const POSITION_ATR_FIELD='lvPositionAtr';
+export interface PositionAtrSettings{readonly enabled:boolean;readonly multiplier:number;readonly length:number}
+/** Off, k 2 and length 14 (the Turtle 2N stop on the common 14-bar ATR); our own defaults. */
+export const POSITION_ATR_DEFAULTS:PositionAtrSettings=Object.freeze({enabled:false,multiplier:2,length:14});
+export const POSITION_ATR_DIAGNOSTIC='Saved Stop from ATR settings are unreadable and kept as is.';
+export const POSITION_ATR_MAX_LENGTH=500,POSITION_ATR_MAX_MULTIPLIER=100;
+const ATR_KEYS=['enabled','multiplier','length'] as const;
+/** Exactly enabled, multiplier and length, plain data: multiplier above 0 up to 100, length a whole number from 1 to 500. */
+export function validatePositionAtr(value:unknown):PositionAtrSettings{
+ if(value===null||typeof value!=='object'||Array.isArray(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value)))throw Error(POSITION_ATR_DIAGNOSTIC);
+ const own=Reflect.ownKeys(value);if(own.length!==ATR_KEYS.length||own.some(key=>typeof key!=='string'||!(ATR_KEYS as readonly string[]).includes(key)))throw Error(POSITION_ATR_DIAGNOSTIC);
+ const {enabled,multiplier,length}=value as Record<string,unknown>;
+ if(typeof enabled!=='boolean'||typeof multiplier!=='number'||!Number.isFinite(multiplier)||multiplier<=0||multiplier>POSITION_ATR_MAX_MULTIPLIER||!Number.isInteger(length)||(length as number)<1||(length as number)>POSITION_ATR_MAX_LENGTH)throw Error(POSITION_ATR_DIAGNOSTIC);
+ return Object.freeze({enabled,multiplier,length:length as number});
+}
+/** Wilder's ATR (RMA of the true range, seeded by the mean of the first `length` true ranges, as the ATR indicator) at the last
+ *  bar with time at or before `entryTime`, over ascending bars. Null with fewer than `length` bars or an unusable value. */
+export function positionAtr(bars:readonly PositionBar[]|null|undefined,entryTime:number,length:number):number|null{
+ if(!Array.isArray(bars)||!Number.isInteger(length)||length<1)return null;
+ let end=bars.length;while(end>0&&!(bars[end-1]&&bars[end-1].time<=entryTime))end--;
+ if(end<length)return null;
+ const upTo=bars.slice(0,end) as unknown as readonly Bar[],value=rma(trueRange(upTo),length).at(-1);
+ return typeof value==='number'&&Number.isFinite(value)&&value>=0?value:null;
+}
+/** The ATR stop: entry - k x ATR for a long (target at or above entry), entry + k x ATR for a short; null without a positive distance. */
+export function positionAtrStop(levels:Pick<PositionLevels,'entry'|'target'>,atr:number|null,multiplier:number):number|null{
+ if(atr===null||!Number.isFinite(atr)||!(multiplier>0))return null;const distance=multiplier*atr;if(!(distance>0)||!Number.isFinite(distance))return null;
+ const stop=levels.target>=levels.entry?levels.entry-distance:levels.entry+distance;return Number.isFinite(stop)?stop:null;
+}
+
 const money=(value:number)=>finiteOr(value).toFixed(2);
 const ratio=(value:number)=>String(Number(finiteOr(value).toFixed(2)));
 /** Middle plate wording while no bar has traded through the entry. */
 export const POSITION_NOT_FILLED='Not filled';
-export interface PositionLabelOptions{readonly compact:boolean;readonly priceDecimals:number;readonly precision:number}
+export interface PositionLabelOptions{readonly compact:boolean;readonly priceDecimals:number;readonly precision:number;/** Stop from ATR on: the ATR (null while the bars are too few) and k, shown on the middle plate. */readonly atr?:{readonly value:number|null;readonly multiplier:number;readonly length:number}}
 export interface PositionLabels{readonly target:readonly string[];readonly stop:readonly string[];readonly middle:readonly string[]}
 /** Plate text. Full mode names every value; compact mode drops the names and puts the middle plate on one line (our own wording). */
 export function positionLabels(stats:PositionStats,trade:PositionTrade,options:PositionLabelOptions):PositionLabels{
  const d=Math.min(POSITION_PRECISION_MAX,Math.max(0,Math.trunc(options.priceDecimals)));
  const side=(s:PositionSide)=>`${s.offset.toFixed(d)} (${s.percent.toFixed(2)}%) ${s.ticks}`;
  const qty=stats.qty.toFixed(Math.min(POSITION_PRECISION_MAX,Math.max(0,Math.trunc(options.precision))));
- const pl=trade.state==='closed'?'Closed P&L':'Open P&L';
+ const pl=trade.state==='closed'?'Closed P&L':'Open P&L',a=options.atr,k=a?ratio(a.multiplier):'';
+ // Stop from ATR: "ATR (14): 1.25, 2 x ATR: 2.50"; with too few bars the stop stays where it is and the plate says so.
+ const atr=!a?null:a.value===null?`ATR (${a.length}): needs ${a.length} bars`:`ATR (${a.length}): ${a.value.toFixed(d)}, ${k} x ATR: ${(a.value*a.multiplier).toFixed(d)}`;
  // The trade state as the middle plate leads with it: the P&L of a filled trade, "Not filled" while the entry was never traded.
  const status=trade.state==='open'||trade.state==='closed'?`${pl}: ${money(trade.pnl)}`:trade.state==='waiting'?POSITION_NOT_FILLED:null;
  if(options.compact){
   return{target:[`${side(stats.target)}, ${money(stats.target.amount)}`],stop:[`${side(stats.stop)}, ${money(stats.stop.amount)}`],
-   middle:[[status,`Qty: ${qty}`,`R/R: ${ratio(stats.rr)}`].filter(Boolean).join(', ')]};
+   middle:[[status,`Qty: ${qty}`,`R/R: ${ratio(stats.rr)}`,atr].filter(Boolean).join(', ')]};
  }
  return{target:[`Target: ${side(stats.target)}, Amount: ${money(stats.target.amount)}`],stop:[`Stop: ${side(stats.stop)}, Amount: ${money(stats.stop.amount)}`],
-  middle:[status===null?`Qty: ${qty}`:`${status}, Qty: ${qty}`,`Risk/reward ratio: ${ratio(stats.rr)}`]};
+  middle:[status===null?`Qty: ${qty}`:`${status}, Qty: ${qty}`,`Risk/reward ratio: ${ratio(stats.rr)}`,...atr?[atr]:[]]};
 }
 
 // ---------------------------------------------------------------- chart context (root wiring)
@@ -128,7 +178,7 @@ export function positionLabels(stats:PositionStats,trade:PositionTrade,options:P
  *  probe belongs to this chart: a paint passes the canvas it paints on (a chart answers for the canvases inside its container),
  *  other reads pass the model only. A model remembers the context its last paint matched. */
 export interface PositionOwnerProbe{readonly model:object;readonly canvas?:unknown}
-export interface PositionChartContext{readonly owns:(probe:PositionOwnerProbe)=>boolean;readonly tickSize?:()=>number|undefined;readonly isSelected?:(id:string)=>boolean;readonly isHovered?:(id:string)=>boolean}
+export interface PositionChartContext{readonly owns:(probe:PositionOwnerProbe)=>boolean;readonly tickSize?:()=>number|undefined;readonly isSelected?:(id:string)=>boolean;readonly isHovered?:(id:string)=>boolean;/** Writes a drawing whose paint moved its Stop from ATR stop to the saved document (quietly: no undo step; coalesced by the chart). */readonly persist?:(id:string)=>void}
 const CONTEXTS=new Set<PositionChartContext>();
 /** Registers one chart's context; the returned function removes it (call it when the chart is disposed). */
 export function registerPositionChartContext(context:PositionChartContext):()=>void{
@@ -137,12 +187,13 @@ export function registerPositionChartContext(context:PositionChartContext):()=>v
 }
 const LAST=new WeakMap<object,PositionChartContext>();
 /** The context a chart registers (adapter.ts): it owns the canvases inside its container, reads its instrument tick size and its selection. */
-export function chartPositionContext(chart:{readonly container:{contains(node:unknown):boolean};readonly tickSize:()=>number|undefined;readonly selectedIds:()=>readonly string[];readonly hoveredId?:()=>string|null}):PositionChartContext{
+export function chartPositionContext(chart:{readonly container:{contains(node:unknown):boolean};readonly tickSize:()=>number|undefined;readonly selectedIds:()=>readonly string[];readonly hoveredId?:()=>string|null;readonly persist?:(id:string)=>void}):PositionChartContext{
  return Object.freeze({
   owns:({canvas}:PositionOwnerProbe)=>canvas!=null&&typeof canvas==='object'&&chart.container.contains(canvas),
   tickSize:chart.tickSize,
   isSelected:(id:string)=>chart.selectedIds().includes(id),
   ...(chart.hoveredId?{isHovered:(id:string)=>chart.hoveredId!()===id}:{}),
+  ...(chart.persist?{persist:chart.persist}:{}),
  });
 }
 /** The drawing under the pointer, from a COMPAT-11 renderer (LV-VELA-RENDER-LEFTOVERS-1 lvHoveredDrawingId); null when
@@ -187,13 +238,23 @@ export interface PositionModel extends NativeModel{
 interface ModelState{readonly read:PositionInputsState;readonly raw?:unknown}
 /** Per-model member state; also the brand of a model built by this module. */
 const STATES=new WeakMap<object,ModelState>();
+type AtrState={readonly state:'absent'}|{readonly state:'supported';readonly settings:PositionAtrSettings}|{readonly state:'unavailable';readonly raw:unknown};
+const ATR_STATES=new WeakMap<object,AtrState>();
+const ATR_PATHS=['atrStop','atrMultiplier','atrLength'];
+/** The last projector with bar access that painted or placed a model (a live chart model; models rebuilt from a record have none). */
+const PROJECTORS=new WeakMap<object,Projector>();
+/** The levels and Stop from ATR settings a model was built with. A paint writes the ATR stop to the saved record (persist), so a
+ *  model rebuilt from the record (a settings Apply, a coordinate edit) reads the ATR back as |entry - stop| / k while the entry
+ *  time and the ATR length are unchanged. */
+const SAVED=new WeakMap<object,{readonly entryTime:number;readonly entry:number;readonly stop:number;readonly settings:PositionAtrSettings|null}>();
+const ATR_MEMO=new WeakMap<object,{key:string;value:number|null}>();
 const INPUT_KEYS=['lotSize','leverage','precision','compactStats','currency','alwaysShowStats','priceLabels'] as const;
 const OWN_KEYS=[...INPUT_KEYS,'risk','riskUnit','profitTicks','stopTicks'];
 const tidy=(value:number)=>Number(finiteOr(value).toPrecision(12));
 
 /** The view the settings paths lvPosition.* read. */
-export interface LvPositionView{lotSize:number;leverage:number;risk:number;riskUnit:'percentage'|'money';precision:number;compactStats:boolean;currency:string;alwaysShowStats:boolean;priceLabels:boolean;profitTicks:number;stopTicks:number}
-export interface LvPositionPlate{readonly role:'target'|'stop'|'middle';readonly lines:readonly string[];readonly rect:Rect;readonly fill:string}
+export interface LvPositionView{lotSize:number;leverage:number;risk:number;riskUnit:'percentage'|'money';precision:number;compactStats:boolean;currency:string;alwaysShowStats:boolean;priceLabels:boolean;profitTicks:number;stopTicks:number;atrStop:boolean;atrMultiplier:number;atrLength:number}
+export interface LvPositionPlate{readonly role:'target'|'stop'|'middle';readonly lines:readonly string[];readonly rect:Rect;readonly fill:string;/** True for the middle plate while it has no P&L sign (its fill is the line colour). */readonly neutral?:boolean}
 
 let nativeCache:(NativeBase&{readonly replaced:boolean})|undefined;
 /** The pinned native `position` class, captured before this module replaces its registration (memoized). When another module
@@ -235,16 +296,50 @@ export function singleClickPlacement(init:Init):Init{
 export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init)=>PositionModel{
  class LvPosition extends Base{
   // No class fields: the base constructor calls readProps before they would be initialized.
-  constructor(init:Init){super(singleClickPlacement(init));if(!STATES.has(this))STATES.set(this,{read:{state:'legacy',settings:POSITION_INPUTS_FACTORY_DEFAULTS}});}
+  constructor(init:Init){super(singleClickPlacement(init));if(!STATES.has(this))STATES.set(this,{read:{state:'legacy',settings:POSITION_INPUTS_FACTORY_DEFAULTS}});
+   const [entry,stop]=this.anchors;if(entry&&stop&&this.anchors.length===3)SAVED.set(this,{entryTime:entry.time,entry:entry.price,stop:stop.price,settings:this.lvAtrSettings()});}
   protected readProps(props:Record<string,unknown>):void{
    super.readProps(props);
    const read=readPositionInputs(props);
    STATES.set(this,read.state==='unavailable'?{read,raw:structuredClone(Object.getOwnPropertyDescriptor(props,POSITION_INPUTS_FIELD)?.value)}:{read});
+   const atr=props&&typeof props==='object'?Object.getOwnPropertyDescriptor(props,POSITION_ATR_FIELD):undefined;
+   if(!atr)ATR_STATES.set(this,{state:'absent'});
+   else{let settings:PositionAtrSettings|null=null;try{if(atr.enumerable&&Object.hasOwn(atr,'value'))settings=validatePositionAtr(atr.value);}catch{settings=null;}
+    ATR_STATES.set(this,settings?{state:'supported',settings}:{state:'unavailable',raw:structuredClone(atr.value)});}
   }
   protected writeProps():Record<string,unknown>|undefined{
-   const props=super.writeProps(),state=STATES.get(this);
-   if(!state||state.read.state==='legacy')return props;
-   return{...(props??{}),[POSITION_INPUTS_FIELD]:state.read.state==='supported'?{...state.read.settings}:structuredClone(state.raw)};
+   const props=super.writeProps(),state=STATES.get(this),atr=ATR_STATES.get(this);
+   let out=props;
+   if(state&&state.read.state!=='legacy')out={...(out??{}),[POSITION_INPUTS_FIELD]:state.read.state==='supported'?{...state.read.settings}:structuredClone(state.raw)};
+   if(atr&&atr.state!=='absent')out={...(out??{}),[POSITION_ATR_FIELD]:atr.state==='supported'?{...atr.settings}:structuredClone(atr.raw)};
+   return out;
+  }
+  /** Stop from ATR settings; the defaults (off) when absent, null while the saved member is unreadable (kept verbatim, not editable). */
+  lvAtrSettings():PositionAtrSettings|null{const atr=ATR_STATES.get(this);return !atr||atr.state==='absent'?POSITION_ATR_DEFAULTS:atr.state==='supported'?atr.settings:null;}
+  /** The ATR at the entry bar while Stop from ATR is on (value null while the bars are too few or unreadable); null when off. */
+  lvAtr(proj?:Projector):{settings:PositionAtrSettings;value:number|null}|null{
+   if(proj&&typeof proj.barsInRange==='function')PROJECTORS.set(this,proj);
+   const settings=this.lvAtrSettings();if(!settings?.enabled)return null;const source=PROJECTORS.get(this),entry=this.anchors[0];
+   if(!entry||!Number.isFinite(entry.time))return{settings,value:null};
+   if(!source){
+    // No bars here (a model rebuilt from its record): the saved stop is the ATR stop the chart wrote.
+    const saved=SAVED.get(this),was=saved?.settings,value=saved&&was?.enabled&&was.length===settings.length&&saved.entryTime===entry.time?Math.abs(saved.entry-saved.stop)/was.multiplier:null;
+    return{settings,value:value!==null&&Number.isFinite(value)&&value>0?value:null};
+   }
+   let bars:readonly PositionBar[]|null=null;try{bars=source.barsInRange!(Number.MIN_SAFE_INTEGER,entry.time) as readonly PositionBar[];}catch{bars=null;}
+   if(!Array.isArray(bars))return{settings,value:null};
+   const head=bars[0],tail=bars.at(-1),key=[settings.length,entry.time,bars.length,head?.time,tail?.time,tail?.high,tail?.low,tail?.close].join('|'),held=ATR_MEMO.get(this);
+   if(held&&held.key===key)return{settings,value:held.value};
+   const value=positionAtr(bars,entry.time,settings.length);ATR_MEMO.set(this,{key,value});return{settings,value};
+  }
+  /** With Stop from ATR on and an ATR known, puts the stop anchor at the ATR stop (no opposite-side reflection is needed: the
+   *  stop goes opposite the target by construction). True when the stop moved. */
+  lvSyncAtrStop(proj?:Projector):boolean{
+   const atr=this.lvAtr(proj),levels=atr?this.prices():null,stop=this.anchors[1];
+   if(!atr||!levels||!stop||this.anchors.length<3)return false;
+   const want=positionAtrStop(levels,atr.value,atr.settings.multiplier);
+   if(want===null||stop.price===want)return false;
+   stop.price=want;return true;
   }
   /** Effective inputs, or null while the saved member is unreadable (it is then kept verbatim and not editable). */
   lvInputs():EffectivePositionInputs|null{const read=STATES.get(this)?.read;return read&&read.state!=='unavailable'?effectivePositionInputs(read.settings):null;}
@@ -260,8 +355,10 @@ export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init
   get lvPosition():LvPositionView|undefined{
    const s=this.lvInputs();if(!s)return undefined;
    const p=this.prices(),tick=this.lvTickSize();
+   const atr=this.lvAtrSettings()??POSITION_ATR_DEFAULTS;
    return{lotSize:s.lotSize,leverage:s.leverage,risk:tidy(riskDisplayValue(s.riskMode,this.riskPercent,this.accountBalance)),riskUnit:s.riskMode,precision:s.precision,compactStats:s.compactStats,currency:s.currency,
-    alwaysShowStats:s.alwaysShowStats,priceLabels:s.priceLabels,profitTicks:p?Math.round(Math.abs(p.target-p.entry)/tick):0,stopTicks:p?Math.round(Math.abs(p.entry-p.stop)/tick):0};
+    alwaysShowStats:s.alwaysShowStats,priceLabels:s.priceLabels,profitTicks:p?Math.round(Math.abs(p.target-p.entry)/tick):0,stopTicks:p?Math.round(Math.abs(p.entry-p.stop)/tick):0,
+    atrStop:atr.enabled,atrMultiplier:atr.multiplier,atrLength:atr.length};
   }
   schema(){
    const nativeSchema=super.schema(),native=nativeSchema.fields,byPath=new Map(native.map(field=>[field.path,field]));
@@ -280,6 +377,9 @@ export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init
     take('targetPrice','Profit level price'),
     own('stopTicks','Stop level ticks','number','behavior',{min:0,max:1e12,step:1}),
     take('stopPrice','Stop level price'),
+    ...this.lvAtrSettings()?[own('atrStop','Stop from ATR','boolean','behavior'),
+     own('atrMultiplier','ATR multiplier (k)','number','behavior',{min:0.01,max:POSITION_ATR_MAX_MULTIPLIER,step:0.1,when:{path:LV_POSITION_PREFIX+'atrStop',in:[true]}}),
+     own('atrLength','ATR length','number','behavior',{min:1,max:POSITION_ATR_MAX_LENGTH,step:1,when:{path:LV_POSITION_PREFIX+'atrStop',in:[true]}})]:[],
     own('precision','Qty precision','number','behavior',{min:0,max:POSITION_PRECISION_MAX,step:1}),
     own('currency','Account currency','select','behavior',{options:currencies.map(value=>({value,label:value}))}),
    ];
@@ -298,8 +398,19 @@ export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init
   }
   /** lvPosition.* paths are validated as one whole member before anything changes; the rest is the native patch. */
   applySettings(patch:Record<string,unknown>):void{
+   const atrPaths=Object.keys(patch).filter(path=>path.startsWith(LV_POSITION_PREFIX)&&ATR_PATHS.includes(path.slice(LV_POSITION_PREFIX.length)));
+   if(atrPaths.length){
+    // Stop from ATR is its own member: validated whole, then the rest of the patch applies as before, then the stop follows.
+    const current=this.lvAtrSettings();if(!current)throw Error(POSITION_ATR_DIAGNOSTIC);
+    const draft:Record<string,unknown>={...current};
+    for(const path of atrPaths){const key=path.slice(LV_POSITION_PREFIX.length),value=patch[path];draft[key==='atrStop'?'enabled':key==='atrMultiplier'?'multiplier':'length']=value;}
+    let next:PositionAtrSettings;try{next=validatePositionAtr(draft);}catch{throw Error('ATR multiplier must be above 0 and at most '+POSITION_ATR_MAX_MULTIPLIER+', ATR length a whole number from 1 to '+POSITION_ATR_MAX_LENGTH+'.');}
+    const rest=Object.fromEntries(Object.entries(patch).filter(([path])=>!atrPaths.includes(path)));
+    if(Object.keys(rest).length)this.applySettings(rest);
+    ATR_STATES.set(this,{state:'supported',settings:next});this.lvSyncAtrStop();return;
+   }
    const own=Object.keys(patch).filter(path=>path.startsWith(LV_POSITION_PREFIX));
-   if(!own.length){this.lvNative(patch);return;}
+   if(!own.length){this.lvNative(patch);this.lvSyncAtrStop();return;}
    const read=STATES.get(this)?.read;if(!read||read.state==='unavailable')throw Error(read&&read.state==='unavailable'?read.message:'Position inputs are unavailable.');
    const draft:Record<string,unknown>={...effectivePositionInputs(read.settings),schemaVersion:2};
    let risk:number|undefined,profitTicks:number|undefined,stopTicks:number|undefined;
@@ -326,6 +437,7 @@ export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init
    if(profitTicks!==undefined)this.targetPrice=this.levelPriceFromDisplay('target','points',profitTicks*tick);
    if(stopTicks!==undefined)this.stopPrice=this.levelPriceFromDisplay('stop','points',stopTicks*tick);
    STATES.set(this,{read:{state:'supported',settings:next}});
+   this.lvSyncAtrStop();
   }
   /** The native patch; in money mode an account size change keeps the risk amount (the reference risk is an amount then). */
   lvNative(patch:Record<string,unknown>):void{
@@ -336,20 +448,24 @@ export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init
   }
   /** The native opposite-side rule, then one right edge: a dragged stop or target handle carries the other level's end time with it. */
   constrainHandleDrag(index:number):void{
+   // Stop from ATR first, so the opposite-side rule sees the stop the entry or target now implies.
+   this.lvSyncAtrStop();
    super.constrainHandleDrag(index);
-   if(index!==1&&index!==2)return;
-   const me=this.anchors[index],other=this.anchors[index===1?2:1];
+   const me=index===1||index===2?this.anchors[index]:undefined,other=this.anchors[index===1?2:1];
    if(me&&other&&Number.isFinite(me.time))other.time=me.time;
+   // Stop from ATR: the stop follows the entry (and snaps back when its own handle is dragged).
+   this.lvSyncAtrStop();
   }
+  onPlaced(proj:Projector):void{super.onPlaced(proj);this.lvSyncAtrStop(proj);}
   lvStats(proj?:Projector):{stats:PositionStats;trade:PositionTrade;labels:PositionLabels}|null{
-   const levels=this.prices(),r=this.resolved();if(!levels||!r||r.length<3)return null;
-   const s=this.lvDisplay(),tick=this.lvTickSize();
-   const stats=positionStats(levels,{accountBalance:this.accountBalance,riskPercent:this.riskPercent,lotSize:s.lotSize,precision:s.precision,tick});
+   const atr=this.lvAtr(proj),prices=this.prices(),r=this.resolved();if(!prices||!r||r.length<3)return null;
+   const s=this.lvDisplay(),tick=this.lvTickSize(),atrStop=atr?positionAtrStop(prices,atr.value,atr.settings.multiplier):null,levels=atrStop===null?prices:{...prices,stop:atrStop};
+   const stats=positionStats(levels,{accountBalance:this.accountBalance,riskPercent:this.riskPercent,lotSize:s.lotSize,precision:s.precision,tick,...atrStop!==null?{wholeLots:true}:{}});
    const start=r[0].time,end=Math.max(r[1].time,r[2].time);
    let bars:readonly PositionBar[]|null=null;
    if(proj&&typeof proj.barsInRange==='function'){try{bars=proj.barsInRange(start,Number.MAX_SAFE_INTEGER) as readonly PositionBar[];}catch{bars=null;}}
    const trade=positionTrade(bars,levels,{start,end},{qty:stats.qty,lotSize:s.lotSize});
-   return{stats,trade,labels:positionLabels(stats,trade,{compact:s.compactStats,priceDecimals:tickDecimals(tick),precision:s.precision})};
+   return{stats,trade,labels:positionLabels(stats,trade,{compact:s.compactStats,priceDecimals:tickDecimals(tick),precision:s.precision,...atr?{atr:{value:atrStop===null?null:atr.value,multiplier:atr.settings.multiplier,length:atr.settings.length}}:{}})};
   }
   /** Plate rectangles (text width approximated, as the hit boxes of the other LV plates) and fills. Empty while stats are hidden. */
   lvPlates(proj:Projector):LvPositionPlate[]{
@@ -361,7 +477,7 @@ export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init
    const mid=size(view.labels.middle),trade=view.trade,pnl=trade.state==='open'||trade.state==='closed'?trade.pnl:0;
    return[
     {role:'target',lines:view.labels.target,rect:away(b.ty,view.labels.target),fill:this.profitColor},
-    {role:'middle',lines:view.labels.middle,rect:{x:cx-mid.w/2,y:b.ey-mid.h/2,w:mid.w,h:mid.h},fill:pnl>0?this.profitColor:pnl<0?this.lossColor:this.style.lineColor},
+    {role:'middle',lines:view.labels.middle,rect:{x:cx-mid.w/2,y:b.ey-mid.h/2,w:mid.w,h:mid.h},fill:pnl>0?this.profitColor:pnl<0?this.lossColor:this.style.lineColor,neutral:!(pnl>0||pnl<0)},
     {role:'stop',lines:view.labels.stop,rect:away(b.sy,view.labels.stop),fill:this.lossColor},
    ];
   }
@@ -370,14 +486,17 @@ export function withLvPosition(Base:new(init:Init)=>PositionModel):new(init:Init
    return this.lvPlates(proj).some(plate=>inRect(px,py,plate.rect));
   }
   lvPaint(ctx:CanvasRenderingContext2D,proj:Projector,theme:LvPaintTheme):void{
-   if(CONTEXTS.size)contextOf(this,(ctx as {canvas?:unknown}).canvas??null);
+   const context=CONTEXTS.size?contextOf(this,(ctx as {canvas?:unknown}).canvas??null):null;
+   // The ATR at the entry changes only when bars at or before the entry first arrive, so this writes the saved record once.
+   if(this.lvSyncAtrStop(proj)){try{context?.persist?.(this.id);}catch{/* a retired chart takes no write */}}
    const b=this.box(proj);if(!b)return;
    const w=b.x2-b.x1;
    const zone=(y1:number,y2:number,color:string)=>{ctx.save();ctx.globalAlpha=POSITION_ZONE_ALPHA*ctx.globalAlpha;ctx.fillStyle=color;ctx.fillRect(b.x1,Math.min(y1,y2),w,Math.abs(y2-y1));ctx.restore();};
    zone(b.ey,b.ty,this.profitColor);zone(b.ey,b.sy,this.lossColor);
    strokePath(ctx,this.style,()=>{ctx.moveTo(b.x1,b.ey);ctx.lineTo(b.x2,b.ey);});
    const px=namedPx(this.text?.size??'small'),font=px+'px '+theme.fontFamily,text=typeof this.text?.color==='string'&&this.text.color?this.text.color:DEFAULT_TEXT;
-   for(const plate of this.lvPlates(proj))paintPlate(ctx,plate.lines,plate.rect.x+plate.rect.w/2,plate.rect.y+plate.rect.h/2,{font,px,fill:plate.fill,text});
+   const light=textInkFor([theme?.background])==='#000000';
+   for(const plate of this.lvPlates(proj)){const lit=light&&plate.neutral===true;paintPlate(ctx,plate.lines,plate.rect.x+plate.rect.w/2,plate.rect.y+plate.rect.h/2,{font,px,fill:lit?POSITION_LIGHT_PLATE_FILL:plate.fill,text:lit?POSITION_LIGHT_PLATE_TEXT:text});}
   }
  }
  return LvPosition as unknown as new(init:Init)=>PositionModel;

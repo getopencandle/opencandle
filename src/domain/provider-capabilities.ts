@@ -4,7 +4,7 @@ import { ALPACA_CAPABILITIES, ALPACA_RESOLUTIONS, ALPACA_SIP_DELAY_SECONDS, ALPA
 import { COINBASE_CAPABILITIES } from './coinbase-live';
 import { FRED_CAPABILITIES } from './fred';
 import { IMPORT_ADJUSTMENTS, IMPORT_MAX_BYTES, IMPORT_MAX_ROWS, IMPORT_RESOLUTIONS, IMPORT_SESSIONS } from './data-setup';
-import { LIVE_LICENSED_PROVIDER_IDS } from './live-provider';
+import { LIVE_LICENSED_PROVIDER_IDS, isLiveDatasetId, isLiveProviderId } from './live-provider';
 
 /**
  * One registry of every bar source OpenCandle can
@@ -71,10 +71,10 @@ export const PROVIDER_REGISTRY: readonly ProviderRecord[] = Object.freeze([
   { capabilities: LOCAL_AGGREGATION_CAPABILITIES, name: 'OpenCandle local aggregation', access: 'derived', entitlement: 'Inherits the rights of its source.',
     symbolIdentity: 'The source instrument id.', timezone: 'UTC calendar; US equity minute bars anchor at the New York session and their days at New York midnight.',
     corporateActions: 'Keeps the source adjustment basis.', validation: 'derived', feedCheck: null },
-  { capabilities: COINBASE_CAPABILITIES, name: 'Coinbase public market data', access: 'public-unauthenticated', entitlement: 'Public, unauthenticated endpoints; personal display only.',
+  { capabilities: COINBASE_CAPABILITIES, name: 'Coinbase public market data', access: 'public-unauthenticated', entitlement: 'Public, unauthenticated endpoints; personal use only, no sharing or reselling.',
     symbolIdentity: 'COINBASE:<product id> from a fixed allow-list; listing changes are not tracked.', timezone: 'UTC; crypto trades around the clock.',
     corporateActions: 'Not applicable (raw prices).', validation: 'fixture-tested', feedCheck: null },
-  { capabilities: FRED_CAPABILITIES, name: 'FRED economic data (St. Louis Fed)', access: 'public-unauthenticated', entitlement: 'Public CSV endpoint, no key; personal display only. Fetched one series at a time when you open it; some series carry their own source terms.',
+  { capabilities: FRED_CAPABILITIES, name: 'FRED economic data (St. Louis Fed)', access: 'public-unauthenticated', entitlement: 'Public CSV endpoint, no key; personal use only, no sharing or reselling. Fetched one series at a time when you open it; some series carry their own source terms.',
     symbolIdentity: 'FRED:<series id> (for example FRED:DGS10); series ids are FRED identifiers, and discontinued or renamed series are not tracked.', timezone: 'Date-only rows kept as UTC dates (no invented times); weekly, monthly and quarterly series keep their native dates.',
     corporateActions: 'Not applicable. Values may be revised by FRED; the daily refresh picks revisions up.', validation: 'fixture-tested', feedCheck: null },
   { capabilities: { ...ALPACA_CAPABILITIES, fields: [...new Set([...ALPACA_CAPABILITIES.fields, 'corporate-actions' as const])] }, name: 'Alpaca (IEX live)', access: 'owner-key',
@@ -93,16 +93,15 @@ export const PROVIDER_REGISTRY: readonly ProviderRecord[] = Object.freeze([
 export function providerRecord(providerId: string): ProviderRecord | null { return PROVIDER_REGISTRY.find(row => row.capabilities.id === providerId) ?? null; }
 
 /**
- * The export rights gate. Data export (chart CSV, compare columns) is refused when
- * the source's provider record says it is not redistributable (Alpaca delayed history and live feeds), unless the rows are
- * SYNTHETIC. Local imports and local aggregation have no declared rights (null) and stay exportable: the owner holds the
- * rights to the files they import. Returns the refusal text, or null when export is permitted.
+ * Whether a provider's terms apply to an exported file. Live feeds, FRED and licensed history (provider record not
+ * redistributable) may be saved on the user's own computer for personal analysis, and the file or its save status then
+ * carries personalUseNote. SYNTHETIC rows, local imports and local aggregation carry no provider terms.
  */
-export function exportRightsRefusal(providerId: unknown, fixture: unknown): string | null {
-  if (fixture === true || typeof providerId !== 'string') return null;
-  const row = providerRecord(providerId);
-  if (!row || row.access === 'synthetic' || row.capabilities.redistributable !== false) return null;
-  return `${row.name} data is licensed for personal display only and can't be exported from OpenCandle.`;
+export function providerTermsApply(source: { datasetId?: unknown; providerId?: unknown; fixture?: unknown }): boolean {
+  if (source.fixture === true) return false;
+  if (isLiveDatasetId(source.datasetId) || isLiveProviderId(source.providerId)) return true;
+  const row = typeof source.providerId === 'string' ? providerRecord(source.providerId) : null;
+  return !!row && row.access !== 'synthetic' && row.capabilities.redistributable === false;
 }
 
 /** Consistency rules for the registry (returns plain problems; empty means consistent). */

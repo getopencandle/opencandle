@@ -2,7 +2,8 @@ import type {Bar,NumericSeries} from '../types';
 import type {CatalogContext,CatalogDefinition,CatalogInput} from '../indicator-catalog';
 import {parseInterval} from '../intervals';
 import {newYorkClock} from '../us-market-hours';
-import {pivotCalendar,pivotPeriodKey,zigzagPivots,type PivotTimeframe} from './r23-catalog';
+import {pivotCalendar,pivotPeriodKey,type PivotTimeframe} from './r23-catalog';
+import {fibLevelPrice,lookbackFibSwing,zigzagFibSwing} from './fib-swing';
 
 /**
  * More built-ins. Formulas are the standard published ones, cited per row under the `:`
@@ -137,6 +138,8 @@ const RIBBON_COLORS=['#ffe082','#ffb74d','#fb8c00','#e65100'];
 // ---- Auto fib retracement ----
 export const AUTO_FIB_LEVELS=[[0,'l0','0'],[0.236,'l236','0.236'],[0.382,'l382','0.382'],[0.5,'l5','0.5'],[0.618,'l618','0.618'],[0.786,'l786','0.786'],[1,'l1','1']] as const;
 const FIB_COLORS=[GREY,RED,'#81c784',GREEN,TEAL,'#64b5f6',GREY];
+/** Auto fib retracement swing sources: the zig zag leg (the original rule) or the extremes of a lookback window. */
+export const AUTO_FIB_SWING_MODES=['Zig zag','Lookback window'] as const;
 
 // ---- Williams alligator ----
 function alligator({bars,num,tk,projection}:CatalogContext):Record<string,NumericSeries>{
@@ -181,14 +184,17 @@ const definitions:CatalogDefinition[]=[
   calculate({source,num}){const n=num('length'),k=num('multiplier');return {bbw:source.map((_,i)=>{const s=windowStats(source,i,n);return !s||s.mean===0?null:zero(2*k*s.sd/s.mean);})};},
   warmup:value=>value('length'),work:(count,value)=>count*value('length')*2},
  {id:'autofib',name:'Auto fib retracement',acronym:'Auto Fib',overlay:true,
-  inputs:[{key:'deviation',title:'Deviation (%)',type:'float',defval:3,min:0.1,max:100,step:0.1},{key:'depth',title:'Depth',defval:10,...LENGTH},{key:'reverse',title:'Reverse',type:'bool',defval:false}],
+  inputs:[{key:'deviation',title:'Deviation (%)',type:'float',defval:3,min:0.1,max:100,step:0.1},{key:'depth',title:'Depth',defval:10,...LENGTH},{key:'reverse',title:'Reverse',type:'bool',defval:false},
+   {key:'swingMode',title:'Swing',type:'string',defval:'Zig zag',options:AUTO_FIB_SWING_MODES},{key:'lookback',title:'Lookback window',defval:150,...LENGTH_2}],
   plots:AUTO_FIB_LEVELS.map(([,id,label],k)=>({id,label,color:FIB_COLORS[k],width:1})),
   provenance:[named('Auto fib retracement'),{url:LV+'textbook-fibonacci-retracement',facts:'Fibonacci retracement levels 0, 23.6, 38.2, 50, 61.8, 78.6 and 100 percent of a swing, measured back from the swing end.'},{url:LV+'textbook-zigzag-percent-reversal',facts:'The swing is the latest completed leg of the OpenCandle percent-reversal zig zag (the R23 Zig zag kernel).'}],
-  unknownDefaults:[UNKNOWN,'Deviation 3% and Depth 10 are OpenCandle-defined; the reference swing detection and level set are unverified.'],
-  policies:['The swing is the latest completed zig zag leg (the leg before the one still forming; with only one leg, that leg). Level 0 sits at the swing end and level 1 at its start; Reverse swaps them.','Levels carry values from the swing start to the newest bar and move when a new leg completes. Bars with a missing high or low are unavailable.'],
-  calculate({bars,num,bool}){const points=zigzagPivots(bars,num('deviation'),num('depth')),out:Record<string,NumericSeries>=Object.fromEntries(AUTO_FIB_LEVELS.map(([,id])=>[id,bars.map(()=>null as number|null)]));
-   if(points.length<2)return out;const [a,b]=points.length>=3?[points.at(-3)!,points.at(-2)!]:[points[0],points[1]],[zeroAt,oneAt]=bool('reverse')?[a.price,b.price]:[b.price,a.price];
-   for(const [ratio,id] of AUTO_FIB_LEVELS){const price=zeroAt+(oneAt-zeroAt)*ratio;for(let i=a.index;i<bars.length;i++)if(finite(bars[i].high)&&finite(bars[i].low))out[id][i]=price;}
+  unknownDefaults:[UNKNOWN,'Deviation 3% and Depth 10 are OpenCandle-defined; the reference swing detection and level set are unverified.','Swing Zig zag (the original behaviour) and the Lookback window choice with 150 bars are OpenCandle-defined.'],
+  policies:['The swing is the latest completed zig zag leg (the leg before the one still forming; with only one leg, that leg). Level 0 sits at the swing end and level 1 at its start; Reverse swaps them.','Levels carry values from the swing start to the newest bar and move when a new leg completes. Bars with a missing high or low are unavailable.',
+   'OpenCandle-defined Lookback window swing: the highest high and lowest low of the last Lookback window bars (all loaded bars when fewer; the latest bar wins a tie). The earlier extreme is the swing start and the later one its end, so the levels move as the window moves. Deviation and Depth are not used in this mode.'],
+  calculate({bars,num,bool,str}){const out:Record<string,NumericSeries>=Object.fromEntries(AUTO_FIB_LEVELS.map(([,id])=>[id,bars.map(()=>null as number|null)]));
+   const swing=str('swingMode')==='Lookback window'?lookbackFibSwing(bars,bars.length-num('lookback'),bars.length-1):zigzagFibSwing(bars,num('deviation'),num('depth'));
+   if(!swing)return out;
+   for(const [ratio,id] of AUTO_FIB_LEVELS){const price=fibLevelPrice(swing,ratio,bool('reverse'));for(let i=swing.start.index;i<bars.length;i++)if(finite(bars[i].high)&&finite(bars[i].low))out[id][i]=price;}
    return out;},
   warmup:()=>2,work:count=>count*24},
  {id:'adr',name:'Average daily range',acronym:'ADR',overlay:false,inputs:[{key:'length',title:'Length',defval:14,...LENGTH}],plots:[{id:'adr',label:'ADR',color:BLUE,width:1}],

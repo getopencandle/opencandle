@@ -4,7 +4,8 @@
 //  - The indicator drawing slices' `drawLabels(ctx, W, H, xOf, yOf)`: pattern text bubbles are laid out in pixels at paint
 //    time, so they never cover one another or the chart legend at any zoom. A bubble that would overlap moves out from its
 //    bar (above the bar upward, below the bar downward), stacking like a lane; one that would leave the pane or meet the
-//    legend tries the other side of its bar. Nothing is removed and the stored labels are never changed.
+//    legend tries the other side of its bar. Plain counts keep the same clearance from the legend, and a label at the
+//    left or right edge of the pane moves inward so it is drawn whole. Nothing is removed and the stored labels are never changed.
 //  - The chrome's `drawingsRange(set, vr, offset)` (the drawing part of the pane autoscale): an OpenCandle decoration line
 //    contributes only the part of its anchored segment inside the visible bars; its projection (extend right, drawn on to
 //    the edge) never counts. The renderer folds both endpoints of any line that crosses the window, so a ray from an old
@@ -20,6 +21,8 @@ export interface LayoutResult {key:number;py:number;side:'above'|'below';moved:b
 const DECORATION='lv-decoration:';
 /** A pattern marker of an indicator (indicatorDecorationId(instance, 'pattern:marker:N')). */
 export const isPatternMarkerLabel=(id:unknown)=>typeof id==='string'&&id.startsWith(DECORATION)&&id.includes('"pattern:marker:');
+/** A pattern line of an indicator (indicatorDecorationId(instance, 'pattern:line:N')): pivot to pivot. */
+export const isPatternLine=(id:unknown)=>typeof id==='string'&&id.startsWith(DECORATION)&&id.includes('"pattern:line:');
 const POINTER=7,PAD=2;
 
 /** The pixel box of a bubble whose pointer tip is at (px, py): above the bar the box sits over the tip, below it under. */
@@ -61,6 +64,34 @@ export function layoutPatternBubbles(bubbles:readonly LayoutBubble[],paneHeight:
  return out.sort((a,b)=>a.key-b.key);
 }
 
+/** Clear space kept around the legend boxes, so a label never sits flush against legend text. */
+export const LEGEND_GAP=4;
+const EDGE=2;
+/** The x a label of `width` centred on its bar at px is drawn at so it stays whole on a pane `paneWidth` wide: a label at
+ *  either edge moves inward just far enough (it keeps its own bar's price). A bar off the pane is left as it is. */
+export function insetPx(px:number,width:number,paneWidth:number):number{
+ if(!(px>=0&&px<=paneWidth))return px;
+ const min=width/2+EDGE,max=paneWidth-width/2-EDGE;return min>max?paneWidth/2:Math.min(Math.max(px,min),max);
+}
+/**
+ * The centre y of a plain count (Sequential 1-8 text, no bubble) that would touch a blocked box (the legend): it moves out
+ * from its bar past every box it meets, on its own side first, then on the other side of the bar. Null when its natural
+ * place is free, or when neither side has a free place on the pane (it then stays where it is).
+ */
+export function placePlainCount(px:number,width:number,height:number,above:boolean,highY:number,lowY:number,paneHeight:number,blocked:readonly LayoutRect[]):{cy:number;above:boolean}|null{
+ const box=(cy:number):LayoutRect=>({left:px-width/2,right:px+width/2,top:cy-height/2,bottom:cy+height/2});
+ const natural=above?highY-14:lowY+14;if(!blocked.some(rect=>hit(box(natural),rect)))return null;
+ for(const up of [above,!above]){
+  let cy=up?highY-14:lowY+14;
+  for(let guard=0;guard<=blocked.length;guard++){
+   const rect=box(cy),other=blocked.find(row=>hit(rect,row));
+   if(!other){if(rect.top>=0&&rect.bottom<=paneHeight)return {cy,above:up};break;}
+   cy=up?other.top-PAD-1-height/2:other.bottom+PAD+1+height/2;
+  }
+ }
+ return null;
+}
+
 /** The price at pixel y for a monotonic price-to-pixel map (linear or log), by bracketing and bisection. */
 export function priceAtPixel(yOf:(price:number)=>number|null,y:number,near:number):number|null{
  const at=(price:number)=>{const value=yOf(price);return typeof value==='number'&&Number.isFinite(value)?value:null;};
@@ -81,13 +112,33 @@ export function clipLineToWindow(a:number,b:number,y1:number,y2:number,extend:st
 }
 
 /** The drawing set the autoscale reads: each decoration line reduced to the visible part of its anchored segment (the
- *  projection of a ray is not data; a line with no visible anchored part is left out). Other drawings are unchanged. */
+ *  projection of a ray is not data; a line with no visible anchored part is left out); a pattern line (pivot to pivot)
+ *  counts only its anchors on visible bars. A decoration box extended right
+ *  (an open zone) counts the same way: only while its anchored span (left to right) is visible. Other drawings are unchanged. */
 export function scaleDrawingSet(set:Row,lo:number,hi:number,indexOffset:number,logicalOf:(xloc:string,x:number)=>number):Row{
+ const boxes=set?.boxes,open=(box:Row)=>typeof box?.id==='string'&&box.id.startsWith(DECORATION)&&box.extend==='right';
+ if(Array.isArray(boxes)&&boxes.some(open)){
+  const kept:Row[]=[];
+  for(const box of boxes){
+   if(!open(box)){kept.push(box);continue;}
+   const a=logicalOf(box.xloc,box.left),b=logicalOf(box.xloc,box.right);if(!Number.isFinite(a)||!Number.isFinite(b)){kept.push(box);continue;}
+   if(Math.max(a,b)<Math.min(lo,hi)||Math.min(a,b)>Math.max(lo,hi))continue;
+   kept.push({...box,extend:'none'});
+  }
+  set={...set,boxes:kept};
+ }
  const lines=set?.lines;if(!Array.isArray(lines)||!lines.some(line=>typeof line?.id==='string'&&line.id.startsWith(DECORATION)))return set;
  const next:Row[]=[];
  for(const line of lines){
   if(typeof line?.id!=='string'||!line.id.startsWith(DECORATION)||line.invisible){next.push(line);continue;}
   const a=logicalOf(line.xloc,line.x1),b=logicalOf(line.xloc,line.x2);if(!Number.isFinite(a)||!Number.isFinite(b)){next.push(line);continue;}
+  if(isPatternLine(line.id)){
+   // A pivot line (chart patterns, Auto trendlines) counts only its anchors on visible bars: the stretch toward an old,
+   // off-screen pivot never lifts the scale (a descending line from an old high reaches far above the visible bars).
+   const shown=([[a,line.y1],[b,line.y2]] as const).filter(([x])=>x>=Math.min(lo,hi)&&x<=Math.max(lo,hi));if(!shown.length)continue;
+   const first=shown[0],last=shown[shown.length-1];
+   next.push({...line,xloc:'bar_index',x1:first[0]-indexOffset,x2:last[0]-indexOffset,y1:first[1],y2:last[1],extend:'none'});continue;
+  }
   const cut=clipLineToWindow(a,b,line.y1,line.y2,'none',Math.min(lo,hi),Math.max(lo,hi));if(!cut)continue;
   next.push({...line,xloc:'bar_index',x1:cut.x1-indexOffset,x2:cut.x2-indexOffset,y1:cut.y1,y2:cut.y2,extend:'none'});
  }
@@ -101,42 +152,58 @@ function ownMethod(owner:Row,key:string):(this:any,...args:any[])=>any{
 }
 const FONT_PX:Record<string,number>={tiny:10,small:12,normal:14,large:18,huge:28,auto:12};
 
+/** The legend boxes as compared between paints (rounded to whole pixels). */
+const boxesKey=(rows:readonly LayoutRect[])=>rows.map(row=>[row.left,row.top,row.right,row.bottom].map(Math.round).join(',')).join(';');
+/** After a paint that laid out pattern labels, the legend boxes are read again this long after it: the legend rows are DOM
+ *  that mounts and resizes after the canvas paints (a newly added study's row), so a layout made against the old boxes is
+ *  repainted once they settle. */
+export const LEGEND_RECHECK_MS=150;
 /** Installs both seams on a renderer. `blocked()` returns the legend boxes in plot pixels (read once per slice paint; a
- *  throw reads as none). Returns the uninstaller. */
-export function installPatternLabelLayout(renderer:NativeRenderer,blocked:()=>readonly LayoutRect[]=()=>[]):()=>void{
+ *  throw reads as none). `repaint()` asks for a new slice paint when the legend boxes changed after a layout. Returns the
+ *  uninstaller. */
+export function installPatternLabelLayout(renderer:NativeRenderer,blocked:()=>readonly LayoutRect[]=()=>[],repaint?:()=>void):()=>void{
  const host=renderer as unknown as Row,scene=host?.indicatorSlices?.drawScene,chrome=host?.chrome;
  if(!scene||typeof scene!=='object'||!chrome||typeof chrome!=='object')throw Error('The renderer drawing scenes are unavailable');
  if(installed.has(scene))throw Error('The pattern label layout is already installed');
- const originalLabels=ownMethod(scene,'drawLabels'),originalRange=ownMethod(chrome,'drawingsRange');let active=true;
+ const originalLabels=ownMethod(scene,'drawLabels'),originalRange=ownMethod(chrome,'drawingsRange');let active=true,usedKey:string|null=null,recheck:ReturnType<typeof setTimeout>|null=null;
+ const scheduleRecheck=()=>{
+  if(!repaint||recheck!==null)return;
+  recheck=setTimeout(()=>{recheck=null;if(!active||usedKey===null)return;let key:string;try{key=boxesKey(blocked());}catch{key='';}if(key!==usedKey){usedKey=null;try{repaint();}catch{/* the next paint lays out again */}}},LEGEND_RECHECK_MS);
+ };
  const drawLabels=function(this:Row,ctx:CanvasRenderingContext2D,W:number,H:number,xOf:(logical:number)=>number,yOf:(price:number)=>number|null){
   const set=this.set,labels:Row[]|undefined=set?.labels;
   if(!active||!Array.isArray(labels)||!labels.some(label=>isPatternMarkerLabel(label?.id)))return Reflect.apply(originalLabels,this,[ctx,W,H,xOf,yOf]);
   let next:Row[]|null=null;
   try{
-   let rects:readonly LayoutRect[]=[];try{const t=ctx.getTransform(),top=t.a?t.f/t.a:0;rects=blocked().map(row=>({left:row.left,right:row.right,top:row.top-top,bottom:row.bottom-top})).filter(row=>row.bottom>0&&row.top<H);}catch{rects=[];}
-   const bubbles:LayoutBubble[]=[],source=new Map<number,{label:Row;high:number;low:number}>(),flips=new Map<number,Row>();
+   let rects:readonly LayoutRect[]=[];try{const t=ctx.getTransform(),top=t.a?t.f/t.a:0,boxes=blocked();usedKey=boxesKey(boxes);scheduleRecheck();rects=boxes.map(row=>({left:row.left-LEGEND_GAP,right:row.right+LEGEND_GAP,top:row.top-top-LEGEND_GAP,bottom:row.bottom-top+LEGEND_GAP})).filter(row=>row.bottom>0&&row.top<H);}catch{rects=[];}
+   const bubbles:LayoutBubble[]=[],source=new Map<number,{label:Row;high:number;low:number;logical:number;px:number;at:number}>(),plain=new Map<number,Row>();
+   // A label moved sideways (kept whole at a pane edge) is re-anchored at the fractional bar under its new x.
+   const shiftedX=(logical:number,px:number,at:number):Row=>{if(Math.abs(at-px)<0.5)return {};const step=xOf(logical+1)-px;return Number.isFinite(step)&&step!==0?{xloc:'bar_index',x:logical+(at-px)/step-(Number(this.indexOffset)||0)}:{};};
    labels.forEach((label,key)=>{
     if(!isPatternMarkerLabel(label?.id))return;
     const logical=this.logicalOf(label.xloc,label.x),px=xOf(logical);if(!Number.isFinite(px)||px< -50||px>W+50)return;
     const bar=this.deps?.barAt?.(logical);if(!bar)return;const high=yOf(bar.high),low=yOf(bar.low);if(typeof high!=='number'||typeof low!=='number')return;
     if(label.style==='none'&&(label.yloc==='abovebar'||label.yloc==='belowbar')){
-     // A plain count (Sequential 1-8) under the legend reads on the other side of its bar instead (its color keeps its side).
+     // A plain count (Sequential 1-8) kept whole at a pane edge, and moved clear of the legend (outward from its bar, or on
+     // the other side of it; its color keeps its side).
      const fontPx=FONT_PX[label.size]??12,font=this.labelFont(label,fontPx),lines=String(label.text??'').split(String.fromCharCode(10)),width=Math.max(1,...lines.map(line=>this.measure(ctx,font,line))),height=fontPx*1.25*lines.length;
-     const box=(cy:number):LayoutRect=>({left:px-width/2,right:px+width/2,top:cy-height/2,bottom:cy+height/2}),above=label.yloc==='abovebar',here=box(above?high-14:low+14),there=box(above?low+14:high-14);
-     if(rects.some(rect=>hit(here,rect))&&!rects.some(rect=>hit(there,rect))&&there.top>=0&&there.bottom<=H)flips.set(key,{...label,yloc:above?'belowbar':'abovebar'});
+     const at=insetPx(px,width,W),above=label.yloc==='abovebar',place=placePlainCount(at,width,height,above,high,low,H,rects);
+     if(!place&&Math.abs(at-px)<0.5)return;
+     const cy=place?place.cy:above?high-14:low+14,price=priceAtPixel(yOf,cy,(place?place.above:above)?bar.high:bar.low);if(price===null)return;
+     plain.set(key,{...label,...shiftedX(logical,px,at),yloc:'price',y:price});
      return;
     }
     if(label.style!=='label_up'&&label.style!=='label_down')return;
     const side=label.style==='label_down'?'above':'below';
     const py=label.yloc==='price'?yOf(label.y):label.yloc==='abovebar'?high-14:label.yloc==='belowbar'?low+14:null;if(typeof py!=='number'||!Number.isFinite(py))return;
     const fontPx=FONT_PX[label.size]??12,font=this.labelFont(label,fontPx),lines=String(label.text??'').split('\n');
-    const width=Math.max(1,...lines.map(line=>this.measure(ctx,font,line)))+12,height=fontPx*1.25*lines.length+8;
-    bubbles.push({key,px,py,width,height,side,flipPy:side==='above'?low+14:high-14});source.set(key,{label,high:bar.high,low:bar.low});
+    const width=Math.max(1,...lines.map(line=>this.measure(ctx,font,line)))+12,height=fontPx*1.25*lines.length+8,at=insetPx(px,width,W);
+    bubbles.push({key,px:at,py,width,height,side,flipPy:side==='above'?low+14:high-14});source.set(key,{label,high:bar.high,low:bar.low,logical,px,at});
    });
-   const moved=layoutPatternBubbles(bubbles,H,rects).filter(row=>row.moved);
-   if(moved.length||flips.size){
-    next=[...labels];for(const [key,label] of flips)next[key]=label;
-    for(const row of moved){const {label,high,low}=source.get(row.key)!,price=priceAtPixel(yOf,row.py,row.side==='above'?high:low);if(price===null)continue;next[row.key]={...label,yloc:'price',y:price,style:row.side==='above'?'label_down':'label_up'};}
+   const moved=layoutPatternBubbles(bubbles,H,rects).filter(row=>{const from=source.get(row.key)!;return row.moved||Math.abs(from.at-from.px)>=0.5;});
+   if(moved.length||plain.size){
+    next=[...labels];for(const [key,label] of plain)next[key]=label;
+    for(const row of moved){const {label,high,low,logical,px,at}=source.get(row.key)!,price=priceAtPixel(yOf,row.py,row.side==='above'?high:low);if(price===null)continue;next[row.key]={...label,...shiftedX(logical,px,at),yloc:'price',y:price,style:row.side==='above'?'label_down':'label_up'};}
    }
   }catch{next=null;}
   if(!next)return Reflect.apply(originalLabels,this,[ctx,W,H,xOf,yOf]);
@@ -154,7 +221,7 @@ export function installPatternLabelLayout(renderer:NativeRenderer,blocked:()=>re
  Object.defineProperty(scene,'drawLabels',{configurable:true,writable:true,value:drawLabels});
  Object.defineProperty(chrome,'drawingsRange',{configurable:true,writable:true,value:drawingsRange});
  const dispose=()=>{
-  if(!active)return;active=false;installed.delete(scene);
+  if(!active)return;active=false;installed.delete(scene);if(recheck!==null){clearTimeout(recheck);recheck=null;}
   for(const [owner,key,value] of [[scene,'drawLabels',drawLabels],[chrome,'drawingsRange',drawingsRange]] as const){const own=Object.getOwnPropertyDescriptor(owner,key);if(own&&'value' in own&&own.value===value)delete (owner as Row)[key];}
  };
  installed.set(scene,dispose);return dispose;

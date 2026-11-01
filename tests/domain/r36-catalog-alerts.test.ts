@@ -47,7 +47,7 @@ describe('R36 catalog alert sources (SYNTHETIC)',()=>{
     expected.set(technicalSourceKey(source),reference.series.find(row=>row.id===plotId)?.values.at(-1)??null);
    }
   }
-  expect(sources.length).toBe(403);// + 3 kinds, 16 plots. + 10 Kinds, 28 plots. + CCI-based MA and its two Bollinger bands; every plot of the 178 alertable catalog kinds (+ 10 kinds, 38 plots; + 10 Kinds, 13 plots; + 7 Kinds, 11 plots; + 14 Kinds, 40 plots; + Periodic, Session and Auto anchored volume profile; + Correlation coefficient, Relative strength and Spread, unavailable here: no second series is supplied, as no loader is installed for the chart calculation; + 6 One-plot chart patterns)
+  expect(sources.length).toBe(490);// + 12 kinds, 87 plots.// + 3 kinds, 16 plots. + 10 Kinds, 28 plots. + CCI-based MA and its two Bollinger bands; every plot of the 178 alertable catalog kinds (+ 10 kinds, 38 plots; + 10 Kinds, 13 plots; + 7 Kinds, 11 plots; + 14 Kinds, 40 plots; + Periodic, Session and Auto anchored volume profile; + Correlation coefficient, Relative strength and Spread, unavailable here: no second series is supplied, as no loader is installed for the chart calculation; + 6 One-plot chart patterns)
   // More sources than one evaluation's 256-expression limit, so they are evaluated in chunks of 128.
   const results=new Map<string,{sample:{value:number|null}}>();
   for(let at=0;at<sources.length;at+=128){const batch=await evaluateTechnicalAlertSources(bars,sources.slice(at,at+128),'USD',facts);for(const [key,value] of batch.results)results.set(key,value as never);}

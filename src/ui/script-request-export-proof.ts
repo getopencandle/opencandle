@@ -2,7 +2,7 @@ import {rawLiveSessionSource} from '../domain/live-session-source';
 import type {Bar,BarDataset} from '../domain/types';
 import type {ScriptRequestBase,ScriptRequestDeclaration,ScriptRequestRow,ScriptRequestSeries,ResolvedScriptRequests} from './script-requests';
 import {sourceContextForDataset,validateChartSourceBasisIdentity,type ChartSourceContext} from '../chart/source-context';
-import {isLiveDatasetId,isLicensedLiveProviderId,LIVE_EXPORT_NOTICE} from '../domain/live-provider';
+import {isLiveDatasetId,isLicensedLiveProviderId} from '../domain/live-provider';
 
 /** Renderer-only authority; copying a visible object never copies its private association. */
 export interface ScriptRequestOrigin {readonly opaque?:never}
@@ -71,9 +71,11 @@ export function bindScriptRequestJobReceipt(result:object,receipt:ScriptRequestE
 }
 export function claimScriptRequestJobReceipt(result:object,token:ScriptRequestJobReceipt|null|undefined):ScriptRequestJobReceipt|null{return token&&jobs.has(token)&&responses.get(result)===token?token:null;}
 function sameBars(left:readonly Bar[],right:readonly Bar[]):void{if(left.length!==right.length||left.length>5000)throw unavailable();for(let index=0;index<left.length;index++)for(const key of ['time','open','high','low','close','volume']){const a=own(own(left,String(index)),key),b=own(own(right,String(index)),key);if(typeof a!=='number'||typeof b!=='number'||!Object.is(a,b))throw unavailable();}}
-/** Export reads retained receipt facts and consumed rows only. Never consults any current resolver or loader. */
-export function assertScriptRequestJobExport(token:ScriptRequestJobReceipt|null,context:{source:string;inputs:unknown;identity:string;bars:readonly Bar[];primary:ChartSourceContext},declarations:unknown):void{
+/** Export reads retained receipt facts and consumed rows only. Never consults any current resolver or loader. True when the
+ * consumed rows came from live, FRED or licensed data, so the saved file states the provider terms. */
+export function assertScriptRequestJobExport(token:ScriptRequestJobReceipt|null,context:{source:string;inputs:unknown;identity:string;bars:readonly Bar[];primary:ChartSourceContext},declarations:unknown):boolean{
  const job=token&&jobs.get(token),receipt=job&&receipts.get(job.receipt);if(!job||!receipt||job.source!==context.source||job.inputs!==inputKey(context.inputs)||job.identity!==context.identity||declarationKey(declarations)!==receipt.declarations)throw unavailable();
  const base=receipt.base,source=context.primary;if(base.datasetId!==source.datasetId||base.resolution!==source.resolution||base.sessionOverride!==source.sessionOverride||base.source&&(['datasetId','revision','label','fixture','resolution','basisIdentity','sessionOverride'] as const).some(key=>base.source![key]!==source[key]))throw unavailable();sameBars(job.bars,context.bars);assertReceiptRows(receipt);
- if(receipt.permission==='live')throw Error(LIVE_EXPORT_NOTICE);if(receipt.permission!=='allowed')throw unavailable();
+ // Live requested rows export for personal analysis like the live chart source; unknown provenance stays refused.
+ if(receipt.permission!=='allowed'&&receipt.permission!=='live')throw unavailable();return receipt.permission==='live';
 }

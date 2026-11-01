@@ -17,6 +17,9 @@ import {TRADING_SESSION_IDS,TRADING_SESSION_DEFINITIONS,type TradingSessionId} f
 import type {TradingSessionRecord} from './indicators-ext/trading-sessions';
 import {AUTO_TRENDLINES_DEFINITION,AUTO_TRENDLINES_ID} from './indicators-ext/auto-trendlines-catalog';
 import {AUTO_ELLIOTT_DEFINITION,AUTO_ELLIOTT_ID} from './indicators-ext/auto-elliott-waves';
+import {SIGNALS_INDICATORS,SIGNALS_INDICATOR_IDS,type SignalsIndicatorId} from './indicators-ext/signals-catalog';
+import {VWAP_SESSION_INDICATORS,VWAP_SESSION_INDICATOR_IDS,type VwapSessionIndicatorId} from './indicators-ext/vwap-session-catalog';
+import {STRUCTURE_INDICATORS,STRUCTURE_INDICATOR_IDS,type StructureIndicatorId} from './indicators-ext/structure-catalog';
 import type {SecondSeries} from './second-symbol';
 import type {FinerBarsLookup,LowerTimeframeBars,VolumeProfile} from './volume-profile';
 
@@ -50,8 +53,14 @@ export {INDGAPS2_INDICATOR_IDS};
 export {INDGAPS3_INDICATOR_IDS};
 /** Pattern built-ins (src/domain/indicators-ext/patterns-catalog.ts): the Patterns tab chart and candlestick patterns. */
 export {PATTERN_INDICATOR_IDS};
-export type CatalogIndicatorId=typeof CATALOG_INDICATOR_IDS[number]|R23IndicatorId|VpIndicatorId|R27IndicatorId|R28IndicatorId|R29IndicatorId|PatternIndicatorId|R40IndicatorId|R40VolumeIndicatorId|Ind1028IndicatorId|Ind1030IndicatorId|IndGapsIndicatorId|IndGaps2IndicatorId|IndGaps3IndicatorId|TradingSessionId|SeasonalityId|typeof AUTO_TRENDLINES_ID|typeof AUTO_ELLIOTT_ID;
-export const ALL_CATALOG_INDICATOR_IDS:readonly CatalogIndicatorId[]=Object.freeze([...CATALOG_INDICATOR_IDS,...R23_INDICATOR_IDS,...VP_INDICATOR_IDS,...R27_INDICATOR_IDS,...R28_INDICATOR_IDS,...R29_INDICATOR_IDS,...PATTERN_INDICATOR_IDS,...R40_INDICATOR_IDS,...R40_VOLUME_INDICATOR_IDS,...IND1028_INDICATOR_IDS,...IND1030_INDICATOR_IDS,...INDGAPS_INDICATOR_IDS,...INDGAPS2_INDICATOR_IDS,...INDGAPS3_INDICATOR_IDS,...TRADING_SESSION_IDS,...SEASONALITY_IDS,AUTO_TRENDLINES_ID,AUTO_ELLIOTT_ID]);
+/** Signal built-ins (src/domain/indicators-ext/signals-catalog.ts): Bollinger Bands breach, DI cross signals, MACD divergence, RSI failure swings. */
+export {SIGNALS_INDICATOR_IDS};
+/** Built-ins (src/domain/indicators-ext/vwap-session-catalog.ts): Anchored VWAP, Session VWAPs, Opening range breakout, Relative volume. */
+export {VWAP_SESSION_INDICATOR_IDS};
+/** Market structure built-ins (src/domain/indicators-ext/structure-catalog.ts): Support and resistance zones, Adaptive trend channel, Auto fib multi-scale, Auto fib range volume profile. */
+export {STRUCTURE_INDICATOR_IDS};
+export type CatalogIndicatorId=typeof CATALOG_INDICATOR_IDS[number]|R23IndicatorId|VpIndicatorId|R27IndicatorId|R28IndicatorId|R29IndicatorId|PatternIndicatorId|R40IndicatorId|R40VolumeIndicatorId|Ind1028IndicatorId|Ind1030IndicatorId|IndGapsIndicatorId|IndGaps2IndicatorId|IndGaps3IndicatorId|TradingSessionId|SeasonalityId|typeof AUTO_TRENDLINES_ID|typeof AUTO_ELLIOTT_ID|SignalsIndicatorId|VwapSessionIndicatorId|StructureIndicatorId;
+export const ALL_CATALOG_INDICATOR_IDS:readonly CatalogIndicatorId[]=Object.freeze([...CATALOG_INDICATOR_IDS,...R23_INDICATOR_IDS,...VP_INDICATOR_IDS,...R27_INDICATOR_IDS,...R28_INDICATOR_IDS,...R29_INDICATOR_IDS,...PATTERN_INDICATOR_IDS,...R40_INDICATOR_IDS,...R40_VOLUME_INDICATOR_IDS,...IND1028_INDICATOR_IDS,...IND1030_INDICATOR_IDS,...INDGAPS_INDICATOR_IDS,...INDGAPS2_INDICATOR_IDS,...INDGAPS3_INDICATOR_IDS,...TRADING_SESSION_IDS,...SEASONALITY_IDS,AUTO_TRENDLINES_ID,AUTO_ELLIOTT_ID,...SIGNALS_INDICATOR_IDS,...VWAP_SESSION_INDICATOR_IDS,...STRUCTURE_INDICATOR_IDS]);
 /**
  * min/max absent = unbounded (fact "Number.MAX_VALUE"). storedMin/storedMax are the wider pre-INDFIX LV bounds that
  * saved workspaces, templates and alerts may still hold: stored state within them loads, edits use min/max.
@@ -64,7 +73,10 @@ export interface CatalogInput {key:string;title:string;type:'int'|'float'|'bool'
 export interface CatalogRetiredInput extends CatalogInput {replacedBy?:string}
 /** color/width: default plot style. */
 /** visible: default plot visibility (absent = shown). */
-export interface CatalogPlot {id:string;label:string;kind?:'line'|'histogram'|'cross';color?:string;width?:number;visible?:boolean}
+export interface CatalogPlot {id:string;label:string;kind?:'line'|'histogram'|'cross';color?:string;width?:number;visible?:boolean;
+ /** Fixed decimals of this plot's legend, data window and table text under automatic instance precision (a count or a
+  *  ratio on a price overlay); absent = the kind's automatic rule. */
+ precision?:number}
 export interface CatalogToolkit {
  sma(values:readonly (number|null)[],period:number):NumericSeries;ema(values:readonly (number|null)[],period:number):NumericSeries;
  /** EMA seeded by the SMA of its first period finite values (the reference EMA). */
@@ -138,6 +150,9 @@ export interface CatalogDefinition {
   *  Any marker kind sets it (the Patterns tab itself lists PATTERN_INDICATOR_IDS only); its marks may also carry
   *  shaped markers, boxes and candles. */
  pattern?:'candlestick'|'chart';
+ /** Plots of a marker (pattern) kind that are still drawn as lines, with legend values (signal kinds over bands or an
+  *  oscillator); the kind's other plots stay 0/1 signals drawn as markers. */
+ linePlots?:readonly string[];
  /** Plots a segmented kind draws as continuous lines (broken only where a profile starts). */
  continuousPlots?:readonly string[];
  /** Per-bar colors of one plot (chart display only). `state` maps the calculated plot values (on the
@@ -352,6 +367,9 @@ export const CATALOG_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
  ...PATTERN_INDICATORS,
  ...R40_INDICATORS,...R40_VOLUME_INDICATORS,...IND1028_INDICATORS,...IND1030_INDICATORS,...INDGAPS_INDICATORS,...INDGAPS2_INDICATORS,...INDGAPS3_INDICATORS,...TRADING_SESSION_DEFINITIONS,...SEASONALITY_DEFINITIONS,
  AUTO_TRENDLINES_DEFINITION,AUTO_ELLIOTT_DEFINITION,
+ ...SIGNALS_INDICATORS,
+ ...VWAP_SESSION_INDICATORS,
+ ...STRUCTURE_INDICATORS,
 ] as CatalogDefinition[]);
 /** An id index over the frozen catalog (the first row of an id wins, as find() did). The indicator port's source assertion
  * calls this many times per calculation; the linear find cost about 4 ms per symbol switch with three indicators. */

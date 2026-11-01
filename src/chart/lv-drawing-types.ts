@@ -22,6 +22,7 @@ import {LV_DATE_RANGE,LV_PRICE_RANGE} from './lv-types/measure-ranges';
 import {DRAWING_FIXES_081_LATE_MODULE,DRAWING_FIXES_081_MODULE} from './drawing-fixes/native-fixes';
 import {ELLIOTT_ORIGIN_081_MODULE} from './drawing-fixes/elliott-origin';
 import {applyContrastDefaults} from './drawing-fixes/contrast-defaults';
+import {applySeriesCoverPatterns} from './drawing-fixes/series-cover';
 
 export {LV_SHORT_POSITION,LV_PRICE_RANGE,LV_DATE_RANGE};
 export const LV_DRAWING_TYPE_IDS:readonly string[]=Object.freeze(LV_DRAWING_TOOL_MODULES.flatMap(module=>(module.types??[]).map(definition=>definition.type)));
@@ -69,6 +70,8 @@ registerFixes(ELLIOTT_ORIGIN_081_MODULE);
 registerFixes(DRAWING_FIXES_081_LATE_MODULE);
 /** Types whose pale default colour was replaced for contrast on light charts (drawing-fixes/contrast-defaults.ts). */
 export const CONTRAST_DEFAULT_TYPES:readonly string[]=Object.freeze(applyContrastDefaults());
+/** Harmonic pattern types that start above the price series (drawing-fixes/series-cover.ts). */
+export const SERIES_COVER_TYPES:readonly string[]=Object.freeze(applySeriesCoverPatterns());
 /** Registration outcome of each 0.8.1 drawing fix (replaced native types), for diagnostics and tests. */
 export function drawingFixStatus():readonly LvDrawingTypeStatus[]{return Object.freeze([...fixStatuses]);}
 

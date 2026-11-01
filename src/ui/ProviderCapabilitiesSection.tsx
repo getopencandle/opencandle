@@ -36,7 +36,7 @@ export function ProviderCapabilitiesSection({records=PROVIDER_REGISTRY}:Provider
     <dt>Price basis</dt><dd style={DD}>{plainList(c.adjustmentBases)}</dd>
     <dt>Limits</dt><dd style={DD}>{plainSourceText(c.limits.join('; '))}</dd>
     <dt>Access</dt><dd style={DD}>{plainSourceText(row.entitlement)}</dd>
-    <dt>Export</dt><dd style={DD}>{c.redistributable===false?'Display only; bars cannot be exported or shared':c.redistributable===true?'May be exported (labelled as demo data where it is)':'Depends on the rights of the source'}</dd>
+    <dt>Export</dt><dd style={DD}>{c.redistributable===false?'May be saved for your own analysis; the provider terms apply (no sharing or reselling)':c.redistributable===true?'May be exported (labelled as demo data where it is)':'Depends on the rights of the source'}</dd>
     <dt>Validation</dt><dd style={DD}>{providerValidationLabel(row)}</dd>
    </dl>
   </details>;})}

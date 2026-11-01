@@ -1779,6 +1779,90 @@
    "cases": [],
    "timing": "2a-2f",
    "reason": "Chart pattern signal (0/1 markers): OpenCandle-defined shape rules, no outside numeric reference; timing guardrails only."
+  },
+  {
+   "id": "bbbreach",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Bollinger Bands 20/2 on the close (Bollinger 2001); bands checked against the Bollinger Bands built-in and breach/re-entry marks hand-checked in tests/domain/signals-indicators.test.ts"
+  },
+  {
+   "id": "dicross",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Wilder DMI 14 (1978) +DI/-DI checked against the Directional Movement Index built-in; crosses, ADX filter and extreme point rule hand-checked in tests/domain/signals-indicators.test.ts"
+  },
+  {
+   "id": "macddiv",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Appel MACD 12/26/9 checked against the MACD built-in; divergences use the RSI divergence pivot engine, hand-checked in tests/domain/signals-indicators.test.ts"
+  },
+  {
+   "id": "rsifs",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Wilder RSI 14 failure swings (1978) hand-checked in tests/domain/signals-indicators.test.ts"
+  },
+  {
+   "id": "avwap",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Anchored VWAP (Berkowitz, Logue and Noser 1988; Shannon 2023) from a blank anchor equals the VWAP built-in sums; anchor bar, bands and missing volume hand-checked in tests/domain/vwap-session-indicators.test.ts"
+  },
+  {
+   "id": "sessionvwap",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Session VWAPs on the Trading sessions windows (Tokyo, London, New York) hand-checked across the 2024-11-03 New York DST change in tests/domain/vwap-session-indicators.test.ts; intraday only (2a on the intraday series)"
+  },
+  {
+   "id": "orb",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Crabel opening range (1990): range, lines after the range completes, targets and first-close breakouts hand-checked in tests/domain/vwap-session-indicators.test.ts; intraday only (2a on the intraday series)"
+  },
+  {
+   "id": "relvolume",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "RVOL = volume / SMA(volume, 20), threshold 2 (OpenCandle-defined, common practice), missing volume gaps hand-checked in tests/domain/vwap-session-indicators.test.ts"
+  },
+  {
+   "id": "srzones",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Edwards and Magee support and resistance; OpenCandle-defined pivot zones (tests/domain/structure-indicators.test.ts)"
+  },
+  {
+   "id": "adaptivechannel",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Least squares log-linear fit, largest |Pearson r| length (tests/domain/structure-indicators.test.ts)"
+  },
+  {
+   "id": "autofibmulti",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Fibonacci retracement of the lookback high-low swing (tests/domain/structure-indicators.test.ts)"
+  },
+  {
+   "id": "autofibvp",
+   "status": "hand-tested",
+   "cases": [],
+   "timing": "2a-2f",
+   "source": "Volume profile from the auto fib swing start (tests/domain/structure-indicators.test.ts)"
   }
  ]
 }

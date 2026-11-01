@@ -1,4 +1,4 @@
-import {describe,expect,it} from 'vitest';
+import {describe,expect,it,vi} from 'vitest';
 import {volumeDeltaCandleSeries} from '../../src/chart/volume-delta-presentation';
 import type {IndicatorResult} from '../../src/domain/indicators';
 import type {Bar} from '../../src/domain/types';
@@ -123,7 +123,17 @@ describe('Pivot points standard names its levels and keeps far levels off by def
 });
 
 import {patternMarksNative} from '../../src/chart/indicator-presentation';
-import {bubbleRect,clipLineToWindow,layoutPatternBubbles,priceAtPixel,scaleDrawingSet,type LayoutBubble} from '../../src/chart/indicator-pattern-layout';
+import {bubbleRect,clipLineToWindow,insetPx,installPatternLabelLayout,layoutPatternBubbles,LEGEND_GAP,LEGEND_RECHECK_MS,placePlainCount,priceAtPixel,scaleDrawingSet,type LayoutBubble} from '../../src/chart/indicator-pattern-layout';
+import {readFileSync,writeFileSync,mkdirSync,unlinkSync} from 'node:fs';
+import {pathToFileURL} from 'node:url';
+import {resolve,dirname} from 'node:path';
+import {randomUUID} from 'node:crypto';
+/** The installed (patched) renderer's drawing scene, whose priceRange is the drawing part of the pane autoscale. */
+async function renderedScene():Promise<any>{
+ const path=resolve('node_modules/@luxalgo/vela/dist/chunk-UNUVPQFW.js'),temporary=resolve('.cache',`lv-pattern-scale-${randomUUID()}.mjs`);mkdirSync(dirname(temporary),{recursive:true});
+ try{writeFileSync(temporary,readFileSync(path,'utf8').replace(/(from\s+['"])(\.\/[^'"]+)(['"])/g,(_all,before,relative,after)=>before+pathToFileURL(resolve(dirname(path),relative)).href+after)+'\nexport { DrawingSceneRenderer as LVScene };\n');return await import(/* @vite-ignore */ pathToFileURL(temporary).href);}
+ finally{try{unlinkSync(temporary);}catch{/* already gone */}}
+}
 describe('pattern labels do not pile up',()=>{
  const NL=String.fromCharCode(10);
  const bars:Bar[]=Array.from({length:30},(_,i)=>({time:1700000000+i*86400,open:10,high:11,low:9,close:10,volume:1}));
@@ -161,7 +171,84 @@ describe('pattern labels do not pile up',()=>{
   // The autoscale reads only the visible part of the anchored segment: a ray whose pivots are off screen adds nothing, and
   // its projection never counts; other (script) drawings are untouched.
   expect(scaleDrawingSet(set,50,60,0,(_xloc,x)=>x).lines).toEqual([set.lines[1]]);
-  const shown=scaleDrawingSet(set,5,60,0,(_xloc,x)=>x);expect(shown.lines[0]).toMatchObject({x1:5,x2:10,y1:95,y2:90,extend:'none'});expect(shown.lines[1]).toBe(set.lines[1]);
+  // A pattern line counts only its pivots on visible bars (0.8.2): with bar 0 off screen only the bar 10 pivot (90) counts,
+  // not the stretch rising toward the old pivot.
+  const shown=scaleDrawingSet(set,5,60,0,(_xloc,x)=>x);expect(shown.lines[0]).toMatchObject({x1:10,x2:10,y1:90,y2:90,extend:'none'});expect(shown.lines[1]).toBe(set.lines[1]);
+  expect(scaleDrawingSet(set,0,60,0,(_xloc,x)=>x).lines[0]).toMatchObject({x1:0,x2:10,y1:100,y2:90});
+  // Other decoration lines (levels, divergence lines) still count the visible part of their segment.
+  const level={lines:[{id:'lv-decoration:["a","divergence:line:0"]',xloc:'bar_index',x1:0,x2:10,y1:100,y2:90,extend:'none',invisible:false}],labels:[]};
+  expect(scaleDrawingSet(level,5,60,0,(_xloc,x)=>x).lines[0]).toMatchObject({x1:5,x2:10,y1:95,y2:90});
+ });
+ it('left and right edge labels move inward whole; a bar off the pane is left as it is',()=>{
+  expect(insetPx(3,30,800)).toBe(17);expect(insetPx(798,30,800)).toBe(783);expect(insetPx(400,30,800)).toBe(400);
+  expect(insetPx(-10,30,800)).toBe(-10);expect(insetPx(810,30,800)).toBe(810);
+ });
+ it('plain counts keep clear of the legend: outward first, then the other side of the bar, never off the pane',()=>{
+  const legend={left:0,top:0,right:200,bottom:60};
+  // Free natural place: unchanged.
+  expect(placePlainCount(300,8,12,true,100,140,400,[legend])).toBeNull();
+  // Above a bar whose high is under the legend: no room above (the pane top), so below the bar.
+  const below=placePlainCount(50,8,12,true,40,70,400,[legend])!;expect(below.above).toBe(false);expect(below.cy-6).toBeGreaterThanOrEqual(legend.bottom);
+  // A bar wholly inside the legend band: the count moves down past the legend, clear of it.
+  const past=placePlainCount(50,8,12,false,20,45,400,[legend])!;expect(past.above).toBe(false);expect(past.cy-6).toBeGreaterThan(legend.bottom+LEGEND_GAP/2);
+  // A count under a legend box low on the pane moves up past it on its own side.
+  const up=placePlainCount(50,8,12,true,300,340,400,[{left:0,top:270,right:200,bottom:295}])!;expect(up.above).toBe(true);expect(up.cy+6).toBeLessThan(270);
+ });
+ it('Sequential counts painted by the installed renderer: whole at the left edge, clear of the legend, scale unchanged',async()=>{
+  const {LVScene}=await renderedScene();
+  const rows=Array.from({length:40},(_,i)=>({high:i<3?96:60,low:i<3?90:50}));// bars 0-2 reach up under the legend
+  const scene=new LVScene({timeToLogical:(ms:number)=>ms,barAt:(at:number)=>rows[Math.round(at)]??null,theme:{textColor:'#fff',fontFamily:'sans-serif'}});
+  const chrome=Object.assign(Object.create({drawingsRange(){return null;}}),{drawScene:scene});
+  const legend={left:0,top:0,right:300,bottom:40};
+  const dispose=installPatternLabelLayout({indicatorSlices:{drawScene:scene},chrome} as never,()=>[legend]);
+  try{
+   const id=(n:number)=>`lv-decoration:${JSON.stringify(['seq','pattern:marker:'+n])}`;
+   const labels=[
+    {id:id(0),xloc:'bar_time',x:0,yloc:'abovebar',text:'7',style:'none',size:'tiny',color:'#f00',textColor:'#f00',textAlign:'center'},
+    {id:id(1),xloc:'bar_time',x:20,yloc:'belowbar',text:'4',style:'none',size:'tiny',color:'#0f0',textColor:'#0f0',textAlign:'center'},
+    {id:id(2),xloc:'bar_time',x:0,yloc:'belowbar',text:'9▲',style:'label_up',size:'small',color:'#0f0',textColor:'#fff',textAlign:'center'},
+   ];
+   const set={lines:[],boxes:[],labels,polylines:[],linefills:[]};scene.setSet(set,0);
+   const texts:{text:string;x:number;y:number}[]=[];
+   const ctx=new Proxy({font:'10px sans-serif',textAlign:'center',measureText:(t:string)=>({width:String(t).length*6}),getTransform:()=>({a:1,f:0}),fillText:(text:string,x:number,y:number)=>texts.push({text,x,y})} as Record<string,any>,{get:(target,key)=>typeof key==="string"&&key in target?target[key]:()=>{},set:(target,key,value)=>{target[key as string]=value;return true;}});
+   const xOf=(logical:number)=>2+logical*10,yOf=(price:number)=>400-price*4;// 400 px pane, price 100 at the top
+   scene.render(ctx,600,400,xOf,yOf);
+   const seven=texts.find(row=>row.text==='7')!,nine=texts.find(row=>row.text==='9▲')!,four=texts.find(row=>row.text==='4')!;
+   // The bar 0 count is drawn whole (its center at least half its width from the left edge) and clear of the legend.
+   expect(seven.x).toBeGreaterThanOrEqual(3);expect(seven.y-6).toBeGreaterThanOrEqual(legend.bottom);
+   expect(nine.x-(2*6+12)/2).toBeGreaterThanOrEqual(0);
+   // A count away from the edge and the legend stays at its bar.
+   expect(four.x).toBe(xOf(20));expect(four.y).toBeCloseTo(yOf(50)+14,6);
+   // The stored labels are untouched (the autoscale reads them, not the painted places).
+   expect(scene.set.labels).toBe(labels);expect(labels[0]).toMatchObject({xloc:'bar_time',x:0,yloc:'abovebar'});
+  }finally{dispose();}
+  // A legend row that mounts after the paint (a newly added study) asks for one repaint; unchanged boxes ask for none.
+  vi.useFakeTimers();
+  try{
+   let boxes=[legend],repaints=0;const again=installPatternLabelLayout({indicatorSlices:{drawScene:scene},chrome} as never,()=>boxes,()=>{repaints++;});
+   const ctx=new Proxy({measureText:(t:string)=>({width:String(t).length*6}),getTransform:()=>({a:1,f:0})} as Record<string,any>,{get:(target,key)=>typeof key==='string'&&key in target?target[key]:()=>{},set:(target,key,value)=>{target[key as string]=value;return true;}});
+   const paint=()=>scene.render(ctx,600,400,(l:number)=>2+l*10,(p:number)=>400-p*4);
+   try{
+    paint();vi.advanceTimersByTime(LEGEND_RECHECK_MS);expect(repaints).toBe(0);
+    paint();boxes=[legend,{left:0,top:40,right:240,bottom:62}];vi.advanceTimersByTime(LEGEND_RECHECK_MS);expect(repaints).toBe(1);
+    paint();vi.advanceTimersByTime(LEGEND_RECHECK_MS);expect(repaints).toBe(1);
+   }finally{again();}
+  }finally{vi.useRealTimers();}
+ });
+ it('Auto trendlines on the example data: off-screen pivots never lift the scale above the visible bars',async()=>{
+  const {LVScene}=await renderedScene();
+  const bars=demoDataset('GME').bars,settings=full('autotrendlines'),result=calculateIndicator('autotrendlines',bars,settings.inputs,{resolution:'1D'});
+  const out=renderIndicatorPresentation(settings as never,result,bars,{resolution:'1D'}).output as {lines?:unknown[];labels?:unknown[]};
+  expect(out.lines?.length).toBeGreaterThan(0);
+  const index=new Map(bars.map((row,i)=>[row.time*1000,i])),scene=new LVScene({timeToLogical:(ms:number)=>index.get(ms)??NaN,barAt:(at:number)=>bars[Math.round(at)]??null,theme:{}});
+  const set={lines:out.lines??[],boxes:[],labels:out.labels??[],polylines:[],linefills:[]};
+  for(const width of [60,120,250]){
+   const hi=bars.length+4,lo=bars.length-width;let top=-Infinity,bottom=Infinity;for(let i=lo;i<bars.length;i++){top=Math.max(top,bars[i].high);bottom=Math.min(bottom,bars[i].low);}
+   scene.setSet(scaleDrawingSet(set,lo,hi,0,(xloc,x)=>scene.logicalOf(xloc,x)),0);const range=scene.priceRange(lo,hi);
+   if(range){expect(range.max,String(width)).toBeLessThanOrEqual(top);expect(range.min,String(width)).toBeGreaterThanOrEqual(bottom);}
+   // Unfiltered, the renderer folds both pivots of every line crossing the window: the old pivots lift the top.
+   scene.setSet(set,0);expect(scene.priceRange(lo,hi).max).toBeGreaterThan(top);
+  }
  });
 });
 

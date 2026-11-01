@@ -11,7 +11,7 @@ import {scriptStudyFingerprint} from './cell-study-intents';
 import {scriptLegendValueParts,sameScriptLegendContext,type ScriptLegendPosition,type ScriptLegendContext} from './script-legend-readout';
 import {DATA_WINDOW_EMPTY} from './data-window-model';
 import {scriptPanePlacements,sameScriptPanePlacements,type ScriptLegendOwnedRow} from './active-study-pane-rows';
-import {scriptLegendButtons,useScriptLegendInputs} from './script-legend-inputs';
+import {scriptInputValueText,scriptLegendButtons,useScriptLegendInputs} from './script-legend-inputs';
 import {scriptPriceScaleControlsForSettings} from './script-price-scale-controls';
 import {scriptOutputs,type ScriptOutputEntry} from './script-outputs';
 import {applyScriptSettings,parseScriptInputText,scriptInputTimeText,scriptInputDraft,scriptInputProblems,scriptInputsToSave,type ScriptInputDraft,type ScriptSettingsInputDeclaration} from './script-settings-model';
@@ -43,7 +43,7 @@ export function ScriptSettingsDialog({binding,entry,priceScaleSupported=false,re
  const field=(row:typeof declarations[number])=>{
   const value=draft[row.id],change=(next:ScriptInputDraft[string])=>{setDraft(current=>({...current,[row.id]:next}));setMessage('');};
   if(row.type==='bool')return <input aria-label={row.title} type="checkbox" checked={value===true} onChange={event=>change(event.target.checked)}/>;
-  if(row.options)return <select aria-label={row.title} value={String(value)} onChange={event=>change(event.target.value)}>{row.options.map(option=><option key={option} value={option}>{option}</option>)}</select>;
+  if(row.options)return <select aria-label={row.title} value={String(value)} onChange={event=>change(event.target.value)}>{row.options.map(option=><option key={option} value={option}>{scriptInputValueText(option)}</option>)}</select>;
   if(row.type==='color')return <span className="script-color-input"><input aria-label={row.title+' swatch'} type="color" value={typeof value==='string'&&/^#[0-9a-fA-F]{6}/.test(value)?value.slice(0,7):'#000000'} onChange={event=>change(event.target.value+(typeof value==='string'&&value.length===9?value.slice(7):''))}/><input aria-label={row.title} type="text" maxLength={9} value={String(value)} onChange={event=>change(event.target.value)}/></span>;
   if(row.type==='time')return <span><input aria-label={row.title+' (UTC)'} type="datetime-local" min={scriptInputTimeText(row.min??0)} max={scriptInputTimeText(row.max??253402300799)} step={row.step??1} value={Object.hasOwn(text,row.id)?text[row.id]:scriptInputTimeText(value)} onChange={event=>{setText(current=>({...current,[row.id]:event.target.value}));change(parseScriptInputText(row,event.target.value));}}/><small>UTC</small></span>;
   const numeric=row.type==='int'||row.type==='float'||row.type==='price';

@@ -9,7 +9,7 @@ import {createInitialWorkspace} from '../../src/ui/workspace-state';
 import {prepareWorkspaceJSON} from '../../src/ui/workspace-json';
 import {prepareWorkspaceData,prepareWorkspaceReplacement} from '../../src/ui/workspace-transfer';
 import {captureCompoundWorkspaceSave,assertCompoundWorkspaceShareable,prepareCompoundWorkspaceAdoption} from '../../src/ui/compound-workspace-storage';
-import {LIVE_EXPORT_NOTICE} from '../../src/domain/live-provider';
+import {COMPOUND_SHARE_NOTICE} from '../../src/ui/compound-alert-document';
 import type {CompoundChartInputPort} from '../../src/ui/compound-alert-observer';
 
 const require=createRequire(import.meta.url),{saveInput}=require(resolve(process.cwd(),'electron/validation.cjs'));
@@ -52,13 +52,13 @@ it('tracks compound-only changes and omits a removed collection from the next pr
 
 it('refuses portable workspace sharing for actual private alert state even without any trigger history',()=>{
  const {book,definition}=fixture();expect(book.prepareCreate(definition,delivery).commit()).toBe(true);
- expect(()=>assertCompoundWorkspaceShareable(book)).toThrow(LIVE_EXPORT_NOTICE);expect(book.entry(definition.id)?.state.history).toBeNull();
+ expect(()=>assertCompoundWorkspaceShareable(book)).toThrow(COMPOUND_SHARE_NOTICE);expect(book.entry(definition.id)?.state.history).toBeNull();
 });
 
 it('refuses even malformed or accessor-backed recoverable private data before touching that field',()=>{
  const {book}=fixture(),getter=vi.fn(()=>{throw Error('Export must not encode this field.');}),raw=Object.defineProperty({},'compoundAlerts',{enumerable:true,get:getter});
- for(const compoundAlerts of [null,{},[],{kind:'unknown'},undefined])expect(()=>assertCompoundWorkspaceShareable(book,{compoundAlerts})).toThrow(LIVE_EXPORT_NOTICE);
- expect(()=>assertCompoundWorkspaceShareable(book,raw)).toThrow(LIVE_EXPORT_NOTICE);expect(getter).not.toHaveBeenCalled();expect(()=>assertCompoundWorkspaceShareable(book,{symbol:'GME'})).not.toThrow();
+ for(const compoundAlerts of [null,{},[],{kind:'unknown'},undefined])expect(()=>assertCompoundWorkspaceShareable(book,{compoundAlerts})).toThrow(COMPOUND_SHARE_NOTICE);
+ expect(()=>assertCompoundWorkspaceShareable(book,raw)).toThrow(COMPOUND_SHARE_NOTICE);expect(getter).not.toHaveBeenCalled();expect(()=>assertCompoundWorkspaceShareable(book,{symbol:'GME'})).not.toThrow();
 });
 
 it('rejects malformed private ingress before workspace replacement and preserves the current running book',()=>{

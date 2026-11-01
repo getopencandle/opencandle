@@ -14,7 +14,7 @@ export const VP_INDICATOR_IDS=['vrvp','pvp','svp','svphd','aavp'] as const;
 export type VpIndicatorId=typeof VP_INDICATOR_IDS[number];
 /** The profile kinds an alert can recalculate (they do not follow the visible range). */
 /** The kinds whose chart shows a notice when some profile bars had no finer bars (profileDetailNotice). */
-export const VP_DETAIL_NOTICE_IDS:readonly VpIndicatorId[]=Object.freeze(['svp','svphd','aavp']);
+export const VP_DETAIL_NOTICE_IDS:readonly string[]=Object.freeze(['svp','svphd','aavp','autofibvp']);// autofibvp: Auto fib range volume profile (structure-catalog.ts)
 export const VP_ALERTABLE_IDS:readonly VpIndicatorId[]=Object.freeze(['pvp','svp','aavp']);
 export const VP_FACT='drawing-defaults:fixed-range-volume-profile';
 const NAMES='indicator-list:profiles';
@@ -174,3 +174,10 @@ export const VP_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
   policies:[...VOLUME_PROFILE_POLICIES,...VP_EXTRA_POLICIES,...R38_POLICIES,...R37_POLICIES,R37_AUTO_POLICY],
   calculate:autoAnchored,warmup:()=>1,work},
 ] as CatalogDefinition[]);
+/** One profile from bar `start` through the last bar (the Auto anchored rule with a given anchor), for other anchored
+ *  profile kinds (src/domain/indicators-ext/structure-catalog.ts); null start = no profile. */
+export function anchoredProfileLevels(ctx:CatalogContext,start:number|null):Record<string,NumericSeries>{
+ return profileKind(ctx,opts=>{const profile=start===null?null:buildVolumeProfile(ctx.bars,start,ctx.bars.length-1,opts);return {profiles:profile?[profile]:[]};});
+}
+/** The shared profile inputs, plots, defaults text and work estimate, for other profile kinds. */
+export const VP_SHARED=Object.freeze({rowsLayout:ROWS_LAYOUT,rowSize:ROW_SIZE,volume:VOLUME,valueArea:VALUE_AREA,width:WIDTH,placement,extras:EXTRAS,plots:PLOTS,continuous:CONTINUOUS,unknownShared:UNKNOWN_SHARED,work});

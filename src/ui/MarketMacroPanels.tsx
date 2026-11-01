@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Bar } from '../domain/types';
-import { FRED_EXPORT_NOTICE } from '../domain/live-provider';
+import { personalUseNote } from '../domain/live-provider';
 import { FRED_OFF_NOTICE, isoDate, parseIsoDate, type FredSeriesState } from '../market-views/fred-views';
 import { MACRO_COUNTRIES, MACRO_DATASETS, MAP_COLS, MAP_ROWS, colorScale, macroHoverText, macroMonths, macroRows, macroSourceLine, metricOf, metricsOf, type MacroCompare, type MacroScale } from '../market-views/macro';
 import { DEFAULT_MATURITIES, MATURITIES, SPREADS, YIELD_COUNTRIES, YIELD_COUNTRY_UNAVAILABLE, curveAt, latestCurveTime, monthsBefore, pickMaturities, spreadOf, type Curve } from '../market-views/yield-curve';
@@ -13,6 +13,8 @@ export interface FredPanelProps {
   view: MarketViewsState; set: (patch: Partial<MarketViewsState>) => void;
   fred: ReadonlyMap<string, FredSeriesState>; busy: string | null; enabled: boolean; available: boolean;
   onLoad: (ids: string[]) => void;
+  /** Saves a CSV of the shown table on the user's computer (desktop app only). */
+  onExport?: (csv: string, name: string) => void;
   /** Test seam: the country or month the pointer is over. */
   hover?: string | null;
 }
@@ -29,9 +31,16 @@ function LoadBar({ ids, label, fred, busy, enabled, available, onLoad }: { ids: 
     {notices.map(n => <small key={n}>{n}</small>)}
   </div>;
 }
-function ExportRefused() {
-  const [said, setSaid] = useState(false);
-  return <span className="mk-export"><button type="button" onClick={() => setSaid(true)}>Export</button>{said && <small role="alert">{FRED_EXPORT_NOTICE}</small>}</span>;
+const FRED_SOURCE = 'FRED (St. Louis Fed)';
+/** A quoted, formula-safe CSV cell. */
+const csvCell = (v: string | number | null) => v === null ? '' : typeof v === 'number' ? (Number.isFinite(v) ? String(v) : '') : '"' + (/^[=+@-]/.test(v) ? "'" + v : v).replace(/"/g, '""') + '"';
+/** The shown table as CSV, headed by its source and the provider terms line (FRED data is saved for personal analysis). */
+export function fredTableCsv(title: string, header: readonly string[], rows: readonly (readonly (string | number | null)[])[]): string {
+  return ['# ' + title, '# ' + personalUseNote(FRED_SOURCE), header.map(csvCell).join(','), ...rows.map(r => r.map(csvCell).join(','))].join('\n') + '\n';
+}
+function ExportCsv({ csv, name, onExport }: { csv: () => string; name: string; onExport?: FredPanelProps['onExport'] }) {
+  const [said, setSaid] = useState<string | null>(null);
+  return <span className="mk-export"><button type="button" onClick={() => { if (!onExport) { setSaid('Export needs the desktop app.'); return; } onExport(csv(), name); setSaid(personalUseNote(FRED_SOURCE)); }}>Export CSV</button>{said && <small role="status">{said}</small>}</span>;
 }
 
 export function MacroPanel(p: FredPanelProps) {
@@ -72,7 +81,9 @@ export function MacroPanel(p: FredPanelProps) {
       <tbody>{sorted.map(r => <tr key={r.code} className={r.code === focus ? 'focus' : undefined}><td>{r.name}</td><td>{f2(r.value)}</td><td>{r.month ?? ''}</td>
         {compare !== 'none' && <><td>{f2(r.previous)}</td><td className={r.change === null ? '' : r.change > 0 ? 'up' : r.change < 0 ? 'down' : ''}>{r.change === null ? 'n/a' : (r.change > 0 ? '+' : '') + f2(r.change)}</td></>}
         <td className="note">{r.reason ?? ''}</td></tr>)}</tbody></table>
-    <p className="mk-note">{macroSourceLine(metricSeries, metric)}<ExportRefused /></p>
+    <p className="mk-note">{macroSourceLine(metricSeries, metric)}<ExportCsv name={'OpenCandle-macro-' + metric.key} onExport={p.onExport} csv={() => fredTableCsv(metric.label + ' by country (' + (compare === 'none' ? metric.units : 'change in pp') + '); source ' + FRED_SOURCE,
+      ['Country', 'Code', metric.label, 'Month', ...(compare !== 'none' ? ['Earlier', 'Change (pp)'] : []), 'Series', 'Note'],
+      sorted.map(r => [r.name, r.code, r.value, r.month, ...(compare !== 'none' ? [r.previous, r.change] : []), r.series, r.reason]))} /></p>
   </div>;
 }
 
@@ -126,6 +137,7 @@ export function YieldPanel(p: FredPanelProps) {
     {curves.length > 0 && <table><thead><tr><th>Date</th>{pickMaturities(keys).map(m => <th key={m.key}>{m.label}</th>)}<th>{spread.long} minus {spread.short}</th></tr></thead>
       <tbody>{curves.map((c, i) => { const s = spreadOf(c, spread); return <tr key={c.date + i}><td>{c.date}</td>{c.points.map(pt => <td key={pt.key} title={pt.date ? 'Value from ' + pt.date : 'No value within 7 days'}>{f2(pt.value)}</td>)}
         <td title={s.reason ?? undefined}>{s.value === null ? 'n/a' : `${s.value > 0 ? '+' : ''}${f2(s.value)} pp (${Math.round(s.value * 100)} bp)`}</td></tr>; })}</tbody></table>}
-    <p className="mk-note">Source: FRED (St. Louis Fed), Treasury constant maturity yields, percent. {loaded.length ? 'Loaded: ' + loaded.join(', ') + '.' : 'Nothing loaded yet.'} A point uses the last value on or before the date, up to 7 days older.<ExportRefused /></p>
+    <p className="mk-note">Source: FRED (St. Louis Fed), Treasury constant maturity yields, percent. {loaded.length ? 'Loaded: ' + loaded.join(', ') + '.' : 'Nothing loaded yet.'} A point uses the last value on or before the date, up to 7 days older.<ExportCsv name="OpenCandle-yield-curve" onExport={p.onExport} csv={() => fredTableCsv('US Treasury constant maturity yields, percent; source ' + FRED_SOURCE,
+      ['Date', ...pickMaturities(keys).map(m => m.label), spread.long + ' minus ' + spread.short + ' (pp)'], curves.map(c => [c.date, ...c.points.map(pt => pt.value), spreadOf(c, spread).value]))} /></p>
   </div>;
 }

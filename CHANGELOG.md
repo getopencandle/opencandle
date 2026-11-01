@@ -4,6 +4,31 @@ All notable changes to OpenCandle are listed here. The format follows [Keep a Ch
 
 ## Unreleased
 
+### Added
+- New **Export all indicators (.xlsx)** item in the chart menu. It calculates every built-in indicator at its default settings on the chart's bars and saves one workbook with Data, Patterns, Drawings and Key sheets.
+- 12 new built-in indicators, each written from its original published definition:
+  - Bollinger Bands breach, DI cross signals (with ADX filter and Wilder's extreme point rule), MACD divergence and RSI failure swings.
+  - Anchored VWAP with three standard deviation bands, Session VWAPs (Tokyo, London, New York), Opening range breakout and Relative volume.
+  - Support and resistance zones, Adaptive trend channel, Auto fib multi-scale (short, medium and long lookbacks) and Auto fib range volume profile.
+- RSI can show forming divergences (off by default). They are drawn dashed and can change until confirmed.
+- Auto fib retracement has a Lookback window mode.
+- Watchlist columns for ADR (14), % of ADR used, position in the day's range, and price versus the prior day's range and today's open, with a one-click Day range columns preset.
+- Long and short position tools can set the stop from ATR (k x ATR, default 2 x ATR 14) and size the quantity from your risk.
+
+### Fixed
+- XABCD, Cypher, ABCD and Three Drives patterns draw above the candles.
+- Example table position settings read "Bottom right" instead of "bottom_right".
+- Sequential 9-13 counts stay clear of the legend and are not cut off at the chart edges.
+- Auto trendlines from old pivots no longer stretch the price scale.
+- The position tools' quantity box is readable on light chart backgrounds.
+- OpenCandle.exe's file properties show the OpenCandle copyright.
+
+### Security
+- Electron updated to 44.9.1, which includes a security fix and stops trusting compromised eMudhra intermediate certificates.
+
+### Changed
+- Data from Alpaca, Coinbase and FRED can now be exported for your own analysis: chart data CSV, all-indicators workbook, seasonals, and the Macro maps and Yield curves tables. Each file, or the message shown after saving it, reminds you that the provider's terms apply and the file must not be shared or resold.
+
 ## 0.8.1 - 2026-10-31
 
 A correctness release: indicator values, timing and drawing tools were checked against their published definitions, and what we found is fixed below.

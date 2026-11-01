@@ -43,7 +43,7 @@ describe('RSI-1028 divergence (four kinds)',()=>{
   expect(rsiDivergence(rsi,bars,undefined,{...ALL,bodyOnly:true}).segments).toEqual([]);
  });
  it('settings: defaults match the owner RSI (5/5/60/5, regular on, hidden off); bad values refused',()=>{
-  expect(rsiDivergenceSettings({})).toEqual({policy:{left:5,right:5,minBetween:5,maxBetween:60},kinds:['bullish','bearish'],bodyOnly:false,labels:true,pricePane:false,background:false});
+  expect(rsiDivergenceSettings({})).toEqual({policy:{left:5,right:5,minBetween:5,maxBetween:60},kinds:['bullish','bearish'],bodyOnly:false,labels:true,pricePane:false,background:false,forming:false});
   expect(()=>rsiDivergenceSettings({divergenceLeft:0})).toThrow(/Pivot lookback left/);
   expect(()=>rsiDivergenceSettings({divergenceRangeMin:70})).toThrow(/must not exceed/);
   expect(()=>validateIndicatorInputs('rsi',{divergenceRangeMin:70},true)).toThrow(/must not exceed/);

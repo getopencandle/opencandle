@@ -16,7 +16,7 @@ import {describe,expect,it} from 'vitest';
 import {calculateIndicator,type IndicatorResult} from '../../src/domain/indicators';
 import {ALL_IDS,BARS,defaultInputs,definitionOf,describeMismatch,finite} from './harness';
 import {optionsFor} from './context';
-import {REPAINT_EXEMPT,HEADLESS_UNAVAILABLE,INTRADAY_EXEMPT} from './exemptions';
+import {REPAINT_EXEMPT,HEADLESS_UNAVAILABLE,INTRADAY_EXEMPT,INTRADAY_ONLY} from './exemptions';
 import type {Bar} from '../../src/domain/types';
 
 const bars=BARS.dailyEdge;
@@ -41,7 +41,7 @@ function prefixViolation(id:string,delay:number,chart:Chart=DAILY):string|null{
  return null;
 }
 describe('guardrail 2a: no look-ahead, no repaint (bars[0..t] vs full series)',()=>{
- const tested=ALL_IDS.filter(id=>!HEADLESS_UNAVAILABLE[id]);
+ const tested=ALL_IDS.filter(id=>!HEADLESS_UNAVAILABLE[id]&&!INTRADAY_ONLY[id]);
  for(const id of tested){
   const exempt=REPAINT_EXEMPT[id],finding=KNOWN_FAILURES['2a:'+id];
   (finding?it.fails:it)(`${id}${exempt?' (exempt: '+exempt.why+')':''}${finding?' [known failure '+finding+']':''}`,()=>{
@@ -58,6 +58,7 @@ describe('guardrail 2a: no look-ahead, no repaint (bars[0..t] vs full series)',(
  }
  it('every kind is either tested here or listed as headless-unavailable with a reason',()=>{
   for(const id of Object.keys(HEADLESS_UNAVAILABLE))expect(ALL_IDS).toContain(id);
+  for(const id of Object.keys(INTRADAY_ONLY))expect(ALL_IDS).toContain(id);
   for(const id of Object.keys(REPAINT_EXEMPT))expect(ALL_IDS).toContain(id);
  });
 });

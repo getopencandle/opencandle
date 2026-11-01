@@ -10,7 +10,7 @@ export const FRED_PROVIDER_ID = 'fred-public';
 export const FRED_PROVIDER_NAME = 'FRED economic data (St. Louis Fed)';
 export const FRED_EXCHANGE = 'FRED';
 export const FRED_RESOLUTION = '1D';
-export const FRED_LICENSE = 'FRED public data; display only here. Some series carry their own source terms (see fred.stlouisfed.org). Do not export or share.';
+export const FRED_LICENSE = 'FRED public data for personal use. Some series carry their own source terms (see fred.stlouisfed.org). Do not share or resell.';
 export const FRED_CACHE_MAX_BYTES = 5 * 1024 * 1024;
 export const FRED_SERIES_ID = /^[A-Z0-9_]{1,25}$/;
 

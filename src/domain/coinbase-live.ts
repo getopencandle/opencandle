@@ -26,7 +26,7 @@ export const COINBASE_RESOLUTIONS: Readonly<Record<string, { granularity: Coinba
 const NATIVE_BY_SECONDS: Readonly<Record<number, CoinbaseGranularity>> = Object.freeze(Object.fromEntries(Object.values(COINBASE_RESOLUTIONS).map(row => [row.seconds, row.granularity])));
 /** Canonical interval id when a live Coinbase chart can show it (natively or by aggregation from the finest feed), else null. */
 export function coinbaseResolution(value: string): string | null { const plan = planCoinbaseInterval(value); return plan.ok ? plan.plan.id : null; }
-export const COINBASE_LICENSE = 'Coinbase Market Data Terms: personal, internal display only; not redistributable. Do not export or share.';
+export const COINBASE_LICENSE = 'Coinbase Market Data Terms: personal, internal use only; not redistributable. Do not share or resell.';
 export const LIVE_CRYPTO_SETTING = Object.freeze({ id: 'liveCryptoCoinbase', label: 'Live crypto data (Coinbase public feed)', defaultValue: false,
   disclosure: 'When on, OpenCandle connects to Coinbase public market data from this computer. Coinbase sees your IP address and the products charted. No account or key is used.' });
 

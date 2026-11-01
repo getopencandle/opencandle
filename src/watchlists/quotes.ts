@@ -19,6 +19,10 @@ export interface WatchQuote {last:number|null;change:number|null;changePercent:n
  /** Columns (daily basis only): the high and low of the same daily bar as `open`, and the day range
   * as its width (high minus low), which is what the Day range column sorts by. Absent on quotes built elsewhere. */
  high?:number|null;low?:number|null;dayRange?:number|null;
+ /** Day-range columns (daily basis only, dayRangeStats): ADR (14), the day range as a percent of it, Last's position in the day
+  * range (0 to 100), and Last against the prior day's range (1 above, 0 inside, -1 below) and the day's open (1 above, 0 at, -1 below),
+  * with the prior daily bar's high and low they compare with. Absent on quotes built elsewhere. */
+ adr?:number|null;adrUsed?:number|null;rangePosition?:number|null;vsPriorDay?:-1|0|1|null;vsOpen?:-1|0|1|null;priorHigh?:number|null;priorLow?:number|null;
  asOf:number|null;dataset:BarDataset|null;dailyDataset?:BarDataset|null;description:string;reason:string;dailyBasis:boolean}
 /** Quotes are recomputed only when their own source changes. Datasets and bar arrays are immutable (a live tick
  *  publishes a new array), so a quote is reused while its primary dataset, primary bars, daily source, daily bars and companion
@@ -56,7 +60,8 @@ function quoteFromSources(primary:BarDataset,dailySource:BarDataset|null,diagnos
  const ext=extendedQuote(primary),rvol=relativeVolume(dailySource,dailyLast);
  const year=dailyYearRange(dailySource,dailyLast),stats={previousClose:dailyBasis?finite(prior?.close):null,open:dailyBasis?finite(dailyLast?.open):null,yearLow:year?.low??null,yearHigh:year?.high??null,averageVolume30:averageDailyVolume(dailySource,dailyLast,30)};
  const high=dailyBasis?finite(dailyLast?.high):null,low=dailyBasis?finite(dailyLast?.low):null,range=high!==null&&low!==null&&high>=low?{high,low,dayRange:finite(high-low)}:{high,low,dayRange:null};
- return{last:finite(last.close),change,changePercent,changePercentState,volume:finite(dailyLast?.volume),extended:ext.extended,extendedChange:ext.change,extendedChangePercent:ext.changePercent,extendedSession:ext.session,relativeVolume:rvol,...stats,...range,asOf:last.time,dataset:primary,dailyDataset:dailySource,description:primary.instrument.name,dailyBasis,reason:(primary.provenance.fixture?(demoDataMode()==='legacy'?'SYNTHETIC. ':demoDataMode()==='example'?'Example data. ':''):primary.provenance.providerId===ALPACA_STUB_PROVIDER_ID?'SYNTHETIC (keyless Alpaca stub, invented prices). ':'')+diagnostic+'Last is the selected '+primary.resolution+' close. '+(liveDaily?'Daily change compares Last with the previous live daily close; daily volume is the live daily bar of the day.':own!==null?(primary.instrument.assetClass==='crypto'?'Daily change compares Last with the close at 00:00 UTC (the open of the UTC day), read from the bars of this chart.':'Daily change compares Last with the previous regular-session close, read from the bars of this chart.'):dailyBasis?'Daily change and volume use the daily bars; change compares the previous daily close.':'Daily change and volume are unavailable without a compatible daily snapshot.')+' '+ext.reason+' '+(rvol===null?'Relative volume needs the daily bar of the day and ten earlier daily bars with volume.':'Relative volume is the daily bar volume over the mean of the ten earlier daily bars (the day may still be in progress).')+' Historical values do not establish current market prices or final-value availability.'};
+ const dayStats={...dayRangeStats(dailySource,dailyLast,prior,finite(last.close)),priorHigh:dailyBasis?finite(prior?.high):null,priorLow:dailyBasis?finite(prior?.low):null};
+ return{last:finite(last.close),change,changePercent,changePercentState,volume:finite(dailyLast?.volume),extended:ext.extended,extendedChange:ext.change,extendedChangePercent:ext.changePercent,extendedSession:ext.session,relativeVolume:rvol,...stats,...range,...dayStats,asOf:last.time,dataset:primary,dailyDataset:dailySource,description:primary.instrument.name,dailyBasis,reason:(primary.provenance.fixture?(demoDataMode()==='legacy'?'SYNTHETIC. ':demoDataMode()==='example'?'Example data. ':''):primary.provenance.providerId===ALPACA_STUB_PROVIDER_ID?'SYNTHETIC (keyless Alpaca stub, invented prices). ':'')+diagnostic+'Last is the selected '+primary.resolution+' close. '+(liveDaily?'Daily change compares Last with the previous live daily close; daily volume is the live daily bar of the day.':own!==null?(primary.instrument.assetClass==='crypto'?'Daily change compares Last with the close at 00:00 UTC (the open of the UTC day), read from the bars of this chart.':'Daily change compares Last with the previous regular-session close, read from the bars of this chart.'):dailyBasis?'Daily change and volume use the daily bars; change compares the previous daily close.':'Daily change and volume are unavailable without a compatible daily snapshot.')+' '+ext.reason+' '+(rvol===null?'Relative volume needs the daily bar of the day and ten earlier daily bars with volume.':'Relative volume is the daily bar volume over the mean of the ten earlier daily bars (the day may still be in progress).')+' Historical values do not establish current market prices or final-value availability.'};
 }
 /**
  * The previous day's close of a live intraday feed, from its own bars, for a quote with no daily source loaded.
@@ -114,6 +119,25 @@ export function dailyYearRange(daily:BarDataset|null|undefined,day:BarDataset['b
  let low=Infinity,high=-Infinity;for(let index=at;index>=0&&daily.bars[index]!.time>cutoff;index--){const bar=daily.bars[index]!;if(!Number.isFinite(bar.low)||!Number.isFinite(bar.high))return null;low=Math.min(low,bar.low);high=Math.max(high,bar.high);}
  return Number.isFinite(low)&&Number.isFinite(high)?{low,high}:null;
 }
+/**
+ * The day-range columns from one daily source. `day` is the daily bar of the day (undefined when a live companion has no bar
+ * for today yet), `prior` the previous day's bar and `last` the quote's Last. ADR is the simple mean of high minus low over the
+ * `length` completed daily bars before the day (the day's own bar never counts; with no bar for today every loaded bar is
+ * completed), null unless all of them have a usable high and low. adrUsed is the day's high minus low over ADR, in percent.
+ * rangePosition is (Last - low) / (high - low) in percent, clamped to 0..100 (a Last outside the daily bar from another feed
+ * means the day already reached it), null on a zero-range day. vsPriorDay is 1 above the prior high, -1 below the prior low,
+ * else 0 (the bounds count as inside); vsOpen is the sign of Last minus the day's open.
+ */
+export function dayRangeStats(daily:BarDataset|null|undefined,day:BarDataset['bars'][number]|undefined,prior:BarDataset['bars'][number]|undefined,last:number|null,length=14):{adr:number|null;adrUsed:number|null;rangePosition:number|null;vsPriorDay:-1|0|1|null;vsOpen:-1|0|1|null}{
+ const none={adr:null,adrUsed:null,rangePosition:null,vsPriorDay:null,vsOpen:null};if(!daily)return none;
+ const usable=(bar:BarDataset['bars'][number]|undefined):bar is BarDataset['bars'][number]=>!!bar&&Number.isFinite(bar.high)&&Number.isFinite(bar.low)&&bar.high>=bar.low,at=day?daily.bars.lastIndexOf(day):daily.bars.length;
+ let adr:number|null=null;if(at>=length){let sum=0;for(let index=at-length;index<at;index++){const bar=daily.bars[index];if(!usable(bar)){sum=NaN;break;}sum+=bar.high-bar.low;}adr=Number.isFinite(sum)?sum/length:null;}
+ const today=usable(day)?day:undefined,width=today?today.high-today.low:null,price=typeof last==='number'&&Number.isFinite(last)?last:null,sign=(value:number):-1|0|1=>value>0?1:value<0?-1:0;
+ const adrUsed=width!==null&&adr!==null&&adr>0&&Number.isFinite(width*100/adr)?width*100/adr:null;
+ const rangePosition=today&&width!==null&&width>0&&price!==null?Math.min(100,Math.max(0,(price-today.low)*100/width)):null;
+ const vsPriorDay=price!==null&&usable(prior)?(price>prior.high?1:price<prior.low?-1:0):null,vsOpen=price!==null&&day&&Number.isFinite(day.open)?sign(price-day.open):null;
+ return{adr,adrUsed,rangePosition,vsPriorDay,vsOpen};
+}
 /** Mean volume of the `count` daily bars before `day` from the same daily source, like relativeVolume. */
 export function averageDailyVolume(daily:BarDataset|null|undefined,day:BarDataset['bars'][number]|undefined,count:number):number|null{
  if(!daily||!day)return null;const at=daily.bars.lastIndexOf(day);if(at<count)return null;
@@ -139,6 +163,7 @@ export function watchCellDisplay(column:Exclude<WatchColumn,'symbol'>,quote:Watc
  // The daily bar of the day (open, high, low, day range) and the previous daily close, labelled with their bar.
  const dayBar=quote.dailyDataset?.bars.at(-1),daySource=quote.dailyDataset?', '+quote.dailyDataset.provenance.session+' session, from '+quote.dailyDataset.provenance.providerName:'',dayText=(dayBar?' on '+utc(dayBar.time).slice(0,10):'')+daySource;
  if(column==='dayRange'){const low=quote.low,high=quote.high;if(typeof low!=='number'||typeof high!=='number'||!Number.isFinite(low)||!Number.isFinite(high)||high<low)return{text:'N/A',title:'Unavailable. '+quote.reason,state:'unavailable'};return{text:format('last',low)+' to '+format('last',high),state:'value',title:'Day range '+plain(low)+' to '+plain(high)+' (width '+plain(high-low)+')'+dayText+'. Sorted by the width of the range.'};}
+ if(column==='adr'||column==='adrUsed'||column==='rangePosition'||column==='vsPriorDay'||column==='vsOpen')return dayRangeCell(column,quote,dayText);
  const value=quote[column];if(typeof value!=='number'||!Number.isFinite(value))return{text:'N/A',title:'Unavailable. '+quote.reason,state:'unavailable'};
  const text=format(column,value);
  if(column==='open'||column==='high'||column==='low')return{text,state:'value',title:'Daily '+column+' '+plain(value)+dayText};
@@ -148,6 +173,23 @@ export function watchCellDisplay(column:Exclude<WatchColumn,'symbol'>,quote:Watc
  if(column==='extended'||column==='extendedChange'||column==='extendedChangePercent'){const session=quote.extendedSession==='pre'?'Pre-market':'Post-market';return{text,state:'value',title:session+(column==='extended'?' last '+plain(value):column==='extendedChange'?' change '+plain(value):' change '+plain(value,4)+'%')+(quote.asOf===null?'':' at '+utc(quote.asOf))+'. OpenCandle calculation; compared with the latest regular-session close.'};}
  if(column==='relativeVolume')return{text,state:'value',title:'Relative volume '+plain(value,4)+': daily volume over the mean of the ten earlier daily bars of '+(quote.dailyDataset?.provenance.providerName??'the daily source')+'. OpenCandle calculation; the day may still be in progress.'};
  return{text,state:'value',title:'Compared with the previous daily close'};
+}
+const percentText=(value:number)=>value.toLocaleString(undefined,{maximumFractionDigits:0})+'%';
+function dayRangeCell(column:'adr'|'adrUsed'|'rangePosition'|'vsPriorDay'|'vsOpen',quote:WatchQuote,dayText:string):WatchCellDisplay{
+ const value=quote[column],num=(input:number|null|undefined):input is number=>typeof input==='number'&&Number.isFinite(input),off=(why:string):WatchCellDisplay=>({text:'N/A',title:'Unavailable. '+why,state:'unavailable'});
+ const need=quote.dailyBasis?'':quote.reason+' ',adrNeed='ADR (14) needs 14 completed daily bars before the day, each with a high and a low.';
+ if(!num(value)){
+  if(column==='adr')return off(need+adrNeed);
+  if(column==='adrUsed')return off(need+(quote.adr===0?'ADR (14) is zero.':num(quote.adr)?'The daily bar of the day has no usable high and low.':adrNeed));
+  if(column==='rangePosition')return off(need+(num(quote.high)&&quote.high===quote.low?'The day has no range yet (high equals low).':'Position in range needs Last and the high and low of the daily bar of the day.'));
+  return off(need+(column==='vsPriorDay'?'Vs prior day needs Last and the high and low of the previous daily bar.':'Vs open needs Last and the open of the daily bar of the day.'));
+ }
+ const last=num(quote.last)?plain(quote.last):'',high=quote.high,low=quote.low;
+ if(column==='adr')return{text:format('last',value),state:'value',title:'ADR (14) '+plain(value)+': the mean of high minus low over the 14 completed daily bars before the day'+dayText+'. OpenCandle calculation.'};
+ if(column==='adrUsed')return{text:percentText(value),state:'value',title:'The day range '+(num(high)&&num(low)?plain(high-low):'')+' is '+plain(value,2)+'% of ADR (14) '+(num(quote.adr)?plain(quote.adr):'')+dayText+'. The day may still be in progress.'};
+ if(column==='rangePosition')return{text:percentText(value),state:'value',title:'Last '+last+' is '+plain(value,2)+'% of the way from the day low '+(num(low)?plain(low):'')+' to the day high '+(num(high)?plain(high):'')+dayText+' (0% at the low, 100% at the high).'};
+ if(column==='vsPriorDay'){const range=(num(quote.priorLow)?plain(quote.priorLow):'')+' to '+(num(quote.priorHigh)?plain(quote.priorHigh):'');return{text:value>0?'Above':value<0?'Below':'Inside',state:'value',title:'Last '+last+(value>0?' is above':value<0?' is below':' is inside')+' the prior day range '+range+'.'};}
+ return{text:value>0?'Above':value<0?'Below':'At open',state:'value',title:'Last '+last+(value>0?' is above':value<0?' is below':' equals')+' the day open '+(num(quote.open)?plain(quote.open):'')+dayText+'.'};
 }
 /**
  * The sign colour of a change cell: positive

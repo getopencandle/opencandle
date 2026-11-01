@@ -111,7 +111,7 @@ export function renderIndicatorPresentation(settings:IndicatorInstanceSettings,r
  for(let index=0;index<result.series.length;index++){
   const plot=result.series[index],style=plotStyle(plot.id),native=series[index];
   // A pattern kind's 0/1 signal plots are never stroked or scaled; the markers below draw them.
-  if(patternKind||catalogDefinition(settings.kind)?.tradingSessions){native.visible=false;native.display={pane:false,priceScale:false,legend:style.legend,dataWindow:style.dataWindow};continue;}
+  if(patternKind&&!catalogDefinition(settings.kind)?.linePlots?.includes(plot.id)||catalogDefinition(settings.kind)?.tradingSessions){native.visible=false;native.display={pane:false,priceScale:false,legend:style.legend,dataWindow:style.dataWindow};continue;}
   // Swing points (fractals, pivot highs/lows) draw as labels beside the bar below; the sparse cross plot stays readable only.
   if(isSwingMarkerKind(settings.kind)){native.display={...native.display,pane:false,priceScale:false};continue;}
   // OHLC scalars remain in the legend/data window, while a native candle paints the path.
@@ -241,6 +241,7 @@ export function renderIndicatorPresentation(settings:IndicatorInstanceSettings,r
  if(settings.kind==='rsi'){
   const labels=result.divergence?rsiDivergenceLabelsNative(settings,result,bars,plotStyle):[],lines=result.divergence?rsiDivergencePriceLinesNative(settings,result,bars,plotStyle):[],backgrounds=result.divergence?rsiDivergenceBackgroundsNative(settings,result,bars,plotStyle):[];
   if(lines.length||backgrounds.length)policies.push(RSI_DIVERGENCE_DECORATION_POLICY);
+  if(result.divergence?.forming){const forming=rsiFormingDivergenceNative(settings,result,bars,plotStyle);lines.push(...forming.lines);labels.push(...forming.labels);if(forming.lines.length)policies.push(RSI_FORMING_DIVERGENCE_POLICY);}
   const headroom=rsiDivergenceLabelHeadroom(settings.id,labels,series[0]);if(headroom)series.push(headroom);
   if(zoneBoxes.length||labels.length||lines.length||backgrounds.length)return {output:{series,fills,priceLines,...(zoneBoxes.length?{boxes:zoneBoxes}:{}),...(backgrounds.length?{backgrounds}:{}),...(labels.length?{labels}:{}),...(lines.length?{lines}:{})},display:Object.freeze(display),precision,diagnostics,policies};
  }
@@ -258,6 +259,18 @@ export function rsiDivergenceLabelsNative(settings:IndicatorInstanceSettings,res
   labels.push({id:indicatorDecorationId(settings.id,`divergence:label:${ordinal}`),paneId:'',xloc:'bar_time',x:at*1000,y:row.toRsi,yloc:'price',text:RSI_DIVERGENCE_LABELS[row.kind],style:below?'label_up':'label_down',color:indicatorColorOpacity(style.color,style.opacity??100),textColor:'#ffffff',size:'small',textAlign:'center',fontFamily:'default'});
  });
  return labels;
+}
+export const RSI_FORMING_DIVERGENCE_POLICY='Forming divergences are dashed lines labelled forming between the last confirmed pivot and the latest unconfirmed extreme. They may change or disappear on later bars until confirmed and never trigger alerts.';
+/** Show forming divergences on: one dashed line per forming divergence on the RSI pane between the two RSI points, in its
+ *  kind's Style color, with a "forming" label at the unconfirmed end (when Divergence labels is on). A hidden plot hides it. */
+export function rsiFormingDivergenceNative(settings:IndicatorInstanceSettings,result:IndicatorResult,bars:readonly Bar[],plotStyle:(id:string)=>IndicatorPlotStyle):{lines:DrawingLine[];labels:DrawingLabel[]}{
+ const lines:DrawingLine[]=[],labels:DrawingLabel[]=[];const forming=result.divergence?.forming;if(!forming?.length)return {lines,labels};const options=rsiDivergenceSettings(settings.inputs);
+ forming.forEach((row,ordinal)=>{
+  const style=plotStyle(RSI_DIVERGENCE_PLOT_OF[row.kind]),from=bars[row.fromIndex],to=bars[row.toIndex];if(!style.visible||!from||!to)return;const color=indicatorColorOpacity(style.color,style.opacity??100),below=rsiDivergenceIsBullish(row.kind);
+  lines.push({id:indicatorDecorationId(settings.id,`divergence:forming:${ordinal}`),paneId:'',xloc:'bar_time',x1:from.time*1000,y1:row.fromRsi,x2:to.time*1000,y2:row.toRsi,extend:'none',color,invisible:false,width:Math.max(1,Math.min(4,Math.round(style.width))),style:'dashed',arrowLeft:false,arrowRight:false});
+  if(options.labels)labels.push({id:indicatorDecorationId(settings.id,`divergence:forming:label:${ordinal}`),paneId:'',xloc:'bar_time',x:to.time*1000,y:row.toRsi,yloc:'price',text:RSI_DIVERGENCE_LABELS[row.kind]+' forming',style:below?'label_up':'label_down',color:indicatorColorOpacity(style.color,Math.round((style.opacity??100)*0.6)),textColor:'#ffffff',size:'small',textAlign:'center',tooltip:'Forming divergence: not confirmed yet, may change',fontFamily:'default'});
+ });
+ return {lines,labels};
 }
 /** RSI points of headroom past each divergence label's pivot (about
  *  one small label's height on a typical RSI pane). */
@@ -313,7 +326,7 @@ export function patternMarksNative(instanceId:string,result:IndicatorResult,bars
  // widen the price scale.
  const merged=new Map<string,{ordinal:number;row:typeof marks.markers[number];texts:string[];tips:string[];color:string;below:boolean}>();
  marks.markers.forEach((row,ordinal)=>{
-  const style=plotStyle(row.plot),at=time(row.index);if(!style.visible||at===undefined)return;const position=row.position??(row.plot==='bullish'?'below':'above'),below=position==='below',color=colorOf(style);
+  const style=plotStyle(row.plot),at=time(row.index);if(!style.visible||at===undefined)return;const position=row.position??(row.plot==='bullish'?'below':'above'),below=position==='below'||position==='price'&&row.direction==='up',color=colorOf(style);
   const key=position==='price'||row.shape?`solo:${ordinal}`:`${row.index}:${position}`,hit=merged.get(key);
   if(hit&&hit.color===color){if(row.text)hit.texts.push(row.text);if(row.tooltip)hit.tips.push(row.tooltip);return;}
   merged.set(hit?`${key}:${ordinal}`:key,{ordinal,row,texts:row.text?[row.text]:[],tips:row.tooltip?[row.tooltip]:[],color,below});

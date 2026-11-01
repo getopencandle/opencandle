@@ -15,8 +15,8 @@ it('permits known original synthetic dependency data without promoting a human l
 it('retains the known actual original when fresh local aggregation replaces provider metadata',async()=>{
  const h=harness({dataset:dependencyDataset('local','60m')});h.start();await h.ready();expect(csvRows(h.csv()).slice(1).map(row=>row.at(-1))).toEqual(['','123','123','147']);
 });
-it('refuses live originals even when fresh aggregation emits local-looking derived provenance',async()=>{
- const h=harness({dataset:dependencyDataset('live','60m')});h.start();await h.ready();expect(h.port.list()[0].plotDescriptors).toHaveLength(1);expect(()=>h.csv()).toThrow('cannot be exported');
+it('keeps live original ancestry for the terms line when fresh aggregation emits local-looking derived provenance',async()=>{
+ const h=harness({dataset:dependencyDataset('live','60m')});h.start();await h.ready();expect(h.port.list()[0].plotDescriptors).toHaveLength(1);expect(h.capture().personalUse).toEqual(['']);expect(csvRows(h.csv()).slice(1).map(row=>row.at(-1))).toEqual(['','123','123','147']);
 });
 it('does not promote a detached stored derived snapshot into known original-source permission',async()=>{
  const derived=aggregateInterval(dependencyDataset('local','60m'),'1D');expect(derived.ok).toBe(true);if(!derived.ok)throw Error('Synthetic aggregation refused');const h=harness({dataset:derived.dataset});h.start();await h.ready();expect(()=>h.csv()).toThrow('accepted export permission');

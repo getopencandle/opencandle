@@ -61,7 +61,7 @@ export function alpacaResolution(value: string): string | null { const plan = pl
  * electron/public-alpaca.cjs SYMBOL is the same expression. */
 export const ALPACA_SYMBOL = /^[A-Z]{1,5}(?:\.[A-Z]{1,3}){0,2}$/;
 export const ALPACA_SYMBOL_MAX_LENGTH = 13;
-export const ALPACA_LICENSE = 'Alpaca Market Data (owner account): personal display only; not redistributable. Do not export or share.';
+export const ALPACA_LICENSE = 'Alpaca Market Data (owner account): personal use only; not redistributable. Do not share or resell.';
 export const ALPACA_IEX_COVERAGE = 'IEX exchange only: thin volume and missing prints compared with the consolidated tape';
 export const ALPACA_SETTING = Object.freeze({ id: 'liveStocksAlpaca', label: 'Live US stocks (Alpaca, your own key)', defaultValue: false,
   disclosure: 'Uses your own Alpaca key. The key is encrypted by Windows in your OpenCandle profile and is never shown again, exported or logged. Alpaca sees your IP address and the symbols charted.' });

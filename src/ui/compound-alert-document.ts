@@ -1,6 +1,5 @@
 import {COMPOUND_POLICY,COMPOUND_HISTORY_LIMIT,COMPOUND_PRIVATE_BYTES,CompoundAlertStore,compoundHistory,compoundHistorySize,parseCompoundSavedCore,serializeCompoundSavedCore,type CompoundSavedCore,type CompoundState,type CompoundDefinition,type CompoundNotification} from '../domain/compound-alerts';
 import {copyAlertDelivery,type AlertDeliverySettings} from '../domain/alert-delivery';
-import {LIVE_EXPORT_NOTICE} from '../domain/live-provider';
 import {parseInterval} from '../domain/intervals';
 
 /** Local PRIVATE DATA only. None of these records restores producer/source,
@@ -146,5 +145,6 @@ export function restoreCompoundPrivateCollection(json:string,now:number):readonl
 }
 /** No purpose flag, label, sourceFamily or restored provenance can allow this
  * first live-only document through exportWorkspace/exportData/share/CSV. */
-export function refuseCompoundDocumentShare():never{throw Error(LIVE_EXPORT_NOTICE);}
+export const COMPOUND_SHARE_NOTICE="All-conditions alerts are kept on this computer only and can't be included in a workspace export. Delete them to export the workspace.";
+export function refuseCompoundDocumentShare():never{throw Error(COMPOUND_SHARE_NOTICE);}
 

@@ -24,7 +24,7 @@ const rsiDefaults=()=>factoryIndicatorDefault('rsi');
 
 it('the schema gains divergence as a bool defaulting to off, labelled for the player, with no internal id in the label',()=>{
  const keys=indicatorInputSchema('rsi').map(row=>row.key);
- expect(keys).toEqual(['length','source','smoothingType','smoothingLength','smoothingMultiplier','divergence','divergenceLeft','divergenceRight','divergenceRangeMin','divergenceRangeMax','divergenceRegularBullish','divergenceRegularBearish','divergenceHiddenBullish','divergenceHiddenBearish','divergenceBodyOnly','divergenceLabels','divergencePricePane','divergenceBackground']);// RSI options appended
+ expect(keys).toEqual(['length','source','smoothingType','smoothingLength','smoothingMultiplier','divergence','divergenceLeft','divergenceRight','divergenceRangeMin','divergenceRangeMax','divergenceRegularBullish','divergenceRegularBearish','divergenceHiddenBullish','divergenceHiddenBearish','divergenceBodyOnly','divergenceLabels','divergencePricePane','divergenceBackground','divergenceForming']);// RSI options appended
  expect(indicatorInputSchema('rsi').find(row=>row.key==='divergence')).toMatchObject({title:'Calculate divergence',type:'bool',defval:false});
  expect(indicatorPlotIds.rsi).toEqual(['rsi','smooth','smoothUpper','smoothLower','divergenceBullish','divergenceBearish','divergenceHiddenBullish','divergenceHiddenBearish']);
  expect(indicatorInputSchema('sma').some(row=>row.key==='divergence')).toBe(false);

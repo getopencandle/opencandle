@@ -1,5 +1,5 @@
 import type {BarDataset} from '../domain/types';
-import {FLAG_COLORS,WATCH_COLUMNS,WATCH_DEFAULT_WIDTHS,WATCH_LIMITS,activeWatchList,marketKey,resolveWatchSource,watchColumnWidth,type FlagColor,type WatchBook,type WatchColumn,type WatchReference} from './model';
+import {FLAG_COLORS,WATCH_COLUMNS,WATCH_DAY_RANGE_COLUMNS,WATCH_DEFAULT_WIDTHS,WATCH_LIMITS,activeWatchList,marketKey,resolveWatchSource,watchColumnWidth,type FlagColor,type WatchBook,type WatchColumn,type WatchReference} from './model';
 import {watchFlagIndex,watchListChoices,watchMemberKey} from './membership';
 import {ALPACA_STUB_PROVIDER_ID} from '../domain/alpaca-live';
 import {SYMBOL_MATH_PROVIDER_ID} from '../domain/symbol-math-live';
@@ -10,7 +10,7 @@ import {SYMBOL_MATH_PROVIDER_ID} from '../domain/symbol-math-live';
  */
 export interface WatchMenuItem {id:string;label:string;ariaLabel?:string;role?:'menuitem'|'menuitemradio'|'menuitemcheckbox';checked?:boolean;disabled?:string|null;shortcut?:string;danger?:boolean}
 export interface WatchMenuGroup {label:string|null;items:WatchMenuItem[]}
-export const WATCH_COLUMN_LABELS:Record<WatchColumn,string>={symbol:'Symbol',last:'Last',change:'Daily change',changePercent:'Daily change %',volume:'Daily volume',extended:'Extended last',extendedChange:'Extended change',extendedChangePercent:'Extended change %',relativeVolume:'Relative volume',open:'Open',high:'High',low:'Low',previousClose:'Prev close',dayRange:'Day range',bid:'Bid',ask:'Ask'};
+export const WATCH_COLUMN_LABELS:Record<WatchColumn,string>={symbol:'Symbol',last:'Last',change:'Daily change',changePercent:'Daily change %',volume:'Daily volume',extended:'Extended last',extendedChange:'Extended change',extendedChangePercent:'Extended change %',relativeVolume:'Relative volume',open:'Open',high:'High',low:'Low',previousClose:'Prev close',dayRange:'Day range',adr:'ADR (14)',adrUsed:'% of ADR used',rangePosition:'Position in range',vsPriorDay:'Vs prior day',vsOpen:'Vs open',bid:'Bid',ask:'Ask'};
 export const FLAG_LABELS:Record<FlagColor,string>={red:'Red',orange:'Orange',green:'Green',blue:'Blue',purple:'Purple',cyan:'Cyan',pink:'Pink'};
 const item=(id:string,label:string,extra:Partial<WatchMenuItem>={}):WatchMenuItem=>({id,label,role:'menuitem',disabled:null,...extra});
 const plural=(count:number,word:string)=>count+' '+word+(count===1?'':'s');
@@ -53,6 +53,8 @@ export function watchColumnMenu(book:WatchBook,column:WatchColumn|null,options:W
  if(column){const label=WATCH_COLUMN_LABELS[column],sort=list.sort?.column===column?list.sort.direction:null;groups.push({label,items:[item('sort-asc','Sort ascending',{role:'menuitemradio',checked:sort==='asc'}),item('sort-desc','Sort descending',{role:'menuitemradio',checked:sort==='desc'}),item('hide','Hide column',{disabled:column==='symbol'?'The Symbol column is required.':null}),item('reset-width','Reset width',{disabled:watchColumnWidth(book,column)===WATCH_DEFAULT_WIDTHS[column]?'Already at the default width.':null})]});}
  groups.push({label:'Sorting',items:[item('restore','Restore manual order',{disabled:list.sort?null:'This list already shows its manual order.'})]});
  groups.push({label:'Columns',items:WATCH_COLUMNS.map(entry=>item('column:'+entry,WATCH_COLUMN_LABELS[entry],{role:'menuitemcheckbox',checked:book.display.columns.includes(entry),disabled:entry==='symbol'?'The Symbol column is required.':null}))});
+ // One-click preset: shows the day-range dashboard columns (ADR, % of ADR used, position in range, vs prior day, vs open).
+ groups.push({label:'Column presets',items:[item('preset:day-range','Day range columns',{disabled:WATCH_DAY_RANGE_COLUMNS.every(entry=>book.display.columns.includes(entry))?'The day range columns are already shown.':null})]});
  groups.push({label:null,items:[item('display','Display settings...'),...column===null?[...options.advanced?[item('advanced','Advanced View')]:[],...options.notes?[item('notes','Notes...')]:[],item('import-export','Import and export...')]:[]]});
  return groups;
 }

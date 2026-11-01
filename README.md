@@ -29,7 +29,7 @@ _Screenshots use the built-in example data, not real market prices._
 - Symbol search, compare and overlay symbols, standard and custom intervals, go to date, data window, table view and chart image export.
 
 **Indicators and drawings**
-- 211 built-in indicators, including 5 volume profiles and 62 chart and candlestick patterns, each with its own settings per instance.
+- 223 built-in indicators, including 6 volume profiles and 62 chart and candlestick patterns, each with its own settings per instance.
 - 89 drawing tools (lines, channels, pitchforks, Fibonacci and Gann tools, patterns, shapes, text, measurement and more), with an object tree, templates, favorites, lock and hide, magnet snapping, and undo/redo.
 
 **Analysis and practice**
@@ -62,7 +62,7 @@ OpenCandle needs no account and no key to start. A new install opens on a live B
 | Your own data (any market) | A CSV or JSON file of bars | Import a file with columns time (or date), open, high, low, close, volume; up to 20 MB and 100,000 rows. |
 | Options, futures, forex, live news | Not available from a built-in source | Import your own files. |
 
-You use your own accounts and keys, and each provider's terms apply to the data you connect. Data from Alpaca, Coinbase and FRED is for personal viewing and is not exported. Details: [docs/data-sources.md](docs/data-sources.md).
+You use your own accounts and keys, and each provider's terms apply to the data you connect. You can export data from Alpaca, Coinbase and FRED to files on your computer for your own analysis. Each provider's terms still apply, so don't share or resell those files. Details: [docs/data-sources.md](docs/data-sources.md).
 
 ## Install
 

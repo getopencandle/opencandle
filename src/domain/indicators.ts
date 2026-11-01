@@ -7,7 +7,7 @@ import {parseIndicatorSource,INDICATOR_SOURCE_KINDS} from './indicator-source';
 import {CATALOG_INDICATORS,catalogDefinition,catalogInputValue,type CatalogIndicatorId,type CatalogToolkit} from './indicator-catalog';
 import type {FinerBarsLookup,LowerTimeframeBars,VolumeProfile} from './volume-profile';
 import {isVwapEventAnchor,vwapEventAnchorKeys,type VwapEventDate} from './vwap-event-anchors';
-import {rsiDivergence,rsiDivergenceSettings,RSI_DIVERGENCE_PLOT_OF,RSI_DIVERGENCE_TITLES,RSI_DIVERGENCE_INPUT_KEYS,RSI_DIVERGENCE_POLICY_ID,type RsiDivergenceSegment} from './rsi-divergence';
+import {rsiDivergence,rsiDivergenceSettings,oscillatorFormingDivergence,RSI_DIVERGENCE_PLOT_OF,RSI_DIVERGENCE_TITLES,RSI_DIVERGENCE_INPUT_KEYS,RSI_DIVERGENCE_POLICY_ID,type RsiDivergenceSegment,type RsiFormingSegment} from './rsi-divergence';
 import {secondSymbolSeries,type SecondSeries} from './second-symbol';
 import {validPatternMarks,type PatternMarks} from './indicators-ext/patterns-catalog';
 
@@ -16,7 +16,7 @@ export type MovingAverageType = 'SMA' | 'EMA' | 'RMA' | 'WMA' | 'VWMA';
 export type IndicatorSmoothingType='None'|'SMA'|'SMA+BB'|'EMA'|'RMA'|'WMA'|'VWMA';
 export interface IndicatorSeries { id: string; label: string; values: NumericSeries; }
 /** RSI divergence segments: display geometry only; calculation outputs are the sparse marker series. */
-export interface IndicatorResult { id: string; series: IndicatorSeries[]; diagnostics: string[]; policies: string[]; plotDiagnostics?:Record<string,string[]>; divergence?:{segments:readonly RsiDivergenceSegment[]}; /** Histogram rows of the profile kinds (display geometry; POC, VAH and VAL are the series). */ profiles?:readonly VolumeProfile[]; /** Values of some plots past the last bar, k = 1.. (display only; series keep one value per bar for alerts and the data window). */ projection?:Readonly<Record<string,NumericSeries>>; /** Pattern markers and boundary lines (display only; the 0/1 signal plots are the series). */ marks?:PatternMarks; sessions?:readonly Readonly<TradingSessionRecord>[]; /** Display payload only; private port receipt grants current source/readout authority. */ seasonality?:Readonly<SeasonalityScene>; }
+export interface IndicatorResult { id: string; series: IndicatorSeries[]; diagnostics: string[]; policies: string[]; plotDiagnostics?:Record<string,string[]>; divergence?:{segments:readonly RsiDivergenceSegment[];/** Show forming divergences on: unconfirmed, display only (never a plot or alert operand). */forming?:readonly RsiFormingSegment[]}; /** Histogram rows of the profile kinds (display geometry; POC, VAH and VAL are the series). */ profiles?:readonly VolumeProfile[]; /** Values of some plots past the last bar, k = 1.. (display only; series keep one value per bar for alerts and the data window). */ projection?:Readonly<Record<string,NumericSeries>>; /** Pattern markers and boundary lines (display only; the 0/1 signal plots are the series). */ marks?:PatternMarks; sessions?:readonly Readonly<TradingSessionRecord>[]; /** Display payload only; private port receipt grants current source/readout authority. */ seasonality?:Readonly<SeasonalityScene>; }
 export type IndicatorInputs = Record<string, unknown>;
 /** A projection names known plots only, holds at most 100000 finite-or-null values per plot, and is frozen. */
 export function validProjection(plotIds:readonly string[],value:Record<string,NumericSeries>):Readonly<Record<string,NumericSeries>>{
@@ -569,6 +569,7 @@ export function calculateIndicator(id: IndicatorId | string, bars: readonly Bar[
     if(kind==='rsi'&&rsiDivergenceEnabled(inputs)){
       const settings=rsiDivergenceSettings(inputs),{policy}=settings,found=rsiDivergence(result.series[0].values,bars,policy,{kinds:settings.kinds,bodyOnly:settings.bodyOnly});
       for(const k of settings.kinds)plot(RSI_DIVERGENCE_PLOT_OF[k],RSI_DIVERGENCE_TITLES[k],found[k]);result.divergence={segments:found.segments};
+      if(settings.forming){result.divergence.forming=oscillatorFormingDivergence(result.series[0].values,bars,policy,{kinds:settings.kinds,bodyOnly:settings.bodyOnly},'RSI');result.policies.push('Forming divergences compare the latest unconfirmed RSI extreme with the last confirmed pivot. They are drawn dashed, may change or disappear until confirmed, and are never alert values.');}
       result.policies.push(`${RSI_DIVERGENCE_POLICY_ID}: OpenCandle RSI divergence rule. Pivots need ${policy.left} bars on the left and ${policy.right} on the right; compared pivots are ${policy.minBetween} to ${policy.maxBetween} bars apart; equal values never qualify; a divergence is reported on the bar where the right confirmation completes.`);
     }
   } catch (cause) { result.series = []; delete result.profiles; delete result.projection; delete result.marks; delete result.sessions; result.diagnostics.push(cause instanceof Error ? cause.message : String(cause)); }

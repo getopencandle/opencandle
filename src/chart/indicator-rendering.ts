@@ -18,7 +18,7 @@ const DIVERGENCE_STYLE:Readonly<Record<string,{color:string;width:number}>>=Obje
 /** A marker kind's 0/1 signal plots and the sparse RSI divergence plots stay out of the legend values by default (the reference legend shows none). */
 export function defaultPlotStyle(kind:IndicatorId,plot:string,ordinal:number):IndicatorPlotStyle{
  const fact=catalogDefinition(kind)?.plots.find(row=>row.id===plot),volumeMa=kind==='volume'&&plot==='ma',divergence=kind==='rsi'?DIVERGENCE_STYLE[plot]:undefined;
- return {visible:volumeMa?VOLUME_MA.visible:fact?.visible??true,color:fact?.color??divergence?.color??(volumeMa?VOLUME_MA.color:palette[ordinal%palette.length]),width:fact?.width??divergence?.width??(volumeMa?VOLUME_MA.width:2),lineStyle:'solid',kind:fact?.kind??(plot==='histogram'?'histogram':kind==='volume'&&plot==='volume'?'columns':'line'),priceScale:true,legend:!divergence&&(!fact||!catalogDefinition(kind)?.pattern),dataWindow:true};
+ return {visible:volumeMa?VOLUME_MA.visible:fact?.visible??true,color:fact?.color??divergence?.color??(volumeMa?VOLUME_MA.color:palette[ordinal%palette.length]),width:fact?.width??divergence?.width??(volumeMa?VOLUME_MA.width:2),lineStyle:'solid',kind:fact?.kind??(plot==='histogram'?'histogram':kind==='volume'&&plot==='volume'?'columns':'line'),priceScale:true,legend:!divergence&&(!fact||!catalogDefinition(kind)?.pattern||catalogDefinition(kind)?.linePlots?.includes(plot)===true),dataWindow:true};
 }
 export function indicatorPlotNativeId(instanceId:string,kind:IndicatorId,plot:string):string{
  const ordinal=indicatorPlotIds[kind].indexOf(plot);if(ordinal<0)throw new Error('Unknown numerical plot.');

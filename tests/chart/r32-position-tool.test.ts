@@ -73,11 +73,12 @@ describe.each(KINDS)('%s on the OpenCandle position model',kind=>{
  });
  it('offers the reference Inputs and Style settings and hides the native-only ones',()=>{
   const editor=drawingEditor(saved(kind),bars),shown=editor.fields.filter(field=>!field.when);
-  expect(shown.filter(field=>field.group==='behavior').map(field=>field.label)).toEqual(['Account size','Lot size','Risk','Risk unit','Leverage','Entry price','Profit level ticks','Profit level price','Stop level ticks','Stop level price','Qty precision','Account currency','Locked','Visible']);
+  expect(shown.filter(field=>field.group==='behavior').map(field=>field.label)).toEqual(['Account size','Lot size','Risk','Risk unit','Leverage','Entry price','Profit level ticks','Profit level price','Stop level ticks','Stop level price','Stop from ATR','Qty precision','Account currency','Locked','Visible']);
   expect(shown.filter(field=>field.group!=='behavior').map(field=>field.label)).toEqual(['Line color','Line width','Line style','Stop color','Target color','Text color','Text size','Price labels','Compact stats mode','Always show stats']);
   const hidden=editor.fields.filter(field=>field.when).map(field=>field.path);
   expect(hidden).toEqual(expect.arrayContaining(['riskPercent','quantity','direction','showText','showStopLabel']));
-  for(const field of editor.fields.filter(row=>row.when))expect(field.when).toEqual({path:LV_POSITION_HIDDEN_PATH,in:[true]});
+  // The ATR multiplier and length show while Stop from ATR is on; every other conditional field is a hidden native one.
+  for(const field of editor.fields.filter(row=>row.when))expect(field.when).toEqual(['lvPosition.atrMultiplier','lvPosition.atrLength'].includes(field.path)?{path:'lvPosition.atrStop',in:[true]}:{path:LV_POSITION_HIDDEN_PATH,in:[true]});
   expect(editor.values).toMatchObject({'lvPosition.risk':25,'lvPosition.riskUnit':'percentage','lvPosition.profitTicks':2000,'lvPosition.stopTicks':1000,'lvPosition.lotSize':1,'lvPosition.alwaysShowStats':false,'lvPosition.priceLabels':true});
  });
  it('edits lot size, risk in money, ticks, and keeps the risk amount when the account changes in money mode',()=>{
@@ -151,7 +152,7 @@ describe('painting and the chart context',()=>{
   const adapter=readFileSync('src/chart/adapter.ts','utf8');
   const start=adapter.indexOf('const unsubscribes = ['),list=adapter.slice(start,adapter.indexOf('\n',start));
   // The context also reads the hovered drawing from the renderer (Always show stats off then shows the plates on hover).
-  expect(list).toContain("registerPositionChartContext(chartPositionContext({container,tickSize:()=>sourceTickSize(currentSource),selectedIds:()=>selectedDrawingIds,hoveredId:()=>rendererHoveredDrawingId(rendererHolder.current)}))");
+  expect(list).toContain("registerPositionChartContext(chartPositionContext({container,tickSize:()=>sourceTickSize(currentSource),selectedIds:()=>selectedDrawingIds,hoveredId:()=>rendererHoveredDrawingId(rendererHolder.current),...typeof persistPositionDrawing==='function'?{persist:persistPositionDrawing}:{}}))");
   const dispose=adapter.slice(adapter.indexOf('disposeChart=()=>{'),adapter.indexOf(';return {controller,dispose:disposeChart};'));expect(dispose).toContain('...unsubscribes');
   // A newer chart in the same container wins over a context a failed initialization left behind.
   const newer=registerPositionChartContext(chartPositionContext({container:{contains:(node:unknown)=>node===canvas},tickSize:()=>1,selectedIds:()=>[model.id]}));

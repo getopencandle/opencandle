@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { exportRightsRefusal } from '../../src/domain/provider-capabilities';
-import { chartSourceCsv } from '../../src/ui/chart-source-export';
+import { providerTermsApply } from '../../src/domain/provider-capabilities';
+import { chartCsvSavedMessage, chartSourceCsv } from '../../src/ui/chart-source-export';
 import { sourceContextForDataset } from '../../src/chart/source-context';
 import { fixtureDataset } from '../../src/domain/fixtures';
 import { ALPACA_SIP_PROVIDER_ID, ALPACA_STUB_PROVIDER_ID } from '../../src/domain/alpaca-live';
@@ -9,24 +9,27 @@ import { factoryAppearance, factoryPriceScale, findRow, writeRow, type ChartSett
 import { defaultChartSettingsDocument } from '../../src/chart/chart-settings-document';
 import type { NewsDocument, NewsItem } from '../../src/analysis-news/news';
 
-// DATA.EXPORT rights gate; WS.EVENTS.LATEST_NEWS and WS.EVENTS.NEWS_NOTIFICATIONS (news badges + notification).
+// DATA.EXPORT provider terms (owner decision 2026-10-31: live, FRED and licensed data export for personal analysis); WS.EVENTS.LATEST_NEWS and WS.EVENTS.NEWS_NOTIFICATIONS (news badges + notification).
 // SYNTHETIC datasets and news documents; expected values worked out by hand.
-describe('DATA.EXPORT rights gate', () => {
-  it('refuses non-redistributable real sources and permits synthetic, local and unknown ones', () => {
-    expect(exportRightsRefusal(ALPACA_SIP_PROVIDER_ID, false)).toBe("Alpaca (delayed consolidated history) data is licensed for personal display only and can't be exported from OpenCandle.");
-    expect(exportRightsRefusal(ALPACA_SIP_PROVIDER_ID, true)).toBeNull();
-    expect(exportRightsRefusal(ALPACA_STUB_PROVIDER_ID, false)).toBeNull();
-    expect(exportRightsRefusal('local-import', false)).toBeNull();
-    expect(exportRightsRefusal('lv-local-aggregation', false)).toBeNull();
-    expect(exportRightsRefusal('no-such-provider', false)).toBeNull();
-    expect(exportRightsRefusal(undefined, false)).toBeNull();
+describe('DATA.EXPORT provider terms', () => {
+  it('apply to live, FRED and non-redistributable real sources, not to synthetic, local or unknown ones', () => {
+    expect(providerTermsApply({ providerId: ALPACA_SIP_PROVIDER_ID, fixture: false })).toBe(true);
+    expect(providerTermsApply({ providerId: ALPACA_SIP_PROVIDER_ID, fixture: true })).toBe(false);
+    expect(providerTermsApply({ datasetId: 'live:coinbase-public:BTC-USD:1m', fixture: false })).toBe(true);
+    expect(providerTermsApply({ datasetId: 'fred:fred-public:DGS10:1D', providerId: 'fred-public', fixture: false })).toBe(true);
+    expect(providerTermsApply({ providerId: 'alpaca-iex' })).toBe(true);
+    expect(providerTermsApply({ providerId: ALPACA_STUB_PROVIDER_ID, fixture: true })).toBe(false);
+    for (const providerId of ['local-import', 'lv-local-aggregation', 'lv-synthetic-v1', 'no-such-provider', undefined]) expect(providerTermsApply({ providerId, fixture: false })).toBe(false);
   });
-  it('chart CSV refuses an Alpaca delayed-history source and still exports a synthetic one', () => {
+  it('chart CSV exports an Alpaca delayed-history source with the terms line after saving, and a synthetic one without it', () => {
     const data = fixtureDataset('SPY', 3);
     expect(chartSourceCsv({ bars: data.bars, source: sourceContextForDataset(data), style: 'candles' }, 'ordinary').split('\r\n').length).toBe(5);
     const alpaca = fixtureDataset('SPY', 3);
     alpaca.provenance = { ...alpaca.provenance, providerId: ALPACA_SIP_PROVIDER_ID, providerName: 'Alpaca', datasetId: ALPACA_SIP_PROVIDER_ID + ':SPY:1D', fixture: false };
-    expect(() => chartSourceCsv({ bars: alpaca.bars, source: sourceContextForDataset(alpaca), style: 'candles' }, 'ordinary')).toThrow('licensed for personal display only');
+    const source = sourceContextForDataset(alpaca);
+    expect(chartSourceCsv({ bars: alpaca.bars, source, style: 'candles' }, 'ordinary').split('\r\n').length).toBe(5);
+    expect(chartCsvSavedMessage('Chart data saved', source, {})).toBe("Chart data saved. Market data from Alpaca, saved for your personal analysis. The provider's terms apply: do not share or resell this file.");
+    expect(chartCsvSavedMessage('Chart data saved', sourceContextForDataset(data), {})).toBe('Chart data saved');
   });
 });
 

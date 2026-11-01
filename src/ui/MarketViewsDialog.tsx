@@ -5,8 +5,9 @@ import { breadth } from '../market-views/breadth';
 import { filterHotSets, hotFilterOptions, hotlist, hotMarketLabel, sortHotRows, type HotRow, type HotSortKey } from '../market-views/hotlists';
 import { EXTREME_WINDOWS, breadthFlow, extremes, outperformance } from '../market-views/breadth-extended';
 import { RATING_INTERVALS, resampleBars, type RatingInterval } from '../market-views/rating-interval';
-import { defaultSeasonalOptions, normalizeValue, seasonalCsv, seasonalExportRefusal, seasonalHover, seasonalRange, seasonalYears, yearFilter, type SeasonalOptions } from '../market-views/seasonal-view';
+import { defaultSeasonalOptions, normalizeValue, seasonalCsv, seasonalTermsLabel, seasonalHover, seasonalRange, seasonalYears, yearFilter, type SeasonalOptions } from '../market-views/seasonal-view';
 import { loadFredSeriesList, type FredSeriesState } from '../market-views/fred-views';
+import { personalUseNote } from '../domain/live-provider';
 import { MacroPanel, YieldPanel } from './MarketMacroPanels';
 import { technicalRating, type RatingResult } from '../market-views/rating';
 import { dedupeDatasets, resolveScope, scopeChip, scopeLine } from '../market-views/scope';
@@ -60,7 +61,7 @@ export function SeasonalChart({ set, options, onOptions, onExport, hoverMonth = 
     <Select aria-label="End year" value={String(o.end ?? allYears[allYears.length - 1])} onChange={v => change({ end: Number(v) })} options={yearOptions} />
     <Select aria-label="Normalize" value={o.normalize} onChange={v => change({ normalize: v === 'index' ? 'index' : 'percent' })} options={[{ value: 'percent', label: 'Percent change' }, { value: 'index', label: 'Indexed to 100' }]} />
     <label><input type="checkbox" checked={o.range} onChange={e => change({ range: e.currentTarget.checked })} /> Show range</label>
-    {onExport && <button type="button" onClick={() => { const refused = seasonalExportRefusal(set); if (refused) { setExportNote(refused); return; } setExportNote(''); onExport(seasonalCsv(set.instrument.symbol, s, o)); }}>Export CSV</button>}
+    {onExport && <button type="button" onClick={() => { const terms = seasonalTermsLabel(set); setExportNote(terms === null ? '' : personalUseNote(terms)); onExport(seasonalCsv(set.instrument.symbol, s, o, terms)); }}>Export CSV</button>}
     {exportNote && <small role="alert">{exportNote}</small>}
   </div>;
   const yearPicker = onOptions && allYears.length > 0 && <fieldset className="mk-checks"><legend>Years</legend>{allYears.map(y => <label key={y}><input type="checkbox" checked={!o.excluded.includes(y) && yearFilter({ start: o.start, end: o.end, excluded: [] })(y)}
@@ -201,10 +202,11 @@ export function MarketViewsDialog({ datasets, watchSymbols, state, onChange, onO
   const loadFred = (ids: string[]) => { if (fredBusy || !ids.length) return; setFredBusy(`Loading 0 of ${ids.length} series...`);
     void loadFredSeriesList(fredBridge, fredEnabled, ids, datasets, (s, done, total) => { if (!alive.current) return; setFred(prev => new Map(prev).set(s.id, s)); setFredBusy(`Loaded ${done} of ${total} series...`); }, () => alive.current)
       .finally(() => { if (alive.current) setFredBusy(null); }); };
-  const fredProps = { view, set, fred, busy: fredBusy, enabled: fredEnabled, available: !!fredBridge && typeof (fredBridge as { fetchFredSeries?: unknown }).fetchFredSeries === 'function', onLoad: loadFred };
-  const exportSeasonal = (csv: string) => { const lv = (window as unknown as { lv?: { exportData?: (v: { text: string; suggestedName: string; format: 'csv' }) => Promise<unknown> } }).lv;
-    if (lv?.exportData) void lv.exportData({ text: csv, suggestedName: 'OpenCandle-seasonals-' + (picked?.instrument.symbol ?? 'symbol').replace(/[^A-Za-z0-9._-]/g, '_') + '.csv', format: 'csv' }); };
   const hasWindow = typeof window !== 'undefined' && !!(window as unknown as { lv?: { exportData?: unknown } }).lv?.exportData;
+  const saveCsv = (csv: string, name: string) => { const lv = (window as unknown as { lv?: { exportData?: (v: { text: string; suggestedName: string; format: 'csv' }) => Promise<unknown> } }).lv;
+    if (lv?.exportData) void lv.exportData({ text: csv, suggestedName: name.replace(/[^A-Za-z0-9._-]/g, '_') + '.csv', format: 'csv' }); };
+  const exportSeasonal = (csv: string) => saveCsv(csv, 'OpenCandle-seasonals-' + (picked?.instrument.symbol ?? 'symbol'));
+  const fredProps = { view, set, fred, busy: fredBusy, enabled: fredEnabled, available: !!fredBridge && typeof (fredBridge as { fetchFredSeries?: unknown }).fetchFredSeries === 'function', onLoad: loadFred, ...(hasWindow ? { onExport: saveCsv } : {}) };
   const seasonOptions: SeasonalOptions = { start: view.seasonStart ?? null, end: view.seasonEnd ?? null, excluded: view.seasonExcluded ?? [], normalize: view.seasonNormalize ?? 'percent', range: view.seasonRange ?? false, hidden: view.seasonHidden ?? [] };
   return <Modal title="Markets" onClose={onClose} wide>
     <div className="lv-markets"><div className="mk-body">

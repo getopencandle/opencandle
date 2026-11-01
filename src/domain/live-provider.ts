@@ -102,11 +102,9 @@ export const isLicensedLiveProviderId = (providerId: unknown): boolean => typeof
 export const isFredDatasetId = (datasetId: unknown): boolean => typeof datasetId === 'string' && datasetId.startsWith('fred:');
 /** Live dataset ids start with `live:` (or `fred:`, see above) and are never local imports. */
 export const isLiveDatasetId = (datasetId: unknown): boolean => typeof datasetId === 'string' && (datasetId.startsWith('live:') || datasetId.startsWith('fred:'));
-export const LIVE_EXPORT_NOTICE = 'Live market data is for personal display only and cannot be exported or shared.';
-/** A FRED series is refused for export too (FRED terms), but it is economic data, not live market data. */
-export const FRED_EXPORT_NOTICE = "FRED economic data can't be exported from OpenCandle. Download it from FRED directly.";
-/** The refusal wording for a dataset id that is already known to be refused (live or FRED). */
-export const exportNoticeFor = (datasetId: unknown): string => (isFredDatasetId(datasetId) ? FRED_EXPORT_NOTICE : LIVE_EXPORT_NOTICE);
+/** Live, FRED and licensed provider data may be saved on the user's own computer for personal analysis. Every such file, or
+ * the status shown after saving one, carries this terms line; `source` is the provider label shown with the data. */
+export const personalUseNote = (source: string): string => 'Market data from ' + (source || 'a connected provider') + ", saved for your personal analysis. The provider's terms apply: do not share or resell this file.";
 /** Plain heading status for a live dataset. A dataset still showing cached bars says "Cached" until its refresh
  * completes (a failed refresh keeps it, with the reason in the notes), so cached bars are never presented as live. */
 export function liveStatusLabel(provenance: Pick<DataProvenance, 'state' | 'delaySeconds'> & { notes?: readonly string[] }): 'Live' | 'Delayed 15 min' | 'Delayed' | 'Connecting' | 'Disconnected' | 'Cached' {

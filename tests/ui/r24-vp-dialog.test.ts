@@ -18,8 +18,8 @@ describe(' Profiles tab',()=>{
   expect(findAll(ui.render(),node=>node.type==='button'&&String(node.props['aria-label']??'').includes('volume profile'))).toEqual([]);
   find(ui.render(),node=>node.props?.role==='tab'&&text(node)==='Profiles').props.onClick();
   const entries=findAll(ui.render(),node=>node.props?.['data-selector-entry']);
-  // + Auto anchored, Session and Session HD volume profiles.
-  expect(entries.map(node=>text(node))).toEqual(['Auto anchored volume profile','Periodic volume profile','Session volume profile','Session volume profile HD','Visible range volume profile']);
+  // + Auto anchored, Session and Session HD volume profiles; + Auto fib range volume profile.
+  expect(entries.map(node=>text(node))).toEqual(['Auto anchored volume profile','Auto fib range volume profile','Periodic volume profile','Session volume profile','Session volume profile HD','Visible range volume profile']);
   expect(entries.every(node=>node.props.disabled===false)).toBe(true);
   find(ui.render(),node=>node.props?.['data-selector-entry']==='vrvp').props.onClick();
   find(ui.render(),node=>node.props?.['data-selector-entry']==='pvp').props.onClick();

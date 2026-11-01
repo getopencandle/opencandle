@@ -10,8 +10,7 @@ import {catalogDefinition} from '../domain/indicator-catalog';
 import {parseIndicatorSource} from '../domain/indicator-source';
 import {indicatorActivePlotIds} from '../domain/indicators';
 import {scriptOutputs} from '../ui/script-outputs';
-import {isLiveDatasetId,isLiveProviderId,LIVE_EXPORT_NOTICE,exportNoticeFor} from '../domain/live-provider';
-import {exportRightsRefusal} from '../domain/provider-capabilities';
+import {providerTermsApply} from '../domain/provider-capabilities';
 
 export interface ChartCsvPoint {readonly time:number;readonly value:number|null}
 export interface ChartCsvColumn {readonly label:string;readonly points:readonly ChartCsvPoint[]}
@@ -101,7 +100,7 @@ function usesExtraHistory(id:string,settings:ReadonlyMap<string,object>):boolean
  return false;
 }
 /** Capture only current, accepted port models. Caller ownership and native frame guards are one export proof. */
-export function captureChartCsvColumns(chart:ChartController|null,input:ChartInputSnapshot,execution:string,inventory:ChartCsvInventory,assertOwner:()=>void):{columns:readonly ChartCsvColumn[];assertCurrent():void;omitted?:readonly string[]}{
+export function captureChartCsvColumns(chart:ChartController|null,input:ChartInputSnapshot,execution:string,inventory:ChartCsvInventory,assertOwner:()=>void):{columns:readonly ChartCsvColumn[];assertCurrent():void;omitted?:readonly string[];personalUse?:readonly string[]}{
  assertOwner();prepareChartCsvSource(input,execution);
  const expected=[...inventory.indicators,...inventory.comparisons,...inventory.scripts];
  // An empty configured graph has no supplementary numerical authority to acquire. Preserve the source-only contract.
@@ -126,7 +125,7 @@ export function captureChartCsvColumns(chart:ChartController|null,input:ChartInp
  }
  if(found.size!==categories.size)throw Error('Some chart studies are still loading or unavailable. Export after their current results are ready.');
  const scriptMetadata=scriptOutputs.list(chart.scripts),scriptMetadataKey=JSON.stringify(scriptMetadata.map(row=>[row.bindingId,row.declarations.requests,row.plots]));
- const columns:ChartCsvColumn[]=[],labels=new Set<string>(),omitted:string[]=[],indicatorSettings=new Map<string,object>(rows[0].map(row=>[row.id as string,row.settings as object]));let samples=0;
+ const columns:ChartCsvColumn[]=[],labels=new Set<string>(),omitted:string[]=[],personalUse:string[]=[],indicatorSettings=new Map<string,object>(rows[0].map(row=>[row.id as string,row.settings as object]));let samples=0;
  const append=(label:string,rows:readonly unknown[],field:string,optional=false)=>{
   samples+=rows.length;if(samples>CHART_CSV_POINT_LIMIT||columns.length>=CHART_CSV_COLUMN_LIMIT)throw Error('Chart CSV numerical output exceeds its bounded capture capacity.');
   const name=text(label);let header=name,ordinal=1;while(labels.has(header))header=name+' ('+(++ordinal)+')';labels.add(header);const points=copyPoints(rows,field,true,optional);
@@ -145,8 +144,8 @@ export function captureChartCsvColumns(chart:ChartController|null,input:ChartInp
   let label:string;
   if(category===0){const kind=own(settings,'kind'),definition=catalogDefinition(kind);label=definition?.name??names[kind];if(!label)throw stale();
    if(usesExtraHistory(listed.id,indicatorSettings)){const name=text(label);let header=name+CHART_CSV_OMITTED_SUFFIX,ordinal=1;while(labels.has(header))header=name+' ('+(++ordinal)+')'+CHART_CSV_OMITTED_SUFFIX;labels.add(header);if(columns.length>=CHART_CSV_COLUMN_LIMIT)throw Error('Chart CSV numerical output exceeds its bounded capture capacity.');columns.push(Object.freeze({label:header,points:Object.freeze([])}));omitted.push(name);continue;}if(indicatorActivePlotIds(kind,own(settings,'inputs')).length&&!series.length)throw Error('A whole-hidden or unavailable study has no retained numerical output to export. Show it and wait for its current results.');}
-  else if(category===1){const dataset=own(settings,'dataset'),provenance=own(dataset,'provenance');if(isLiveDatasetId(provenance.datasetId)||isLiveProviderId(provenance.providerId))throw Error(exportNoticeFor(provenance.datasetId));const refusal=exportRightsRefusal(own(provenance,'providerId',true),own(provenance,'fixture',true));if(refusal)throw Error(refusal);label='Compare '+text(own(own(dataset,'instrument'),'symbol'))+' ('+(own(settings,'placement',true)==='same-scale'?'rebased':own(settings,'mode'))+')';if(series.length!==1)throw stale();}
-  else{label=text(own(settings,'title'));const description=scriptMetadata.find(row=>row.bindingId===listed.id),result=own(instance,'result'),declarations=own(result,'declarations',true);const requested=declarations?dense(own(declarations,'requests'),64):[];if(description?.declarations.requests.length||requested.length){const dependencies=()=>{assertScriptCsvJobDependencies(instance,result,requested);if(description)assertScriptCsvJobDependencies(instance,result,description.declarations.requests);};dependencies();checks.push(dependencies);}if(description?.plots.length&&!dense(own(result,'plots'),16).length)throw Error('Script results are updating. Wait for their current calculation before exporting.');if(own(result,'provenance',true)?.kind==='live')throw Error(LIVE_EXPORT_NOTICE);const accepted=()=>assertScriptCsvJobModel(instance,result,input,execution,listed.id);accepted();checks.push(accepted);}
+  else if(category===1){const dataset=own(settings,'dataset'),provenance=own(dataset,'provenance');if(providerTermsApply({datasetId:own(provenance,'datasetId',true),providerId:own(provenance,'providerId',true),fixture:own(provenance,'fixture',true)}))personalUse.push(String(own(provenance,'providerName',true)??''));label='Compare '+text(own(own(dataset,'instrument'),'symbol'))+' ('+(own(settings,'placement',true)==='same-scale'?'rebased':own(settings,'mode'))+')';if(series.length!==1)throw stale();}
+  else{label=text(own(settings,'title'));const description=scriptMetadata.find(row=>row.bindingId===listed.id),result=own(instance,'result'),declarations=own(result,'declarations',true);const requested=declarations?dense(own(declarations,'requests'),64):[];if(description?.declarations.requests.length||requested.length){const dependencies=()=>{const live=assertScriptCsvJobDependencies(instance,result,requested);return (description?assertScriptCsvJobDependencies(instance,result,description.declarations.requests):false)||live;};if(dependencies())personalUse.push('');checks.push(dependencies);}if(description?.plots.length&&!dense(own(result,'plots'),16).length)throw Error('Script results are updating. Wait for their current calculation before exporting.');if(own(result,'provenance',true)?.kind==='live')personalUse.push('');const accepted=()=>assertScriptCsvJobModel(instance,result,input,execution,listed.id);accepted();checks.push(accepted);}
   for(const item of series){
    const rawTitle=own(item,'title');
    // Untitled data-window-hidden series are fill/zone anchors, not plots, so they are left out.
@@ -167,5 +166,5 @@ export function captureChartCsvColumns(chart:ChartController|null,input:ChartInp
   if(chart.indicators!==ports[0]||chart.comparisons!==ports[1]||chart.scripts!==ports[2]||chart.chart!==native||chart.nativeRenderer()!==renderer||own(native,'orchestrator')!==core||own(core,'registry')!==registry||method(registry,'get')!==get||method(registry,'all')!==all||own(core,'renderer')!==renderer||own(core,'bars')!==bars||own(renderer,'scene')!==scene||own(scene,'indicators')!==models||own(scene,'panes')!==panes)throw stale();
   for(const check of checks)check();for(const proof of proofs)assertNumbers(proof);assertInput();
  };
- assertCurrent();const frozen=Object.freeze(columns);capturedColumns.add(frozen);return {columns:frozen,assertCurrent,...(omitted.length?{omitted:Object.freeze(omitted)}:{})};
+ assertCurrent();const frozen=Object.freeze(columns);capturedColumns.add(frozen);return {columns:frozen,assertCurrent,...(omitted.length?{omitted:Object.freeze(omitted)}:{}),...(personalUse.length?{personalUse:Object.freeze(personalUse)}:{})};
 }

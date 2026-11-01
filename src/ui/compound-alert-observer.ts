@@ -5,7 +5,8 @@ import {sourceContextForDataset,type ChartSourceContext} from '../chart/source-c
 import {sourceValues,sma} from '../domain/indicators';
 import {planAlpacaInterval} from '../domain/live-intervals';
 import {TECHNICAL_ALERT_LIMITS} from '../domain/technical-alerts';
-import {LIVE_EXPORT_NOTICE} from '../domain/live-provider';
+
+export const COMPOUND_HISTORY_EXPORT_NOTICE="All-conditions alert history is kept on this computer only and can't be exported.";
 
 /** Trusted ROOT application-owner interface, not a public source registrar.
  * Source permission ALWAYS comes from the real private producer capture below. */
@@ -287,5 +288,5 @@ export class CompoundAlertObserver {
  /** This first source route has NO export-allowed branch. Local/private save
   * and workspace/share sanitization require the actual ROOT bridge; do not
   * recursively stringify the linked runtime state as a substitute. */
- exportHistory():never{throw Error(LIVE_EXPORT_NOTICE);}
+ exportHistory():never{throw Error(COMPOUND_HISTORY_EXPORT_NOTICE);}
 }

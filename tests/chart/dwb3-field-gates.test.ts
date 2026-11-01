@@ -16,7 +16,9 @@ const BEFORE:Record<string,string[]>={
  parallelchannel:['style.lineColor','style.lineWidth','style.lineStyle','style.fillColor','text.value','text.color','text.size','text.bold','text.italic','locked','visible'],
  // retarget: the LV position model offers the reference Inputs/Style settings (lvPosition.*, not a consumer
  // member) and keeps the native-only settings as hidden fields after them.
- position:['accountBalance','lvPosition.lotSize','lvPosition.risk','lvPosition.riskUnit','lvPosition.leverage','entryPrice','lvPosition.profitTicks','targetPrice','lvPosition.stopTicks','stopPrice','lvPosition.precision','lvPosition.currency','style.lineColor','style.lineWidth','style.lineStyle','lossColor','profitColor','text.color','text.size','lvPosition.priceLabels','lvPosition.compactStats','lvPosition.alwaysShowStats','riskPercent','quantity','direction','showText','showHeader','showLossSize','showTargetLabel','showStopLabel','showPrices','locked','visible'],
+ // 0.8.2: the Stop from ATR settings (lvPosition.atrStop/atrMultiplier/atrLength) are LV position inputs, not a consumer
+ // flag, so they join the default list after the stop price.
+ position:['accountBalance','lvPosition.lotSize','lvPosition.risk','lvPosition.riskUnit','lvPosition.leverage','entryPrice','lvPosition.profitTicks','targetPrice','lvPosition.stopTicks','stopPrice','lvPosition.atrStop','lvPosition.atrMultiplier','lvPosition.atrLength','lvPosition.precision','lvPosition.currency','style.lineColor','style.lineWidth','style.lineStyle','lossColor','profitColor','text.color','text.size','lvPosition.priceLabels','lvPosition.compactStats','lvPosition.alwaysShowStats','riskPercent','quantity','direction','showText','showHeader','showLossSize','showTargetLabel','showStopLabel','showPrices','locked','visible'],
 };
 BEFORE.lvshortposition=BEFORE.position;
 const anchorsOf:Record<string,unknown>={trendline:A,fibretracement:A,parallelchannel:A3,position:AP,lvshortposition:AP};

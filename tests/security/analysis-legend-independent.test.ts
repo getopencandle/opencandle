@@ -58,7 +58,9 @@ function harness(){
   if(change==='epoch')gridGeneration.current++;
   if(change==='controller')activeController.current={...chart};
  }
- const bindings={chart,dataset,bars,source,workspace,replay,gridEpoch,current,currentInput,currentReplay,activeController,gridGeneration,storageMutation,workspaceTransaction,sourceContextForDataset,chartSourceContextKey,indicatorEditFingerprint,confirmAnalysisPublication,assertDialogContext(){},setMessage:(message:unknown)=>messages.push(String(message)),reportFailure:(cause:unknown)=>messages.push(friendlyError(cause)),setIndicatorViews:(next:unknown)=>{hooks.refresh?.();views.push(next);}};
+ const bindings={chart,dataset,bars,source,workspace,replay,gridEpoch,current,currentInput,currentReplay,activeController,gridGeneration,storageMutation,workspaceTransaction,sourceContextForDataset,chartSourceContextKey,indicatorEditFingerprint,confirmAnalysisPublication,assertDialogContext(){},setMessage:(message:unknown)=>messages.push(String(message)),reportFailure:(cause:unknown)=>messages.push(friendlyError(cause)),setIndicatorViews:(next:unknown)=>{hooks.refresh?.();views.push(next);},
+  // Anchored VWAP click-to-place state the extracted range wires (anchorPlacementEnd.current=endAnchorPlacement); no placement is active here.
+  anchorPlacementRef:{current:null},setAnchorPlacement:()=>{},anchorPlacementEnd:{current:(_cancel:boolean)=>{}}};
  const extracted=new Function(...Object.keys(bindings),body+'\nreturn {action:applyIndicatorLegendAction,confirm:confirmAnalysisCapture};')(...Object.values(bindings)) as {action:(row:any,remove?:boolean)=>void;confirm:(domain:string,owned?:boolean)=>unknown};
  return{...extracted,chart,row,hooks,replace,commit,current,currentInput,messages,views,quarantines,counts:()=>({mutations,reads,refreshReads}),native:()=>native,unavailable(){available=false;}};
 }

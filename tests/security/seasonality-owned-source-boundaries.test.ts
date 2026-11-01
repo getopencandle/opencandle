@@ -5,6 +5,10 @@ import {sourceContextForDataset,sourceContextForInput,localCandleContextFacts,ca
 import {cloneProfileInputBars,localCandleCloneMatchesContext} from '../../src/chart/profile-input-clone';
 import {stampLiveLineage} from '../../src/chart/bar-input-identity';
 import {reconstructLocalCandleDataset} from '../../src/domain/local-candle-origin';
+import {INDICATOR_WORK_LIMIT,INDICATOR_BATCH_WORK_LIMIT} from '../../src/chart/indicator-settings';
+// Source reservations share the batch cap (INDICATOR_BATCH_WORK_LIMIT), which is a multiple of one study's limit; the
+// attempt bound scales with it so the cap is still reached well before the loop ends.
+const SOURCE_ATTEMPTS=60*INDICATOR_BATCH_WORK_LIMIT/INDICATOR_WORK_LIMIT;
 const fixtures:Awaited<ReturnType<typeof ownedSourceFixture>>[]=[];
 async function fixture(options:Parameters<typeof ownedSourceFixture>[0]={}){const h=await ownedSourceFixture(options);fixtures.push(h);return h;}
 afterEach(()=>{for(const h of fixtures.splice(0))h.dispose();});
@@ -43,12 +47,12 @@ it('known live ancestry cannot be relabeled into qualified local source ownershi
 });
 it('real accepted source reservations across instances eventually refuse without evicting an accepted builtin value',async()=>{
  const h=await fixture(),first=h.port.captureReadout!(h.id);expect(first.state).toBe('ready');const views=[];let refused=false;
- for(let index=0;index<60;index++){const id=index?h.port.add('ema',{length:2}):h.id;try{views.push(await h.primary.prepare(id,sourceRequest()));}catch{refused=true;break;}}
- expect(refused).toBe(true);expect(views.length).toBeGreaterThan(1);expect(views.length).toBeLessThan(60);expect(views[0].read().status).toBe('ready');if(first.state==='ready'){first.assertCurrent();expect(first.readAt(h.raw()[1].time).plots[0].value).toBeCloseTo(117.5,12);}
+ for(let index=0;index<SOURCE_ATTEMPTS;index++){const id=index?h.port.add('ema',{length:2}):h.id;try{views.push(await h.primary.prepare(id,sourceRequest()));}catch{refused=true;break;}}
+ expect(refused).toBe(true);expect(views.length).toBeGreaterThan(1);expect(views.length).toBeLessThan(SOURCE_ATTEMPTS);expect(views[0].read().status).toBe('ready');if(first.state==='ready'){first.assertCurrent();expect(first.readAt(h.raw()[1].time).plots[0].value).toBeCloseTo(117.5,12);}
  for(const view of views)view.dispose();expect((await h.primary.prepare(h.id,sourceRequest())).read().status).toBe('ready');
 });
 it('pending reservations are charged before ready and abort frees them without old A cleanup clearing accepted B',async()=>{
  const h=await fixture({deferInitial:true}),controllers:AbortController[]=[],pending:Promise<unknown>[]=[];let refused=false;
- for(let index=0;index<60;index++){const id=index?h.port.add('ema',{length:2}):h.id,controller=new AbortController();controllers.push(controller);let failure:unknown;const next=h.primary.prepare(id,sourceRequest(controller.signal)).then(view=>view,error=>{failure=error;return error;});pending.push(next);for(let turn=0;turn<3;turn++)await Promise.resolve();if(failure instanceof Error){refused=true;break;}}
+ for(let index=0;index<SOURCE_ATTEMPTS;index++){const id=index?h.port.add('ema',{length:2}):h.id,controller=new AbortController();controllers.push(controller);let failure:unknown;const next=h.primary.prepare(id,sourceRequest(controller.signal)).then(view=>view,error=>{failure=error;return error;});pending.push(next);for(let turn=0;turn<3;turn++)await Promise.resolve();if(failure instanceof Error){refused=true;break;}}
  expect(refused).toBe(true);expect(pending.length).toBeGreaterThan(1);for(const controller of controllers)controller.abort();await Promise.all(pending);h.initialDone();await Promise.resolve();await Promise.resolve();const b=await h.primary.prepare(h.id,sourceRequest());expect(b.read().status).toBe('ready');await Promise.all(pending);b.assertCurrent();
 });

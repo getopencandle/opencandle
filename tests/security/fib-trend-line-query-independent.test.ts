@@ -11,10 +11,12 @@ it.each([true,false])('does not adopt live moving anchors mutated by an original
   f.interaction.down(300,enabled?150:123.6,'off',false,false);f.interaction.move(320,enabled?170:143.6);
   expect(f.interaction.state.kind).toBe('pressed');expect(f.interaction.state.moved).toBe(true);
   const model=f.controller.drawings[0],before=structuredClone(model.anchors);
-  prototype=Object.getPrototypeOf(f.coords);descriptor=Object.getOwnPropertyDescriptor(prototype!,'timeToX');
-  if(!descriptor||typeof descriptor.value!=='function')throw Error('SYNTHETIC original native timeToX missing');
+  // The native projector's xOf reaches logicalToX on every path: directly for an anchor inside a loaded bar's period (the
+  // dragged anchors here, the first in bar 0 and the second inside the latest bar), through timeToX otherwise.
+  prototype=Object.getPrototypeOf(f.coords);descriptor=Object.getOwnPropertyDescriptor(prototype!,'logicalToX');
+  if(!descriptor||typeof descriptor.value!=='function')throw Error('SYNTHETIC original native logicalToX missing');
   const original=descriptor.value;let calls=0,mutated=false;
-  Object.defineProperty(prototype!,'timeToX',{...descriptor,value:function(...args:unknown[]){
+  Object.defineProperty(prototype!,'logicalToX',{...descriptor,value:function(...args:unknown[]){
    const result=Reflect.apply(original,this,args);calls++;if(!mutated){mutated=true;for(const anchor of model.anchors)anchor.price+=100;}return result;
   }});
   let result:unknown,error:unknown;try{result=f.interaction.hitAt(320,70);}catch(cause){error=cause;}
@@ -24,5 +26,5 @@ it.each([true,false])('does not adopt live moving anchors mutated by an original
   // changed during this same query may become an accepted hit.
   expect(result==null).toBe(true);
   if(error)expect(error).toBeInstanceOf(Error);
- }finally{if(prototype&&descriptor)Object.defineProperty(prototype,'timeToX',descriptor);f.cleanup();}
+ }finally{if(prototype&&descriptor)Object.defineProperty(prototype,'logicalToX',descriptor);f.cleanup();}
 });

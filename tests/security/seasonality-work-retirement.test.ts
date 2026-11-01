@@ -1,6 +1,7 @@
 import {afterEach,expect,it,vi} from 'vitest';
 import {createBuiltinPresentationPort,BUILTIN_SEASONALITY_PREPARATION_COST,type BuiltinPresentationControl} from '../../src/chart/builtin-presentation-proof';
 import type {SeasonalityResult} from '../../src/domain/indicators-ext/seasonality-types';
+import {INDICATOR_WORK_LIMIT,INDICATOR_OUTPUT_LIMIT,INDICATOR_BATCH_WORK_LIMIT,INDICATOR_BATCH_OUTPUT_LIMIT} from '../../src/chart/indicator-settings';
 
 // Actual aggregate source accounting, without manufacturing a consumed source,
 // group, native acknowledgement or private work witness. Genuine positive
@@ -11,7 +12,12 @@ const tick=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
 const budget=Object.freeze({operations:0,numericSlots:0});
 const cost=(operations:number,numericSlots=1408)=>({operations,numericSlots,pendingSlots:0});
 const supplied={status:'ready'} as unknown as Readonly<SeasonalityResult>;
-function pipeline(){let control!:BuiltinPresentationControl;createBuiltinPresentationPort({},undefined,undefined,value=>{control=value;return{};});close.push(()=>control.dispose());return control;}
+// The shared batch caps are larger than one study's limits (INDICATOR_BATCH_*). An accepted unrelated source holds the
+// difference, so exactly one study's worth of headroom (20M operations, 2M slots) is left and the amounts below keep
+// testing the cap edge.
+function pipeline(){let control!:BuiltinPresentationControl;createBuiltinPresentationPort({},undefined,undefined,value=>{control=value;return{};});close.push(()=>control.dispose());
+ const filler=control.reserveSource({},()=>true,budget,{operations:INDICATOR_BATCH_WORK_LIMIT-INDICATOR_WORK_LIMIT,numericSlots:INDICATOR_BATCH_OUTPUT_LIMIT-INDICATOR_OUTPUT_LIMIT,pendingSlots:0});expect(filler).not.toBeNull();filler!.accept();close.push(()=>filler!.release());
+ return control;}
 function accepted(control:BuiltinPresentationControl,armed=true,slots=1408){
  const model={},owned=vi.fn(()=>true),token=control.reserveSource(model,owned,budget,cost(18000000,slots));expect(token).not.toBeNull();
  const scene=armed?control.armSeasonalityPreparation(model,token!):null;if(scene)close.push(()=>scene.retire());token!.accept();return{model,owned,token:token!,scene};

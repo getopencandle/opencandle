@@ -1,6 +1,7 @@
 import {beforeEach,describe,expect,it,vi} from 'vitest';
 import {find,findAll,makeHarness,text} from './indicator-real-port-harness';
 import {IndicatorSettings} from '../../src/ui/IndicatorDialog';
+import {catalogKeywords} from '../../src/domain/indicator-catalog';
 import {filterIndicatorCatalog,indicatorNames,indicatorAcronyms,highlightSegments,pickerWindow,scrollToRow,stepListActive,PICKER_WINDOW_THRESHOLD,PICKER_ROW_HEIGHT} from '../../src/ui/indicator-dialog-model';
 
 // Picker rebuild: keyboard navigation, search highlight, add without closing, the settings card and the compact
@@ -160,7 +161,9 @@ describe('search ranking and short-name highlight',()=>{
   const rsi=order('rsi');expect(rsi[0]).toBe('rsi');
   const crsi=rsi.indexOf('connorsrsi' as any);if(crsi>=0)expect(crsi).toBeGreaterThan(0);
   expect(order('relative strength index')[0]).toBe('rsi');
-  const rank=(kind:any,q:string)=>{const n=indicatorNames[kind as keyof typeof indicatorNames].toLowerCase(),a=indicatorAcronyms[kind as keyof typeof indicatorAcronyms].toLowerCase();return a===q||n===q?0:n.startsWith(q)||a.startsWith(q)?1:n.split(/[^a-z0-9]+/).some((w:string)=>w.startsWith(q))||a.split(/[^a-z0-9]+/).some((w:string)=>w.startsWith(q))?2:3;};
+  // Word starts count in the name, short name, id and catalog keywords (the fields the search matches); the newer catalog
+  // entries carry keywords whose words start with these queries.
+  const rank=(kind:any,q:string)=>{const n=indicatorNames[kind as keyof typeof indicatorNames].toLowerCase(),a=indicatorAcronyms[kind as keyof typeof indicatorAcronyms].toLowerCase(),words=[n,a,String(kind).toLowerCase(),catalogKeywords(kind).toLowerCase()];return a===q||n===q?0:n.startsWith(q)||a.startsWith(q)?1:words.some(field=>field.split(/[^a-z0-9]+/).some((w:string)=>w.startsWith(q)))?2:3;};
   for(const q of ['rsi','ma','vol','bb']){const ranks=order(q).map(kind=>rank(kind,q));expect(ranks).toEqual([...ranks].sort((a,b)=>a-b));}
  });
  it('highlights matches in the short name as well as the name',()=>{

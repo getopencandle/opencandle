@@ -77,13 +77,15 @@ it('a genuinely changed source is still refused during the commit window',async(
  try{
   nativeShape(f);f.sync([record()]);f.drain();followCanonical(f);
   f.interaction.down(300,150,'off',false,false);f.interaction.move(320,162);
-  // The source retires inside the commit-window frame itself (first native projection).
-  prototype=Object.getPrototypeOf(f.coords);descriptor=Object.getOwnPropertyDescriptor(prototype,'timeToX');if(!descriptor||typeof descriptor.value!=='function')throw Error('SYNTHETIC expected native timeToX provider');
-  const original=descriptor.value;let armed=true;Object.defineProperty(prototype,'timeToX',{...descriptor,value:function(...args:any[]){const result=Reflect.apply(original,this,args);if(armed){armed=false;f.retireSource();}return result;}});
+  // The source retires inside the commit-window frame itself (first native projection). The projector's xOf reaches
+  // logicalToX on every path: directly for an anchor inside a loaded bar's period (the dragged anchors here, including
+  // one inside the latest bar), through timeToX otherwise.
+  prototype=Object.getPrototypeOf(f.coords);descriptor=Object.getOwnPropertyDescriptor(prototype,'logicalToX');if(!descriptor||typeof descriptor.value!=='function')throw Error('SYNTHETIC expected native logicalToX provider');
+  const original=descriptor.value;let armed=true;Object.defineProperty(prototype,'logicalToX',{...descriptor,value:function(...args:any[]){const result=Reflect.apply(original,this,args);if(armed){armed=false;f.retireSource();}return result;}});
   f.top.commands.length=0;
   expect(()=>f.interaction.up(320,162)).toThrow(/source retired/);
   expect(armed).toBe(false);
- }finally{if(descriptor)Object.defineProperty(prototype,'timeToX',descriptor);f.cleanup();}
+ }finally{if(descriptor)Object.defineProperty(prototype,'logicalToX',descriptor);f.cleanup();}
 });
 
 it('a commit-window difference beyond the committed geometry is still refused (presentation conflict): withheld, never quarantined (FIB-SETTINGS-1029)',async()=>{

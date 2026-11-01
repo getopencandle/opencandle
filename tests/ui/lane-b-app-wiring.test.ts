@@ -13,7 +13,8 @@ describe('LANE-B App wiring',()=>{
   expect(app).toMatch(/legendValuesView,legendPaneView/);
   // The legend reads the port's shared frozen snapshot (peekValues) instead of a deep copy per hover frame; values() is the fallback.
   expect(app).toContain('legendPort=chart?{values:(id:string)=>({series:(chart.indicators.peekValues?.(id)??chart.indicators.values(id)).series');
-  expect(app).toContain('legendValuesView(indicatorLegendTexts(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),(plotValues,bar)=>indicatorPlotTextAt(plotValues,bar,reading,tickSize)))');
+  // 0.8.2: each legend value is read with its own plot named, so a plot with its own catalog precision formats the same as the data window.
+  expect(app).toContain('legendValuesView(indicatorLegendTexts(legendPort,row,validInspection?.displayed.index??null,(kind,plot)=>defaultPlotStyle(kind as IndicatorId,plot,0),(plotValues,bar,plot)=>indicatorPlotTextAt(plotValues,bar,{...reading,plot},tickSize)))');
   expect(app).toMatch(/className="lv-legend-title"[^\n]*?<\/button>\s*\{values\}/);
   expect(app).toContain('groupLegendByPane(indicatorViews).map(group=>');
   expect(app).not.toContain('indicatorViews.map(legendRow)');

@@ -2,6 +2,7 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {createBuiltinPresentationPort,BUILTIN_SEASONALITY_PREPARATION_COST,type BuiltinPresentationControl,type BuiltinSourceReservation,type BuiltinSourceCost} from '../../src/chart/builtin-presentation-proof';
 import {captureAlpacaSeasonalityDailyPlan,acquireAlpacaSeasonalityDailyDemand,releaseAlpacaSeasonalityDailyDemand,createAlpacaSeasonalityPreparationGroup,runAlpacaSeasonalityPreparationGroup,releaseAlpacaSeasonalityPreparationGroup,alpacaSeasonalityPreparationSettled,subscribeAlpacaSeasonalityPreparationSettled} from '../../src/domain/alpaca-live';
 import {publishedSource,response,fridayMonday,flushMtf,type Request} from '../fixtures/qualified-nyse-mtf-source';
+import {INDICATOR_BATCH_OUTPUT_LIMIT} from '../../src/chart/indicator-settings';
 
 // Actual constructor-owned opaque groups and uncancellable synthetic bridge
 // promises. No network, key, native scene, price or source grant is fabricated.
@@ -28,7 +29,8 @@ it('arming invokes no supplied owner callback and preserves the scene publicatio
  expect(owned).not.toHaveBeenCalled();expect(Reflect.ownKeys(scene).sort()).toEqual(['accepted','assertCurrent','enter','prepared','retainCalendar','retire','returned']);expect(Object.isFrozen(scene)).toBe(true);scene.retire();token.release();
 });
 it('an armed unpublished stack stays funded until its retirement microtask unwinds',async()=>{
- const control=pipeline(),model={},token=reserve(control,model),scene=armed(control,model,token),budget={operations:0,numericSlots:2000000-COST.numericSlots-COST.pendingSlots};
+ const control=pipeline(),model={},token=reserve(control,model),scene=armed(control,model,token),budget={operations:0,numericSlots:INDICATOR_BATCH_OUTPUT_LIMIT-COST.numericSlots-COST.pendingSlots};
+ // The budget leaves room under the shared batch slot cap (INDICATOR_BATCH_OUTPUT_LIMIT) for exactly one reservation.
  token.release();expect(token.signal.aborted).toBe(false);expect(control.reserveSource({},()=>true,budget,COST)).toBeNull();scene.retire();expect(token.signal.aborted).toBe(false);await flushMtf();expect(token.signal.aborted).toBe(true);expect(control.reserveSource({},()=>true,budget,COST)).not.toBeNull();
 });
 it.each([{operations:7167,numericSlots:100000,pendingSlots:1408},{operations:7168,numericSlots:1000,pendingSlots:407},{operations:7168,numericSlots:1407,pendingSlots:100000}])('refuses an underfunded required preparation before a group can be born %j',cost=>{

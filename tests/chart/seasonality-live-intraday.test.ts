@@ -3,6 +3,7 @@ import {ownedSourceFixture} from '../fixtures/seasonality-live-owned-source';
 import {publishedSource,response,fridayMonday,syntheticSession,unix,flushMtf,type Request} from '../fixtures/qualified-nyse-mtf-source';
 import type {Bar} from '../../src/domain/types';
 import * as builtin from '../../src/chart/builtin-presentation-proof';
+import {INDICATOR_WORK_LIMIT,INDICATOR_OUTPUT_LIMIT,INDICATOR_BATCH_WORK_LIMIT,INDICATOR_BATCH_OUTPUT_LIMIT} from '../../src/chart/indicator-settings';
 
 // SYNTHETIC actual provider transport, adapter constructor and canonical SDK.
 // No caller/source registrar, fake result, budget override or native proof.
@@ -35,13 +36,16 @@ it('genuine accepted A blocks B before unwind and admits it only after authentic
  const original=builtin.createBuiltinPresentationPort;
  const instrument:typeof original=(chart,publication,bars,build)=>original(chart,publication,bars,control=>{pipeline=control;return build(control);});vi.spyOn(builtin,'createBuiltinPresentationPort').mockImplementation(instrument);
  const {f}=await own();expect(pipeline).not.toBeNull();const actual=pipeline! as builtin.BuiltinPresentationControl,retire=actual.retireSeasonalityPreparationWork.bind(actual),B={...inputs,startYear:2016};let b:string|null=null,beforeW=0,afterW=0,attempts=0;
+ // The shared batch caps are larger than one study's limits. An accepted unrelated source holds the difference, so two
+ // full Seasonality reservations still cannot fit at once and B is admitted only after A's retired work leaves room.
+ const FILL=INDICATOR_BATCH_WORK_LIMIT-INDICATOR_WORK_LIMIT,filler=actual.reserveSource({},()=>true,{operations:0,numericSlots:0},{operations:FILL,numericSlots:INDICATOR_BATCH_OUTPUT_LIMIT-INDICATOR_OUTPUT_LIMIT,pendingSlots:0});expect(filler).not.toBeNull();filler!.accept();
  // Read actual ledger values only. Every reservation/group/ack still executes
  // the original implementation; the observer supplies no arithmetic or credit.
  vi.spyOn(actual,'retireSeasonalityPreparationWork').mockImplementation((model,result,reservation)=>{
   if(!attempts++){beforeW=(actual as unknown as {sourceAcceptedW:number}).sourceAcceptedW;b=f.port.add('seasonality',B);}
   retire(model,result,reservation);
  });
- const a=f.port.add('seasonality',inputs),first=await ready(f,a);await flushMtf();expect(b).not.toBeNull();expect(beforeW).toBeGreaterThan(15000000);expect(f.port.captureReadout!(b!).state).toBe('unavailable');expect(f.port.list().find(row=>row.id===b)!.diagnostics.join(' ')).toMatch(/budget/);
+ const a=f.port.add('seasonality',inputs),first=await ready(f,a);await flushMtf();expect(b).not.toBeNull();expect(beforeW-FILL).toBeGreaterThan(15000000);expect(f.port.captureReadout!(b!).state).toBe('unavailable');expect(f.port.list().find(row=>row.id===b)!.diagnostics.join(' ')).toMatch(/budget/);
  afterW=(actual as unknown as {sourceAcceptedW:number}).sourceAcceptedW;expect(afterW).toBeLessThan(beforeW);first.assertCurrent();f.port.update(b!,{visible:false});f.port.update(b!,{visible:true});const second=await ready(f,b!);expect(second.readAt(f.raw().at(-1)!.time).plots.map(row=>row.value)).toEqual([125,25,0,1]);first.assertCurrent();
 });
 

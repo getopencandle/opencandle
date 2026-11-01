@@ -47,4 +47,4 @@ Between -1 and +1. Above about 0.5 is a strong positive relationship per ChartSc
 - Default second symbol is SPY and default length is 20.
 
 ## Open questions
-Whether the other platforms' "Correlation - Log" uses sample or population standard deviation is irrelevant for Pearson (it cancels), but their alignment of missing bars is unknown.
+Sample versus population standard deviation cancels in Pearson; how missing bars are aligned is a choice.

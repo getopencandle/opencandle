@@ -36,4 +36,4 @@ Sign gives direction; magnitude depends on price level, so compare across instru
 - Not scale-free.
 
 ## Open questions
-None beyond possible differences in whether other platforms scale the slope.
+Some implementations scale the slope (for example as a percent of price).

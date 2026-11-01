@@ -31,12 +31,11 @@ EMA 34 and range 30 in OpenCandle. These are OpenCandle choices, not an author's
 Centre zones (flat colour) mean chop; outer zones mean steep trend in that direction. Because the thresholds are OpenCandle-defined, the same chart can look different in other software.
 
 ## Common mistakes and edge cases
-- Assuming colours or thresholds match other platforms' Chop Zone indicator.
 - Confusing it with the Choppiness Index (Dreiss), which is a different, ATR/range-based number.
 - Zero range window gives an undefined slope normalisation.
 
 ## How OpenCandle does it
-- This is OpenCandle's own definition, not a copy of any other platform's Chop Zone.
+- This is OpenCandle's own definition; there is no published original.
 - Slope is 100 x (EMA - previous EMA) / (highest high - lowest low over the range length), so it is a percent of the recent range per bar.
 - The slope is sorted into nine coloured zones with edges at 4, 2, 1, 0.5, -0.5, -1, -2 and -4. The EMA starts from a simple average.
 - A flat range or a missing value shows no bar. Defaults are EMA 34 and range 30.

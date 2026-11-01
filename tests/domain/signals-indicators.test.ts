@@ -4,10 +4,10 @@
 import {describe,expect,it} from 'vitest';
 import {calculateIndicator,indicatorActivePlotIds} from '../../src/domain/indicators';
 import {catalogDefinition,ALL_CATALOG_INDICATOR_IDS} from '../../src/domain/indicator-catalog';
-import {SIGNALS_INDICATOR_IDS,bollingerBreach,bollingerSeries,diCrossEvents,rsiFailureSwings} from '../../src/domain/indicators-ext/signals-catalog';
+import {SIGNALS_INDICATOR_IDS,adxrSeries,bollingerBreach,bollingerSeries,diCrossEvents,rsiFailureSwings} from '../../src/domain/indicators-ext/signals-catalog';
 import {oscillatorDivergence,oscillatorFormingDivergence,rsiDivergence} from '../../src/domain/rsi-divergence';
 import {indicatorAlertBlock} from '../../src/domain/indicator-alertability';
-import {INDICATOR_KINDS,defaultIndicatorPresentation,indicatorDefaults,indicatorInputSchema,type IndicatorInstanceSettings} from '../../src/chart/indicator-settings';
+import {INDICATOR_KINDS,defaultIndicatorPresentation,indicatorDefaults,indicatorInputSchema,indicatorLegacyDefaults,mergeStoredIndicatorInputs,type IndicatorInstanceSettings} from '../../src/chart/indicator-settings';
 import {renderIndicatorPresentation} from '../../src/chart/indicator-presentation';
 import {filterIndicatorCatalog} from '../../src/ui/indicator-dialog-model';
 import {exportEntry} from '../../src/ui/all-indicators-export';
@@ -97,35 +97,74 @@ describe('Bollinger Bands breach (SYNTHETIC)',()=>{
 
 describe('DI cross signals (SYNTHETIC)',()=>{
  // +DI crosses above -DI on bar 3 (22 > 14 after 15 <= 16); -DI crosses above +DI on bar 6 (18 < 20 after 24 >= 16).
- const plus=[10,12,15,22,25,24,18,17],minus=[20,18,16,14,15,16,20,21],adx=[25,25,25,25,25,25,25,25];
+ const plus=[10,12,15,22,25,24,18,17],minus=[20,18,16,14,15,16,20,21],strong=[25,25,25,25,25,25,25,25];
  const hl=(highs:readonly number[],lows:readonly number[])=>highs.map((h,i):Bar=>({time:D0+i*DAY,open:(h+lows[i])/2,high:h,low:lows[i],close:(h+lows[i])/2,volume:1}));
  const rows=hl([95,96,98,100,99.5,100.5,95,92],[90,91,92,93,94,93,90,89]);
- it('extreme point rule: the bull signal waits for a high above the crossover bar high, the bear for a low below its low',()=>{
-  // Bar 4 high 99.5 is not above bar 3 high 100; bar 5 high 100.5 is: bull on bar 5. Bar 7 low 89 is below bar 6 low 90: bear on bar 7.
-  const r=diCrossEvents(rows,plus,minus,adx,{adxFilter:true,adxThreshold:20,extremePoint:true});
-  expect(ones(r.bull)).toEqual([5]);expect(ones(r.bear)).toEqual([7]);expect(r.bull.slice(0,5)).toEqual([0,0,0,0,0]);
-  expect(r.events.map(e=>[e.side,e.crossIndex,e.signalIndex,e.level])).toEqual([['bull',3,5,100],['bear',6,7,90]]);
- });
- it('with the extreme point rule off the crossover bar itself is the signal',()=>{
-  const r=diCrossEvents(rows,plus,minus,adx,{adxFilter:true,adxThreshold:20,extremePoint:false});
+ const opts=(filter:'ADXR'|'ADX'|'Off'='ADX',reverseAtExtreme=false)=>({filter,threshold:25,reverseAtExtreme});
+ // A choppier wave, so later bars do break some crossing-bar extremes.
+ const noisy=ohlc(wave(200).map((v,i)=>v+5*Math.sin(i*1.7)));
+ it('the signal is the crossing bar; the extreme point is that bar low (bull) or high (bear) and ends at its penetration',()=>{
+  // Bull cross bar 3: level = low 93. Bar 5 low 93 equals it (no hit); bar 6 low 90 < 93: hit on bar 6. The bear cross on
+  // bar 6 then starts the bear level = high 95 there; bar 7 high 92 does not reach it.
+  const r=diCrossEvents(rows,plus,minus,strong,opts());
   expect(ones(r.bull)).toEqual([3]);expect(ones(r.bear)).toEqual([6]);
+  expect(r.extremePoint).toEqual([N,N,N,93,93,93,95,95]);expect(r.extremeHit).toEqual([0,0,0,0,0,0,1,0]);
+  expect(r.segments).toEqual([{side:'bull',from:3,to:6,level:93,hit:true},{side:'bear',from:6,to:7,level:95,hit:false}]);
+  expect(r.events.map(e=>[e.kind,e.side,e.index,e.level])).toEqual([['cross','bull',3,93],['hit','bull',6,93],['cross','bear',6,95]]);
+  expect(diCrossEvents(rows.slice(0,6),plus.slice(0,6),minus.slice(0,6),strong.slice(0,6),opts()).extremePoint).toEqual([N,N,N,93,93,93]);// no look-ahead
  });
- it('the ADX filter reads the crossover bar: ADX below the threshold there gives no signal',()=>{
-  const weak=adx.map((v,i)=>i===3?15:v),r=diCrossEvents(rows,plus,minus,weak,{adxFilter:true,adxThreshold:20,extremePoint:true});
-  expect(ones(r.bull)).toEqual([]);expect(ones(r.bear)).toEqual([7]);
-  expect(ones(diCrossEvents(rows,plus,minus,weak,{adxFilter:false,adxThreshold:20,extremePoint:true}).bull)).toEqual([5]);
+ it('the level is held while the DIs stay crossed against it, and after a hit there is no level until the next cross',()=>{
+  // Bull cross bar 3 (level 93); -DI rises toward +DI without crossing; bar 5 low 92 < 93: hit, then no level on bars 6-7.
+  const p=[10,12,15,22,25,24,23,22],m=[20,18,16,14,15,16,17,18],data=hl([95,96,98,100,99,97,98,99],[90,91,92,93,94,92,95,96]);
+  const r=diCrossEvents(data,p,m,strong,opts());
+  expect(r.extremePoint).toEqual([N,N,N,93,93,93,N,N]);expect(ones(r.extremeHit)).toEqual([5]);
+  // Reverse at extreme point (OpenCandle-defined): bar 5 starts the bear level at its high 97; bar 6 high 98 > 97 is a hit
+  // that starts the bull level at its low 95; bar 7 low 96 holds.
+  const rev=diCrossEvents(data,p,m,strong,opts('ADX',true));
+  expect(rev.extremePoint).toEqual([N,N,N,93,93,97,95,95]);expect(ones(rev.extremeHit)).toEqual([5,6]);
+  expect(rev.segments.map(row=>[row.side,row.from,row.to,row.level,row.hit])).toEqual([['bull',3,5,93,true],['bear',5,6,97,true],['bull',6,7,95,false]]);
+  expect(ones(rev.bull)).toEqual([3]);expect(ones(rev.bear)).toEqual([]);// a reversal is not a cross signal
  });
- it('an opposite cross cancels a waiting cross',()=>{
-  // Bull cross on bar 3 never breaks 100 before -DI crosses back above +DI on bar 5; bar 6 high 101 then gives nothing.
-  const p=[10,12,15,22,21,14,13],m=[20,18,16,14,15,18,19],r=diCrossEvents(hl([95,96,98,100,99,97,101],[90,91,92,93,94,93,92]),p,m,adx,{adxFilter:false,adxThreshold:20,extremePoint:true});
-  expect(ones(r.bull)).toEqual([]);
+ it('ADXR = (ADX + the ADX of n - 1 bars earlier) / 2 (TA-Lib placement), unavailable while either is missing',()=>{
+  expect(adxrSeries([N,10,20,30,40,50],3)).toEqual([N,N,N,20,30,40]);
  });
- it('+DI, -DI and ADX equal the Directional Movement Index built-in, and the signals follow them',()=>{
+ it('the trend filter reads the crossing bar: below the threshold gives no signal and no level; Off passes every cross',()=>{
+  const weak=strong.map((v,i)=>i===3?24.9:v),r=diCrossEvents(rows,plus,minus,weak,opts());
+  expect(ones(r.bull)).toEqual([]);expect(ones(r.bear)).toEqual([6]);expect(r.extremePoint).toEqual([N,N,N,N,N,N,95,95]);
+  expect(ones(diCrossEvents(rows,plus,minus,strong.map(()=>N),opts('Off')).bull)).toEqual([3]);
+  // A filtered cross leaves the level in force: the bear cross on bar 6 fails, the bull level 93 still breaks on bar 6.
+  const late=strong.map((v,i)=>i===6?10:v),held=diCrossEvents(rows,plus,minus,late,opts());
+  expect(ones(held.bear)).toEqual([]);expect(held.extremePoint).toEqual([N,N,N,93,93,93,93,N]);expect(ones(held.extremeHit)).toEqual([6]);
+ });
+ it('+DI, -DI and ADX equal the Directional Movement Index built-in; defaults filter on ADXR at 25',()=>{
   const data=ohlc(wave(200)),mine=calc('dicross',data),dmi=calc('dmi',data);
   near(plot(mine,'plusDI'),plot(dmi,'plusDI'));near(plot(mine,'minusDI'),plot(dmi,'minusDI'));near(plot(mine,'adx'),plot(dmi,'adx'));
-  const expected=diCrossEvents(data,plot(dmi,'plusDI'),plot(dmi,'minusDI'),plot(dmi,'adx'),{adxFilter:true,adxThreshold:20,extremePoint:true});
+  const adxr=adxrSeries(plot(dmi,'adx'),14);near(plot(mine,'adxr'),adxr);
+  const expected=diCrossEvents(data,plot(dmi,'plusDI'),plot(dmi,'minusDI'),adxr,{filter:'ADXR',threshold:25,reverseAtExtreme:false});
   expect(plot(mine,'bullCross')).toEqual(expected.bull);expect(plot(mine,'bearCross')).toEqual(expected.bear);
-  expect(ones(expected.bull).length+ones(expected.bear).length).toBeGreaterThan(0);
+  expect(plot(mine,'extremePoint')).toEqual(expected.extremePoint);expect(plot(mine,'extremeHit')).toEqual(expected.extremeHit);
+  const all=calc('dicross',noisy,{trendFilter:'Off'});expect(ones(plot(all,'bullCross')).length+ones(plot(all,'bearCross')).length).toBeGreaterThan(0);
+  expect(ones(plot(all,'extremeHit')).length).toBeGreaterThan(0);
+ });
+ it('the extreme point draws on the price pane; the level and hit plots stay off the DI pane',()=>{
+  const data=noisy,inputs={trendFilter:'Off'},result=calc('dicross',data,inputs),out=renderIndicatorPresentation(settings('dicross',inputs),result,data,{resolution:'1D'});
+  const lines=out.output.lines??[];expect(lines.length).toBe(result.marks!.lines.length);expect(lines.length).toBeGreaterThan(0);
+  for(const line of lines){expect(line.overlay).toBe(true);expect(line.y1).toBe(line.y2);}
+  const byTitle=new Map((out.output.series??[]).map(row=>[row.title,row]));
+  for(const title of ['Extreme point','Extreme point hit'])expect(byTitle.get(title)!.visible,title).toBe(false);
+  expect(byTitle.get('ADXR')!.visible).toBe(false);
+  expect(calc('dicross',data,{...inputs,showExtreme:false}).marks!.lines).toEqual([]);
+  expect((out.output.labels??[]).some(label=>label.text==='Stop')).toBe(true);
+ });
+ it('saved instances with the retired inputs load: the ADX switch becomes Trend filter ADX or Off, the entry delay is dropped',()=>{
+  const legacy={diLength:14,adxSmoothing:14,adxFilter:true,adxThreshold:20,extremePoint:true};
+  const merged=mergeStoredIndicatorInputs('dicross' as never,indicatorLegacyDefaults.dicross,legacy as never);
+  expect(merged).toMatchObject({trendFilter:'ADX',adxThreshold:20});expect(merged).not.toHaveProperty('adxFilter');expect(merged).not.toHaveProperty('extremePoint');
+  expect(mergeStoredIndicatorInputs('dicross' as never,indicatorLegacyDefaults.dicross,{...legacy,adxFilter:false} as never)).toMatchObject({trendFilter:'Off'});
+  expect(indicatorDefaults.dicross).toMatchObject({trendFilter:'ADXR',adxThreshold:25,showExtreme:true,reverseAtExtreme:false});
+  // A captured pre-fix alert still calculates from adxFilter.
+  const data=ohlc(wave(200)),old=calc('dicross',data,{diLength:14,adxSmoothing:14,adxFilter:true,adxThreshold:20,extremePoint:true});
+  expect(plot(old,'bullCross')).toEqual(plot(calc('dicross',data,{trendFilter:'ADX',adxThreshold:20}),'bullCross'));
  });
 });
 
@@ -171,6 +210,36 @@ describe('RSI failure swings (SYNTHETIC)',()=>{
  it('bottom mirrors the top below 30; equal values never break the failure point',()=>{
   const s=rsiFailureSwings([50,40,28,25,32,38,34,30,29,36,39,42],70,30);expect(ones(s.bottom)).toEqual([10]);
   expect(ones(rsiFailureSwings([50,40,28,25,32,38,34,30,29,36,38,38],70,30).bottom)).toEqual([]);
+ });
+ it('a one-bar wiggle is not a swing: Minimum swing 3 must be met by the pullback and by the rally after it',()=>{
+  // Peak 75, dip to 65, a 1-point uptick to 66, then 64: the rally never reaches 3 points, so 64 just lowers the trough.
+  const wiggle=[50,75,70,65,66,64,60];
+  expect(ones(rsiFailureSwings(wiggle,70,30).top)).toEqual([]);
+  expect(ones(rsiFailureSwings(wiggle,70,30,{minSwing:0,secondInside:false}).top)).toEqual([5]);// bar-to-bar turns would fire
+  // The trough keeps falling to 60 (bar 6); the rally to 64 (4 points) fixes the failure point at 60; 59 < 60 on bar 9.
+  const s=rsiFailureSwings([50,75,70,65,66,64,60,64,68,59],70,30);
+  expect(s.events).toEqual([{side:'top',peakIndex:1,failureIndex:6,secondIndex:8,signalIndex:9,peak:75,failure:60,second:68}]);
+ });
+ it('Wilder-style swings fire: 72, down to 58, small swings under the high, then below 58; and the bottom 28, 41, then above 41',()=>{
+  const top=[55,65,72,70,64,58,61,63,62,64,60,57],s=rsiFailureSwings(top,70,30);
+  expect(s.events).toEqual([{side:'top',peakIndex:2,failureIndex:5,secondIndex:9,signalIndex:11,peak:72,failure:58,second:64}]);
+  expect(ones(rsiFailureSwings(top.slice(0,11),70,30).top)).toEqual([]);// not knowable before bar 11
+  const bottom=rsiFailureSwings([45,35,28,33,41,38,36,39,42],70,30);
+  expect(ones(bottom.bottom)).toEqual([8]);expect(bottom.events[0]).toMatchObject({peak:28,failure:41,second:36});
+ });
+ it('a top whose failure point reaches oversold is dropped (and a bottom reaching overbought)',()=>{
+  const r=[50,75,60,40,25,45,60,50,24];
+  for(const minSwing of [0,3])expect(ones(rsiFailureSwings(r,70,30,{minSwing,secondInside:false}).top),String(minSwing)).toEqual([]);
+  expect(ones(rsiFailureSwings(r.map(v=>100-v),70,30).bottom)).toEqual([]);
+ });
+ it('Second peak must stay inside 70/30 (off by default): a rally back above 70 does not count as the second peak',()=>{
+  // Peak 75, failure point 62, rally to 72 (below 75): Wilder fires on 61. With the option the 72 rally is not the second
+  // peak; the trough starts again (65, 61, 60), the rally to 64 fixes 60 and 59 fires on bar 8.
+  const r=[50,75,62,72,65,61,60,64,59];
+  expect(ones(rsiFailureSwings(r,70,30).top)).toEqual([5]);
+  expect(ones(rsiFailureSwings(r,70,30,{minSwing:3,secondInside:true}).top)).toEqual([8]);
+  const data=ohlc(wave(400).map((v,i)=>v+8*Math.sin(i/13))),rsi=plot(calc('rsi',data,{length:14,source:'close'}),'rsi');
+  for(const inputs of [{minSwing:0,secondInside:false},{minSwing:5,secondInside:true}])expect(plot(calc('rsifs',data,inputs),'fsTop')).toEqual(rsiFailureSwings(rsi,70,30,inputs).top);
  });
  it('the RSI equals the RSI built-in and the signals follow it; markers read FS top / FS bottom',()=>{
   const data=ohlc(wave(400).map((v,i)=>v+8*Math.sin(i/13))),mine=calc('rsifs',data),r=plot(calc('rsi',data,{length:14,source:'close'}),'rsi');

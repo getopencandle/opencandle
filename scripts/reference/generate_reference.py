@@ -290,7 +290,10 @@ def build_cases(B):
          'Some sources shift by 26 bars; OpenCandle documents Displacement - 1 (inclusive counting).')
     case('vwma-20', 'vwma', {}, {'vwma': wsum(c * v, 20) / wsum(v, 20)}, 'author', 'Buff Dormeier (2011)')
     lr = np.log(c / shift(c, 1))
-    case('hv-10', 'hv', {}, {'hv': 100 * stdev(lr, 10, 1) * math.sqrt(252)}, 'author', 'John C. Hull: sample deviation of log returns x sqrt(252)',
+    # The author annualisation is the fixed 252 trading days (Annualization Manual); Auto on this UTC-declared daily
+    # fixture would use 365.
+    MANUAL = {'annualization': 'Manual'}
+    case('hv-10', 'hv', MANUAL, {'hv': 100 * stdev(lr, 10, 1) * math.sqrt(252)}, 'author', 'John C. Hull: sample deviation of log returns x sqrt(252)',
          'Some charting platforms use the population deviation and sqrt(365); OpenCandle documents Hull (sample, 252).')
     case('uo', 'uo', {}, {'uo': talib.ULTOSC(h, l, c, 7, 14, 28)}, 'talib', 'Larry Williams (1985); ' + TAL + ' ULTOSC')
     e3 = ema(ema(ema(c, 18, 'sma'), 18, 'sma'), 18, 'sma')
@@ -370,10 +373,10 @@ def build_cases(B):
     hlr = highest(h, 10) - lowest(l, 10); rr = c - (highest(h, 10) + lowest(l, 10)) / 2
     smi2 = 200 * ema(ema(rr, 3, 'sma'), 3, 'sma') / ema(ema(hlr, 3, 'sma'), 3, 'sma')
     case('smi', 'smi', {}, {'smi': smi2, 'ema': ema(smi2, 3, 'sma')}, 'author', 'William Blau, Stochastic momentum index')
-    case('volcc', 'volcc', {}, {'volatility': 100 * stdev(lr, 10, 1) * math.sqrt(252)}, 'author', 'Close-to-close estimator (sample)')
-    case('volzt', 'volzt', {}, {'volatility': 100 * np.sqrt(sma(lr * lr, 10)) * math.sqrt(252)}, 'author', 'Zero-mean close-to-close volatility')
+    case('volcc', 'volcc', MANUAL, {'volatility': 100 * stdev(lr, 10, 1) * math.sqrt(252)}, 'author', 'Close-to-close estimator (sample)')
+    case('volzt', 'volzt', MANUAL, {'volatility': 100 * np.sqrt(sma(lr * lr, 10)) * math.sqrt(252)}, 'author', 'Zero-mean close-to-close volatility')
     gk = 0.5 * np.log(h / l) ** 2 - (2 * math.log(2) - 1) * np.log(c / o) ** 2
-    case('volohlc', 'volohlc', {}, {'volatility': 100 * np.sqrt(sma(gk, 10) * 252)}, 'author', 'Garman & Klass (1980)')
+    case('volohlc', 'volohlc', MANUAL, {'volatility': 100 * np.sqrt(sma(gk, 10) * 252)}, 'author', 'Garman & Klass (1980)')
     hc = highest(c, 22); case('volindex', 'volindex', {}, {'index': 100 * (hc - l) / hc}, 'author', 'Larry Williams, The VIX Fix (2007)')
     case('mamultiple', 'mamultiple', {}, {f'ma{i+1}': sma(c, n) for i, n in enumerate([5, 10, 20, 50, 100, 200])}, 'talib', TAL + ' SMA')
     case('mahamming', 'mahamming', {}, {'ma': hamming(c, 10)}, 'author', 'Hamming window w(k) = 0.54 - 0.46 cos(2 pi k / (N - 1))')

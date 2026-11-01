@@ -76,7 +76,7 @@ describe('plots, guides, fills, palette and precision defaults',()=>{
  it('plot titles follow the facts (F#<kind>.plot.*)',()=>{
   const titles=(kind:IndicatorId)=>calculateIndicator(kind,bars).series.map(row=>row.label);
   expect(titles('stochrsi')).toEqual(['K','D']);expect(titles('mfi')).toEqual(['MF']);expect(titles('cmf')).toEqual(['MF']);expect(titles('mom')).toEqual(['MOM']);
-  expect(titles('ao')).toEqual(['OA']);expect(titles('psar')).toEqual(['ParabolicSAR']);expect(titles('wma')).toEqual(['MA']);expect(titles('hma')).toEqual(['Hull MA']);
+  expect(titles('ao')).toEqual(['AO']);/* the descriptor records OA; the legend shows the tool's name */expect(titles('psar')).toEqual(['ParabolicSAR']);expect(titles('wma')).toEqual(['MA']);expect(titles('hma')).toEqual(['Hull MA']);
  });
  it('plot colors and widths follow the facts; Volume MA is hidden by default',()=>{
   const expected:Record<string,Record<string,string>>={cci:{cci:'#996a15'},stochrsi:{k:'#0094ff',d:'#ff6a00'},willr:{r:'#3a6ca8'},mfi:{mfi:'#459915'},cmf:{cmf:'#459915'},mom:{mom:'#999915'},roc:{roc:'#156a99'},ao:{histogram:'#ff006e'},aroon:{up:'#ff6a00',down:'#0094ff'},dmi:{adx:'#ff006e',plusDI:'#0094ff',minusDI:'#ff6a00'},psar:{sar:'#3a6ca8'},kc:{upper:'#0094ff',basis:'#0094ff',lower:'#0094ff'},dc:{basis:'#ff6a00',upper:'#0094ff',lower:'#0094ff'},env:{basis:'#ff6a00',upper:'#0094ff',lower:'#0094ff'},wma:{wma:'#3a61a5'},hma:{hma:'#674ea7'}};

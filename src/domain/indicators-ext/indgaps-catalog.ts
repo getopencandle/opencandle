@@ -1,6 +1,7 @@
 import type {Bar,NumericSeries} from '../types';
 import type {CatalogDefinition,CatalogInput} from '../indicator-catalog';
 import {rciAt} from './ind1028-catalog';
+import {ANNUALIZATION_INPUT,ANNUALIZATION_POLICY,annualPeriods} from './r23-catalog';
 
 /**
  * More built-ins. Formulas follow the documented or textbook definitions cited per row; calculations are original LV
@@ -106,12 +107,12 @@ const definitions:readonly CatalogDefinition[]=[
    return {majority:up.map((_,i)=>{if(i<n)return null;let s=0;for(let k=i-n+1;k<=i;k++){const value=up[k];if(value===null)return null;s+=value;}return zero(100*s/n);})};},
   warmup:value=>value('length')+1,work:(count,value)=>count*value('length')},
  {id:'volzt',name:'Volatility zero trend close-to-close',acronym:'VZT',overlay:false,
-  inputs:[{key:'length',title:'Length',defval:10,...LENGTH},{key:'annual',title:'Annual',defval:252,type:'int',min:1,max:1000000,step:1}],
+  inputs:[{key:'length',title:'Length',defval:10,...LENGTH},ANNUALIZATION_INPUT,{key:'annual',title:'Annual',defval:252,type:'int',min:1,max:1000000,step:1}],
   plots:[{id:'volatility',label:'Volatility',color:C.amber,width:1}],
   provenance:[{url:CL,facts:'volatility zero trend close-to-close: length 10, annual 252; one line plot.'},{url:LIST,facts:'"Volatility Zero Trend Close-to-Close" is in the built-in list.'},{url:'lv-defined:zero-mean-close-to-close-volatility',facts:'Zero-trend (zero-mean) close-to-close volatility: 100 x sqrt(mean of ln(close / prior close)^2 over n bars) x sqrt(annual periods); the mean return is taken as 0.'}],
   unknownDefaults:['The reference implementation was not read; the formula is the textbook zero-mean estimator.',COLORS_LV],
-  policies:['A missing or nonpositive close makes its return unavailable, and any window holding one is unavailable. Historical volatility (sample deviation around the mean return) stays its own kind.'],
-  calculate({bars,num}){const n=num('length'),factor=Math.sqrt(num('annual')),r=bars.map((bar,i)=>{const prior=bars[i-1]?.close;return i&&finite(bar.close)&&finite(prior)&&bar.close>0&&prior>0?Math.log(bar.close/prior):null;});
+  policies:['A missing or nonpositive close makes its return unavailable, and any window holding one is unavailable. Historical volatility (sample deviation around the mean return) stays its own kind.',ANNUALIZATION_POLICY],
+  calculate(ctx){const {bars,num}=ctx,n=num('length'),factor=Math.sqrt(annualPeriods(ctx,'annual')),r=bars.map((bar,i)=>{const prior=bars[i-1]?.close;return i&&finite(bar.close)&&finite(prior)&&bar.close>0&&prior>0?Math.log(bar.close/prior):null;});
    return {volatility:r.map((_,i)=>{if(i<n)return null;let ss=0;for(let k=i-n+1;k<=i;k++){const value=r[k];if(value===null)return null;ss+=value*value;}return zero(100*Math.sqrt(ss/n)*factor);})};},
   warmup:value=>value('length')+1,work:(count,value)=>count*value('length')},
  {id:'typprice',name:'Typical price',acronym:'Typical price',overlay:true,inputs:[],

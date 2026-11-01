@@ -189,9 +189,9 @@ export function placeFibCustomText(entry:unknown,requested:unknown):Readonly<Fib
 // labelFontSize 12, fibLevelsBasedOnLogScale false), dialog.LineToolFibRetracement.style.9/.10/.11/.12 and dialog.common.fontSizes.fib.
 // Absent means the behaviour before this wave; nothing is written until the user edits one of these.
 // A single closed member holds the six rows; font sizes are stored as the recorded numbers.
-// Slice approximation: the member and placeFibLabelBlock are the data and geometry layer. The native Fibonacci painter replay
-// (fib-level-presentation-painter) does not read it yet, so font size, label alignment and log-scale levels are stored and edited but not
-// yet applied to the picture; this module does not claim those settings.
+// The member and placeFibLabelBlock are the data and geometry layer. The native Fibonacci painter replay
+// (fib-level-presentation-painter) reads the supported member and applies the font size, the label alignment and the log-scale
+// levels (each level at exp of the level price taken on ln p1 .. ln p2) to the picture.
 export const FIB_LAYOUT_FIELD='lvFibLayout';
 export const FIB_LAYOUT_DIAGNOSTIC='Unsupported Fibonacci layout settings are retained; layout editing is unavailable.';
 export const FIB_LABEL_FONT_SIZES:readonly number[]=Object.freeze([8,10,11,12,14,16,18,20,22,24]);

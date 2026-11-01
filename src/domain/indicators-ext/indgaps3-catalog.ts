@@ -3,6 +3,7 @@ import type {CatalogContext,CatalogDefinition,CatalogInput} from '../indicator-c
 import {intervalBucketRange} from '../intervals';
 import {SECOND_SYMBOL_INPUT,pearson,secondCloses} from './r28-catalog';
 import type {PatternBox,PatternLine} from './patterns-catalog';
+import {ANNUALIZATION_INPUT,ANNUALIZATION_POLICY,annualPeriods} from './r23-catalog';
 
 /**
  * More built-ins that bars (and the second symbol) can supply. Formulas are the published or textbook ones cited per
@@ -121,20 +122,20 @@ export function performanceReturns(bars:readonly Bar[]):Record<string,NumericSer
 
 const definitions:readonly CatalogDefinition[]=[
  {id:'volcc',name:'Volatility close-to-close',acronym:'VCC',overlay:false,
-  inputs:[{key:'length',title:'Length',defval:10,...LENGTH_2},ANNUAL],
+  inputs:[{key:'length',title:'Length',defval:10,...LENGTH_2},ANNUALIZATION_INPUT,ANNUAL],
   plots:[{id:'volatility',label:'Volatility',color:C.cyan,width:1}],
   provenance:[{url:CL,facts:'volatility close-to-close: length 10, annual 252; one line plot.'},{url:LIST,facts:'"Volatility Close-to-Close" is in the built-in list.'},{url:LV+'close-to-close-volatility-estimator',facts:'Classic close-to-close estimator: 100 x sample standard deviation (n - 1) of ln(close / prior close) over n bars x sqrt(annual periods).'}],
   unknownDefaults:['The reference implementation was not read; the estimator is the textbook one (OpenCandle-defined). With the same inputs it equals OpenCandle Historical volatility.',COLORS_LV],
-  policies:['A missing or nonpositive close makes its return unavailable, and any window holding one is unavailable. Only the current and earlier bars are read.'],
-  calculate({bars,num}){return {volatility:closeToCloseVolatility(bars,num('length'),num('annual'))};},
+  policies:['A missing or nonpositive close makes its return unavailable, and any window holding one is unavailable. Only the current and earlier bars are read.',ANNUALIZATION_POLICY],
+  calculate(ctx){return {volatility:closeToCloseVolatility(ctx.bars,ctx.num('length'),annualPeriods(ctx,'annual'))};},
   warmup:value=>value('length')+1,work:(count,value)=>count*value('length')*2},
  {id:'volohlc',name:'Volatility O-H-L-C',acronym:'VOHLC',overlay:false,
-  inputs:[{key:'length',title:'Length',defval:10,...LENGTH},ANNUAL],
+  inputs:[{key:'length',title:'Length',defval:10,...LENGTH},ANNUALIZATION_INPUT,ANNUAL],
   plots:[{id:'volatility',label:'Volatility',color:C.amber,width:1}],
   provenance:[{url:CL,facts:'volatility o-h-l-c: length 10, annual 252; one line plot.'},{url:LIST,facts:'"Volatility O-H-L-C" is in the built-in list.'},{url:LV+'garman-klass-1980',facts:'Garman and Klass (1980), J. Business 53(1): per bar 0.5 ln(H/L)^2 - (2 ln 2 - 1) ln(C/O)^2; volatility = 100 x sqrt(mean over n bars x annual periods).'}],
   unknownDefaults:['OpenCandle-defined: the estimator is Garman-Klass (the reference estimator is not documented). Yang-Zhang was not chosen because it needs the prior close and a k weight the reference does not state.',COLORS_LV],
-  policies:['A missing or nonpositive open, high, low or close makes the bar unavailable, and any window holding one is unavailable. Overnight gaps are not counted (Garman-Klass reads each bar alone).'],
-  calculate({bars,num}){return {volatility:garmanKlassVolatility(bars,num('length'),num('annual'))};},
+  policies:['A missing or nonpositive open, high, low or close makes the bar unavailable, and any window holding one is unavailable. Overnight gaps are not counted (Garman-Klass reads each bar alone).',ANNUALIZATION_POLICY],
+  calculate(ctx){return {volatility:garmanKlassVolatility(ctx.bars,ctx.num('length'),annualPeriods(ctx,'annual'))};},
   warmup:value=>value('length'),work:(count,value)=>count*value('length')},
  {id:'volindex',name:'Volatility index',acronym:'VolIdx',overlay:false,
   inputs:[{key:'length',title:'Length',defval:22,...LENGTH}],

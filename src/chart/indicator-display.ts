@@ -356,7 +356,15 @@ const legendValue=(value:unknown)=>typeof value==='number'?(Number.isFinite(valu
 /** The three-input cap (the source is extra) and the excluded smoothing, band, kernel and timezone keys (no fact lists which inputs the
  * reference shows). The leading non-boolean inputs of an instance (at most three), saved values over schema defaults.
  * sourceLabel names the instance behind an indicator-on-indicator source; a null result reads as a missing source. */
-export function indicatorLegendArguments(kind:IndicatorId,inputs:Record<string,unknown>,sourceLabel:(instance:string,plot:string)=>string|null=()=>null):string[]{
+export function indicatorLegendArguments(kind:IndicatorId,inputs:Record<string,unknown>,sourceLabel:(instance:string,plot:string)=>string|null=()=>null,chart?:{calendar:'us-equity'|'utc'|null}):string[]{
+ // Opening range breakout: with the chart's session calendar known, the legend names the session the range really uses
+ // (Exchange is 09:30-16:00 New York for US equities and 00:00-24:00 UTC otherwise) instead of the unused custom times.
+ if(kind==='orb'&&chart){
+  const value=(key:string)=>{const field=indicatorInputSchema(kind).find(row=>row.key===key);return legendValue(Object.hasOwn(inputs,key)?inputs[key]:field?.defval);};
+  const session=value('session'),duration=value('duration')+' min';
+  if(session==='Custom')return ['Custom',`${value('start')}-${value('end')}`,value('zone')||'UTC',duration];
+  return ['Exchange',chart.calendar==='us-equity'?'09:30-16:00 New York':'00:00-24:00 UTC',duration];
+ }
  const shown=indicatorInputSchema(kind).filter(field=>field.type!=='bool'&&!/^(smoothing|band|kernelVersion|timezone|divergence)/.test(field.key));
  // The source does not use up the three-input cap (RCI ribbon reads 10 30 50 close), and a
  // source declared ahead of the lengths reads after them, as the reference legend does.

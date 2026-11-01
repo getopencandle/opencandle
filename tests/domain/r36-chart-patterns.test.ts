@@ -75,3 +75,41 @@ describe(' chart pattern entries (SYNTHETIC)',()=>{
   expect(run('chpdoubletop',bars).diagnostics).toEqual([]);
  });
 });
+
+describe('wedges, triangles and rectangles wait for the breakout close (SYNTHETIC)',()=>{
+ const ON={breakout:true};
+ const sig=(kind:string,bars:readonly Bar[],plot:string,inputs:Record<string,unknown>=ON)=>ones(run(kind,bars,inputs).series.find(row=>row.id===plot)!.values);
+ /** Every prefix reports exactly the full run's signals up to its own last bar (no look-ahead). */
+ const causal=(kind:string,bars:readonly Bar[],plot:string)=>{const at=(rows:readonly Bar[])=>ones(calculateIndicator(kind,rows,ON).series.find(row=>row.id===plot)!.values),full=at(bars);
+  for(let end=1;end<=bars.length;end++)expect(at(bars.slice(0,end)),kind+' prefix '+end).toEqual(full.filter(i=>i<end));};
+ it('rising wedge: confirmed by a close below the lower line; one that keeps rising or breaks upward is not reported',()=>{
+  const down=path([100,110,104,114,111,113.5,100]);
+  // The lower line rises 0.4375 a bar from 110.5; at at[4]+5 it is 112.69 and the close 112.56 is below it.
+  expect(sig('chprisingwedge',down.bars,'bearish')).toEqual([down.at[4]+5]);causal('chprisingwedge',down.bars,'bearish');
+  expect(sig('chprisingwedge',path([100,110,104,114,111,116]).bars,'bearish')).toEqual([]);// the textbook shape, no break yet
+  const up=path([100,110,104,114,111,125]);
+  expect(sig('chprisingwedge',up.bars,'bearish',{})).toEqual([up.at[4]+5]);// saved instances keep the unconfirmed report
+  expect(sig('chprisingwedge',up.bars,'bearish')).toEqual([]);// a close above the upper line voids it
+ });
+ it('falling wedge: confirmed by a close above the upper line; a close below the lower line first voids it',()=>{
+  const up=path([100,120,110,114,107,112]);
+  expect(sig('chpfallingwedge',up.bars,'bullish')).toEqual([up.at[4]+5]);causal('chpfallingwedge',up.bars,'bullish');
+  expect(sig('chpfallingwedge',path([100,120,110,114,107,108,95]).bars,'bullish')).toEqual([]);
+ });
+ it('triangle and rectangle: the first close outside either line, the side named in the tooltip',()=>{
+  const up=path([100,120,105,116,108,113]),result=run('chptriangle',up.bars,ON);
+  expect(ones(result.series[0].values)).toEqual([40]);causal('chptriangle',up.bars,'neutral');
+  expect(result.marks!.markers).toEqual([
+   {index:32,plot:'neutral',text:'Triangle',tooltip:'Triangle, upward breakout\nKnown on 2024-01-18'},
+   {index:40,plot:'neutral',text:'',tooltip:'Triangle, upward breakout: confirmed by a breakout close on 2024-01-18',position:'above',shape:'circle'},
+  ]);
+  const down=path([100,120,105,116,108,111,95]),fell=run('chptriangle',down.bars,ON);
+  expect(ones(fell.series[0].values)[0]).toBe(41);expect(fell.marks!.markers[0]).toMatchObject({index:32,tooltip:'Triangle, downward breakout\nKnown on 2024-01-19'});
+  causal('chptriangle',down.bars,'neutral');
+  // The textbook rectangle has not broken out yet; with a rise through the upper line it is reported on that close.
+  expect(sig('chprectangle',path([100,120,110,120.2,110.3,115]).bars,'neutral')).toEqual([]);
+  const broke=path([100,120,110,120.2,110.3,125]);
+  expect(sig('chprectangle',broke.bars,'neutral')).toEqual([38]);causal('chprectangle',broke.bars,'neutral');
+  expect(run('chprectangle',broke.bars,ON).marks!.markers[0].tooltip).toBe('Rectangle, upward breakout\nKnown on 2024-01-16');
+ });
+});

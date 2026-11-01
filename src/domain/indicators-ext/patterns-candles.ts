@@ -23,8 +23,15 @@ export const CANDLE_THRESHOLDS=Object.freeze({
  longShadowRange:2/3,
  /** Bars in the average body window. */
  averageBodyLength:14,
- /** A small (star or inside) body is at most this share of the average body. */
+ /** A small (star) body is at most this share of the average body. */
  smallBody:0.5,
+ /** A short body (the harami second body, the three methods inner bars) is at most this share of the average body: TA-Lib
+  *  BodyShort (ta_global.c: the average real body x 1.0), used by ta_CDLHARAMI.c and ta_CDLRISEFALL3METHODS.c for Nison's
+  *  "small real body". */
+ shortBody:1,
+ /** Abandoned baby: the third close reaches at least this share into the first real body (TA-Lib ta_CDLABANDONEDBABY.c,
+  *  default penetration 0.3). */
+ abandonedPenetration:0.3,
  /** Marubozu shadows are each at most this share of the range. */
  marubozuShadow:0.05,
  /** Three white soldiers or black crows close (open) within this share of the range of the extreme. */
@@ -77,6 +84,7 @@ export class CandleMetrics {
  doji(i:number){return this.body[i]<=T.dojiBody*this.range[i];}
  long(i:number){const avg=this.avgBody[i];return avg!==null&&avg>0&&this.body[i]>avg;}
  small(i:number){const avg=this.avgBody[i];return avg!==null&&avg>0&&this.body[i]<=T.smallBody*avg;}
+ short(i:number){const avg=this.avgBody[i];return avg!==null&&avg>0&&this.body[i]<=T.shortBody*avg;}
  marubozu(i:number){return this.long(i)&&this.upper[i]<=T.marubozuShadow*this.range[i]&&this.lower[i]<=T.marubozuShadow*this.range[i];}
 }
 
@@ -101,9 +109,9 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
  {id:'engulfing',size:2,role:'reversal',definition:'The second real body covers the first and is larger: bullish = black then white with open <= prior close and close >= prior open; bearish mirrors it.',
   bullish:side('EG','Bullish engulfing',(k,i)=>k.black(i-1)&&k.white(i)&&k.o[i]<=k.c[i-1]&&k.c[i]>=k.o[i-1]&&k.body[i]>k.body[i-1]),
   bearish:side('EG','Bearish engulfing',(k,i)=>k.white(i-1)&&k.black(i)&&k.o[i]>=k.c[i-1]&&k.c[i]<=k.o[i-1]&&k.body[i]>k.body[i-1])},
- {id:'harami',size:2,role:'reversal',definition:'A long first body, then a smaller non-doji body of either color inside it (Nison). The first body color gives the direction (black = bullish).',
-  bullish:side('HR','Bullish harami',(k,i)=>k.black(i-1)&&k.long(i-1)&&!k.doji(i)&&insideBody(k,i,i-1)&&k.body[i]<k.body[i-1]),
-  bearish:side('HR','Bearish harami',(k,i)=>k.white(i-1)&&k.long(i-1)&&!k.doji(i)&&insideBody(k,i,i-1)&&k.body[i]<k.body[i-1])},
+ {id:'harami',size:2,role:'reversal',definition:'A long first body, then a small non-doji body of either color inside it (Nison: a small real body; here at most shortBody of the average body, as TA-Lib BodyShort). The first body color gives the direction (black = bullish).',
+  bullish:side('HR','Bullish harami',(k,i)=>k.black(i-1)&&k.long(i-1)&&!k.doji(i)&&k.short(i)&&insideBody(k,i,i-1)&&k.body[i]<k.body[i-1]),
+  bearish:side('HR','Bearish harami',(k,i)=>k.white(i-1)&&k.long(i-1)&&!k.doji(i)&&k.short(i)&&insideBody(k,i,i-1)&&k.body[i]<k.body[i-1])},
  {id:'haramicross',size:2,role:'reversal',definition:'A long first body, then a doji whose body lies inside it. The first body\'s color gives the direction (black = bullish).',
   bullish:side('HC','Bullish harami cross',(k,i)=>k.black(i-1)&&k.long(i-1)&&k.doji(i)&&insideBody(k,i,i-1)),
   bearish:side('HC','Bearish harami cross',(k,i)=>k.white(i-1)&&k.long(i-1)&&k.doji(i)&&insideBody(k,i,i-1))},
@@ -121,9 +129,12 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
  {id:'dojistar3',size:3,role:'reversal',definition:'Morning Doji star and Evening Doji star: the star pattern with a doji as the middle bar.',
   bullish:side('MDS','Morning Doji star',(k,i)=>k.black(i-2)&&k.long(i-2)&&k.doji(i-1)&&k.top(i-1)<k.c[i-2]&&k.white(i)&&k.c[i]>k.mid(i-2)),
   bearish:side('EDS','Evening Doji star',(k,i)=>k.white(i-2)&&k.long(i-2)&&k.doji(i-1)&&k.bottom(i-1)>k.c[i-2]&&k.black(i)&&k.c[i]<k.mid(i-2))},
- {id:'abandoned',size:3,role:'reversal',definition:'A doji whose whole range gaps away from both neighbours: black, gap-down doji, gap-up white = bullish; the mirror is bearish.',
-  bullish:side('AB','Bullish abandoned baby',(k,i)=>k.black(i-2)&&k.doji(i-1)&&k.h[i-1]<k.l[i-2]&&k.white(i)&&k.l[i]>k.h[i-1]),
-  bearish:side('AB','Bearish abandoned baby',(k,i)=>k.white(i-2)&&k.doji(i-1)&&k.l[i-1]>k.h[i-2]&&k.black(i)&&k.h[i]<k.l[i-1])},
+ // TA-Lib ta_CDLABANDONEDBABY.c: a long first body, a doji gapping away on both sides, a third body "longer than short"
+ // (here: not small, the star-family threshold, an OpenCandle choice), closing well within the first body (penetration
+ // 0.3). Nison treats it as a special doji star, so it is kept at least as strict as our Morning and Evening Doji star.
+ {id:'abandoned',size:3,role:'reversal',definition:'A long body, a doji whose whole range gaps away from both neighbours, then an opposite body that is not small and closes at least abandonedPenetration into the first body: long black, gap-down doji, gap-up white = bullish; the mirror is bearish.',
+  bullish:side('AB','Bullish abandoned baby',(k,i)=>k.black(i-2)&&k.long(i-2)&&k.doji(i-1)&&k.h[i-1]<k.l[i-2]&&k.white(i)&&!k.small(i)&&k.l[i]>k.h[i-1]&&k.c[i]>k.c[i-2]+T.abandonedPenetration*k.body[i-2]),
+  bearish:side('AB','Bearish abandoned baby',(k,i)=>k.white(i-2)&&k.long(i-2)&&k.doji(i-1)&&k.l[i-1]>k.h[i-2]&&k.black(i)&&!k.small(i)&&k.h[i]<k.l[i-1]&&k.c[i]<k.c[i-2]-T.abandonedPenetration*k.body[i-2])},
  {id:'soldiers',size:3,role:'reversal',definition:'Three long white bodies, each closing higher, each opening inside the prior body, each with an upper shadow at most nearExtreme of its range. Three black crows mirror it.',
   bullish:side('3WS','Three white soldiers',(k,i)=>[i-2,i-1,i].every(j=>soldier(k,j))&&k.c[i-1]>k.c[i-2]&&k.c[i]>k.c[i-1]&&k.o[i-1]>k.o[i-2]&&k.o[i-1]<=k.c[i-2]&&k.o[i]>k.o[i-1]&&k.o[i]<=k.c[i-1]),
   bearish:side('3BC','Three black crows',(k,i)=>[i-2,i-1,i].every(j=>crow(k,j))&&k.c[i-1]<k.c[i-2]&&k.c[i]<k.c[i-1]&&k.o[i-1]<k.o[i-2]&&k.o[i-1]>=k.c[i-2]&&k.o[i]<k.o[i-1]&&k.o[i]>=k.c[i-1])},
@@ -145,9 +156,9 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
  {id:'kicking',size:2,role:'none',definition:'Two marubozu of opposite color with a gap between their ranges: black then gap-up white = bullish; white then gap-down black = bearish. The prior trend is not required.',
   bullish:side('K','Bullish kicking',(k,i)=>k.black(i-1)&&k.marubozu(i-1)&&k.white(i)&&k.marubozu(i)&&k.l[i]>k.h[i-1]),
   bearish:side('K','Bearish kicking',(k,i)=>k.white(i-1)&&k.marubozu(i-1)&&k.black(i)&&k.marubozu(i)&&k.h[i]<k.l[i-1])},
- {id:'threemethods',size:5,role:'continuation',definition:'Rising three methods: a long white bar, three bars with smaller bodies inside its range, then a long white bar closing above the first close. Falling three methods mirrors it.',
-  bullish:side('R3M','Rising three methods',(k,i)=>k.white(i-4)&&k.long(i-4)&&[i-3,i-2,i-1].every(j=>k.h[j]<=k.h[i-4]&&k.l[j]>=k.l[i-4]&&k.body[j]<k.body[i-4])&&k.white(i)&&k.long(i)&&k.c[i]>k.c[i-4]),
-  bearish:side('F3M','Falling three methods',(k,i)=>k.black(i-4)&&k.long(i-4)&&[i-3,i-2,i-1].every(j=>k.h[j]<=k.h[i-4]&&k.l[j]>=k.l[i-4]&&k.body[j]<k.body[i-4])&&k.black(i)&&k.long(i)&&k.c[i]<k.c[i-4])},
+ {id:'threemethods',size:5,role:'continuation',definition:'Rising three methods: a long white bar, three bars with small real bodies (Nison; here at most shortBody of the average body, as TA-Lib BodyShort, and smaller than the first body) inside its range, then a long white bar closing above the first close. Falling three methods mirrors it.',
+  bullish:side('R3M','Rising three methods',(k,i)=>k.white(i-4)&&k.long(i-4)&&[i-3,i-2,i-1].every(j=>k.h[j]<=k.h[i-4]&&k.l[j]>=k.l[i-4]&&k.short(j)&&k.body[j]<k.body[i-4])&&k.white(i)&&k.long(i)&&k.c[i]>k.c[i-4]),
+  bearish:side('F3M','Falling three methods',(k,i)=>k.black(i-4)&&k.long(i-4)&&[i-3,i-2,i-1].every(j=>k.h[j]<=k.h[i-4]&&k.l[j]>=k.l[i-4]&&k.short(j)&&k.body[j]<k.body[i-4])&&k.black(i)&&k.long(i)&&k.c[i]<k.c[i-4])},
  {id:'tristar',size:3,role:'reversal',definition:'Three dojis whose middle body gaps below both neighbours (bullish) or above both (bearish).',
   bullish:side('TS','Bullish tri-star',(k,i)=>k.doji(i-2)&&k.doji(i-1)&&k.doji(i)&&k.top(i-1)<k.bottom(i-2)&&k.top(i-1)<k.bottom(i)),
   bearish:side('TS','Bearish tri-star',(k,i)=>k.doji(i-2)&&k.doji(i-1)&&k.doji(i)&&k.bottom(i-1)>k.top(i-2)&&k.bottom(i-1)>k.top(i))},

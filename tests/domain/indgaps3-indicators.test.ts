@@ -64,6 +64,15 @@ describe('Volatility estimators (SYNTHETIC)',()=>{
   close(plot(calc('volcc',bars,{length:2,annual:1}),'volatility'),[N,N,want]);
   const w=wave(200);expect(plot(calc('volcc',w),'volatility')).toEqual(plot(calc('hv',w,{length:10,periodsPerYear:252}),'hv'));
  });
+ it('Annualization Auto is the new-instance default of both estimators; saved instances keep Annual',()=>{
+  // D0 is a Saturday: a 24/7 (UTC) feed, daily spacing -> 365 periods a year.
+  expect(indicatorDefaults.volcc.annualization).toBe('Auto');expect(indicatorDefaults.volohlc.annualization).toBe('Auto');
+  const bars=flat([100,110,99]),sd=100*Math.abs(Math.log(1.1)-Math.log(0.9))/Math.SQRT2;
+  close(plot(calc('volcc',bars,{length:2,annualization:'Auto',annual:1}),'volatility'),[N,N,sd*Math.sqrt(365)]);
+  const u=0.5*Math.log(110/90)**2-(2*Math.LN2-1)*Math.log(1.05)**2;
+  close(plot(calc('volohlc',[bar(0,100,110,90,105)],{length:1,annualization:'Auto'}),'volatility'),[100*Math.sqrt(u*365)]);
+  close(plot(calc('volohlc',[bar(0,100,110,90,105)],{length:1,annual:1}),'volatility'),[100*Math.sqrt(u)]);
+ });
  it('O-H-L-C is Garman-Klass',()=>{
   // O100 H110 L90 C105: 0.5 ln(110/90)^2 - (2 ln 2 - 1) ln(1.05)^2; n = 1, annual 1.
   const u=0.5*Math.log(110/90)**2-(2*Math.LN2-1)*Math.log(1.05)**2;

@@ -56,8 +56,8 @@ it('rejects unknown/copied source tokens and foreign model BEFORE reading hostil
 
 it('refuses insufficient genuine W/U headroom without pruning or cancelling the prior source',async()=>{
  const h=await pending(),W=h.ledger.sourcePendingW,U=h.ledger.sourcePendingSlots;
- expect(h.control.waitSeasonalitySourceSettlement(h.model,h.reservation,{operations:20000000,numericSlots:0},()=>{})).toBeNull();
- expect(h.control.waitSeasonalitySourceSettlement(h.model,h.reservation,{operations:0,numericSlots:2000000},()=>{})).toBeNull();
+ expect(h.control.waitSeasonalitySourceSettlement(h.model,h.reservation,{operations:80000000,numericSlots:0},()=>{})).toBeNull();
+ expect(h.control.waitSeasonalitySourceSettlement(h.model,h.reservation,{operations:0,numericSlots:8000000},()=>{})).toBeNull();
  expect(h.ledger.sourcePendingW).toBe(W);expect(h.ledger.sourcePendingSlots).toBe(U);expect(aborted(h.reservation.signal)).toBe(false);expect(provider.alpacaSeasonalityPreparationSettled(h.group)).toBe(false);expect(h.p.requests.filter(request=>request.timeframe==='1Day')).toHaveLength(1);
 });
 

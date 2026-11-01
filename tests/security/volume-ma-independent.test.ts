@@ -15,10 +15,10 @@ it('WMA agrees with an independent exact indexed-prefix-sum identity across wind
  }
 });
 
-it('an exactly20million-operation chart batch remains admitted and the next WMA instance rejects',()=>{
+it('an exactly 80 million operation chart batch remains admitted and the next WMA instance rejects',()=>{
  const items:IndicatorBudgetItem[]=[...Array.from({length:439},()=>({kind:'ema' as const,inputs:{length:9,source:'close'}})),...Array.from({length:12},()=>({kind:'volume' as const,inputs:{length:1,maType:'WMA'}}))];
- // Unchanged EMA base avoids the newly charged SMA leg:439*44,000 +12*57,000;439*3,000 +12*6,000 slots.
- expect(assertIndicatorBatchBudget(items,1000)).toEqual({operations:20000000,numericSlots:1389000});expect(()=>assertIndicatorBatchBudget([...items,{kind:'volume',inputs:{length:1,maType:'WMA'}}],1000)).toThrow(/20057000\/20000000/);
+ // Unchanged EMA base avoids the newly charged SMA leg: on 4,000 bars 439*176,000 +12*228,000; 439*12,000 +12*24,000 slots.
+ expect(assertIndicatorBatchBudget(items,4000)).toEqual({operations:80000000,numericSlots:5556000});expect(()=>assertIndicatorBatchBudget([...items,{kind:'volume',inputs:{length:1,maType:'WMA'}}],4000)).toThrow(/80228000\/80000000/);
 });
 
 it('frozen SMA, EMA and WMA remain distinct on a zero-containing prefix after the live type changes',async()=>{

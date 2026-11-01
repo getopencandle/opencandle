@@ -1792,7 +1792,7 @@
    "status": "hand-tested",
    "cases": [],
    "timing": "2a-2f",
-   "source": "Wilder DMI 14 (1978) +DI/-DI checked against the Directional Movement Index built-in; crosses, ADX filter and extreme point rule hand-checked in tests/domain/signals-indicators.test.ts"
+   "source": "Wilder DMI 14 (1978) +DI/-DI checked against the Directional Movement Index built-in; crosses on the crossing bar, the ADXR/ADX trend filter and the extreme point (reverse) level and its penetration hand-checked in tests/domain/signals-indicators.test.ts"
   },
   {
    "id": "macddiv",
@@ -1806,7 +1806,7 @@
    "status": "hand-tested",
    "cases": [],
    "timing": "2a-2f",
-   "source": "Wilder RSI 14 failure swings (1978) hand-checked in tests/domain/signals-indicators.test.ts"
+   "source": "Wilder RSI 14 failure swings (1978) with a 3-point minimum swing hand-checked in tests/domain/signals-indicators.test.ts"
   },
   {
    "id": "avwap",
@@ -1834,7 +1834,7 @@
    "status": "hand-tested",
    "cases": [],
    "timing": "2a-2f",
-   "source": "RVOL = volume / SMA(volume, 20), threshold 2 (OpenCandle-defined, common practice), missing volume gaps hand-checked in tests/domain/vwap-session-indicators.test.ts"
+   "source": "RVOL = volume / SMA of the previous 20 bars of volume, threshold 2 (OpenCandle-defined, common practice), missing volume gaps hand-checked in tests/domain/vwap-session-indicators.test.ts"
   },
   {
    "id": "srzones",
@@ -1862,7 +1862,7 @@
    "status": "hand-tested",
    "cases": [],
    "timing": "2a-2f",
-   "source": "Volume profile from the auto fib swing start (tests/domain/structure-indicators.test.ts)"
+   "source": "Volume profile from the auto fib swing start and the Fibonacci levels of that swing (tests/domain/structure-indicators.test.ts)"
   }
  ]
 }

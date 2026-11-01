@@ -64,7 +64,7 @@ it('preflights adjacent quota-boundary histories and aggregate hidden chart/aler
  const refused=calculateIndicator('volume',forbidden,{length:1000,maType:'WMA'});expect(refused.series).toEqual([]);expect(refused.diagnostics[0]).toContain('20000136 estimated operations');expect(reads).toBe(0);
  const hidden=settings('WMA');hidden.inputs.length=1000;hidden.visible=false;hidden.plots.ma.visible=false;
  // A factory Volume now carries the direction palette (0.8.1): +4 operations per bar per instance (2 x 10000 x 4 = 80000).
- expect(assertIndicatorBatchBudget([hidden,hidden],10000)).toEqual({operations:19202000,numericSlots:120000});expect(()=>assertIndicatorBatchBudget([hidden,hidden,hidden],10000)).toThrow(/batch exceeds/);
+ expect(assertIndicatorBatchBudget([hidden,hidden],10000)).toEqual({operations:19202000,numericSlots:120000});expect(()=>assertIndicatorBatchBudget(Array.from({length:9},()=>hidden),10000)).toThrow(/batch exceeds/);// past the 80m batch cap
  const a=captureIndicatorAlertSource(hidden,'ma','standard','a'),b=captureIndicatorAlertSource({...hidden,id:'other',inputs:{length:1001,maType:'WMA'}},'ma','standard','b');expect(technicalAlertEstimatedWork(15000,[a,b])).toBeGreaterThan(20000000);
  const alertRows=Array<Bar>(15000);Object.defineProperty(alertRows,'0',{get(){reads++;throw Error('Alert quota must precede row validation');}});await expect(evaluateTechnicalAlertSources(alertRows,[a,b],'USD')).rejects.toThrow(/estimated operations/);expect(reads).toBe(0);
 });

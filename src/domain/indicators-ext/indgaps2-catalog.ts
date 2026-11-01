@@ -54,18 +54,23 @@ function gaps(ctx:CatalogContext):Record<string,NumericSeries>{
 }
 
 // ---- Bollinger bars ----
-/** John Bollinger's bars: hollow when close > open, filled otherwise; colored up when close >= the prior close, down when below
- *  (the first bar compares close with its own open). */
+/** The plot whose Style row colors the Bollinger bars tails. With it, src/chart/indicator-presentation.ts patternMarksNative
+ *  draws each candle row as a tails block from high to low and, unless the row's plot is the tails plot, the open-close
+ *  body on top in the row's plot color. */
+export const BOLLINGER_BARS_TAILS_PLOT='tails';
+/** Bollinger bars (John Bollinger, 2024): every bar is one uniform width from high to low. The tails (high to the body and
+ *  the body to the low) are one color and the open-close body is up when the close is above the open, down when below.
+ *  There is no prior-close rule and no hollow body. A bar with close equal to open has no body and is all tails
+ *  (OpenCandle-defined; the sources do not state it). One candle row per bar: its plot is the body color, or Tails for a doji. */
 function bollingerBars(ctx:CatalogContext):Record<string,NumericSeries>{
- const {bars}=ctx,n=bars.length,up=nulls(n),down=nulls(n),candles:PatternCandle[]=[];
+ const {bars}=ctx,n=bars.length,up=nulls(n),down=nulls(n),tails=nulls(n),candles:PatternCandle[]=[];
  for(let i=0;i<n;i++){
   const bar=bars[i];if(![bar.open,bar.high,bar.low,bar.close].every(finite))continue;
-  const reference=i===0?bar.open:bars[i-1].close;if(!finite(reference))continue;
-  const rising=bar.close>=reference;up[i]=rising?1:0;down[i]=rising?0:1;
-  candles.push({index:i,plot:rising?'up':'down',...(bar.close>bar.open?{hollow:true}:{})});
+  up[i]=bar.close>bar.open?1:0;down[i]=bar.close<bar.open?1:0;tails[i]=1;
+  candles.push({index:i,plot:bar.close>bar.open?'up':bar.close<bar.open?'down':BOLLINGER_BARS_TAILS_PLOT});
  }
  ctx.marks?.({markers:[],lines:[],candles});
- return {up,down};
+ return {up,down,tails};
 }
 
 // ---- Moon phases ----
@@ -152,9 +157,9 @@ const PIVOT_LABELS={p:'P',r1:'R1',s1:'S1',r2:'R2',s2:'S2',r3:'R3',s3:'S3'} as co
 /** Bearish at bar i: the high rises above the prior high and above an earlier swing high j (high[j] at least both neighbours)
  *  within Bars back, with no high between them above high[i], while momentum is lower than at j and the RSI was above 70
  *  somewhere in j..i. Bullish mirrors it on lows, momentum higher, RSI below 30. The newest qualifying j is used; a signal on
- *  the bar right after the same signal is not repeated. */
+ *  one divergence signals once: a swing j that has signalled in a direction never signals again in it. */
 export function knoxvilleDivergence(bars:readonly Bar[],rsi:readonly (number|null)[],barsBack:number,momLength:number):{bullish:NumericSeries;bearish:NumericSeries;lines:PatternLine[];markers:PatternMarker[]}{
- const n=bars.length,bullish=nulls(n),bearish=nulls(n),lines:PatternLine[]=[],markers:PatternMarker[]=[];
+ const n=bars.length,bullish=nulls(n),bearish=nulls(n),lines:PatternLine[]=[],markers:PatternMarker[]=[],signalled={bearish:-1,bullish:-1};
  const mom=bars.map((bar,i)=>i>=momLength&&finite(bar.close)&&finite(bars[i-momLength].close)?bar.close-bars[i-momLength].close:null);
  const scan=(i:number,high:boolean):number|null=>{
   const price=(k:number)=>high?bars[k].high:bars[k].low,beyond=(a:number,b:number)=>high?a>b:a<b,m=mom[i];
@@ -172,8 +177,8 @@ export function knoxvilleDivergence(bars:readonly Bar[],rsi:readonly (number|nul
  for(let i=1;i<n;i++){
   if(!hlc(bars[i])||!hlc(bars[i-1]))continue;bullish[i]=0;bearish[i]=0;
   for(const high of [true,false]){
-   const j=scan(i,high),plot=high?'bearish':'bullish',series=high?bearish:bullish;if(j===null||series[i-1]===1)continue;
-   series[i]=1;const price=(k:number)=>high?bars[k].high:bars[k].low;
+   const j=scan(i,high),plot=high?'bearish':'bullish',series=high?bearish:bullish;if(j===null||signalled[plot]===j)continue;
+   series[i]=1;signalled[plot]=j;const price=(k:number)=>high?bars[k].high:bars[k].low;
    lines.push({plot,from:{index:j,price:price(j)},to:{index:i,price:price(i)}});
    markers.push({index:i,plot,text:'KD',tooltip:high?'Bearish Knoxville divergence':'Bullish Knoxville divergence'});
   }
@@ -230,10 +235,11 @@ function reversal(ctx:CatalogContext):Record<string,NumericSeries>{
 // ---- Auto fib extension / Auto pitchfork ----
 export const AUTO_FIB_EXT_LEVELS=[[0,'e0','0'],[0.236,'e236','0.236'],[0.382,'e382','0.382'],[0.5,'e5','0.5'],[0.618,'e618','0.618'],[0.786,'e786','0.786'],[1,'e1','1'],[1.618,'e1618','1.618'],[2.618,'e2618','2.618'],[3.618,'e3618','3.618'],[4.236,'e4236','4.236']] as const;
 const EXT_COLORS=[C.guide,C.coral,C.amber,C.green,C.teal,C.cyan,C.guide,C.blue,C.violet,C.pink,C.tan];
-/** The three newest completed zig zag pivots (the last zig zag point is the leg still forming); null with fewer. */
+/** The three newest completed zig zag pivots A, B, C. The last zig zag point is the leg still forming, so C is confirmed
+ *  only when a fourth point exists; null with fewer than four points. */
 export function lastThreePivots(bars:readonly Bar[],deviation:number,depth:number){
- const points=zigzagPivots(bars,deviation,depth);if(points.length<3)return null;
- return points.length>=4?[points.at(-4)!,points.at(-3)!,points.at(-2)!] as const:[points[0],points[1],points[2]] as const;
+ const points=zigzagPivots(bars,deviation,depth);if(points.length<4)return null;
+ return [points.at(-4)!,points.at(-3)!,points.at(-2)!] as const;
 }
 const ZIGZAG_INPUTS:CatalogInput[]=[{key:'deviation',title:'Deviation (%)',type:'float',defval:3,min:0.1,max:100,step:0.1},{key:'depth',title:'Depth',type:'int',defval:10,min:1,max:5000,step:1}];
 const PIVOT_INPUT:CatalogInput={key:'timeframe',title:'Pivot timeframe',type:'string',defval:'Daily',options:BOOKER_PIVOT_TIMEFRAMES};
@@ -248,10 +254,11 @@ const definitions:readonly CatalogDefinition[]=[
   policies:[SIGNAL_POLICY,'An open gap\'s box runs from the gap bar to the newest bar and extends right; a filled gap\'s box ends on the filling bar. Only bars up to each bar are read, so a signal never changes; a box end moves only when a later bar fills it.'],
   calculate:gaps,warmup:()=>2,work:count=>count*12},
  {id:'bbars',name:'Bollinger bars',acronym:'BBars',overlay:true,pattern:'chart',inputs:[],
-  plots:[{id:'up',label:'Up close',color:C.up,width:1},{id:'down',label:'Down close',color:C.down,width:1}],
-  provenance:[{url:TV_LIST,facts:'"Bollinger Bars" is a built-in candle-style display.'},{url:LV+'bollinger-bars-john-bollinger',facts:'John Bollinger\'s Bollinger Bars: the body is hollow when the close is above the open and filled otherwise; the color shows the close against the prior close.'}],
-  unknownDefaults:['The reference implementation was not read. Equal closes count as up and the first bar compares its close with its open (OpenCandle-defined).',COLORS_LV],
-  policies:['Draws one candle per bar over the chart candles; the Up close / Down close Style rows color them. The plots are 1/0 (close at or above, or below, the prior close).'],
+  // Plot ids up/down are kept from the earlier hollow-candle version, so a saved instance's Up and Down colors become the body colors.
+  plots:[{id:'up',label:'Up body',color:C.up,width:1},{id:'down',label:'Down body',color:C.down,width:1},{id:'tails',label:'Tails',color:C.blue,width:1}],
+  provenance:[{url:TV_LIST,facts:'"Bollinger Bars" is a built-in candle-style display.'},{url:LV+'bollinger-bars-john-bollinger-2024',facts:'John Bollinger, 2024 (Bollinger Bars): each bar is drawn at one uniform width from top to bottom; the tails, from the high to the body and from the body to the low, are blue; the open-to-close body is green when the close is above the open and red when it is below. No prior-close rule and no hollow bodies.'}],
+  unknownDefaults:['A bar with close equal to open has no body and is drawn all in the tails color (OpenCandle-defined; the sources do not state it).',COLORS_LV],
+  policies:['Draws one uniform-width bar per bar over the chart candles: the Tails color from high to low with the body on top in the Up body or Down body color, by close against open. The plots are 1/0: Up body when the close is above the open, Down body when below, Tails 1 on every bar with prices.'],
   calculate:bollingerBars,warmup:()=>1,work:count=>count*4},
  {id:'moonphases',name:'Moon phases',acronym:'Moon',overlay:true,pattern:'chart',inputs:[],
   plots:[{id:'newmoon',label:'New moon',color:C.guide,width:1},{id:'fullmoon',label:'Full moon',color:C.sand,width:1}],
@@ -270,7 +277,7 @@ const definitions:readonly CatalogDefinition[]=[
   inputs:[{key:'barsBack',title:'Bars back',type:'int',defval:150,min:2,max:1000,step:1},{key:'rsiLength',title:'RSI period',type:'int',defval:21,min:1,max:500,step:1},{key:'momLength',title:'Momentum period',type:'int',defval:20,min:1,max:500,step:1}],
   plots:SIGNALS('Bullish divergence','Bearish divergence'),
   provenance:[{url:TV_LIST,facts:'"Rob Booker - Knoxville Divergence" is a built-in.'},{url:LV+'rob-booker-knoxville-divergence',facts:'Knoxville divergence (Rob Booker): price momentum divergence confirmed by an overbought (RSI above 70) or oversold (RSI below 30) reading, with Bars back 150, RSI 21 and Momentum 20.'}],
-  unknownDefaults:['The swing test (high at least both neighbours), the newest qualifying swing, the no-higher-high-between rule and the no-repeat rule are OpenCandle-defined.',COLORS_LV],
+  unknownDefaults:['The swing test (high at least both neighbours), the newest qualifying swing, the no-higher-high-between rule and the no-repeat rule (each earlier swing signals at most once per direction) are OpenCandle-defined.',COLORS_LV],
   policies:[SIGNAL_POLICY,'Each divergence draws a line from the earlier swing to the signal bar and a KD label. Only bars up to the signal bar are read.'],
   calculate(ctx){const close=ctx.bars.map(bar=>finite(bar.close)?bar.close:null),out=knoxvilleDivergence(ctx.bars,ctx.tk.rsi(close,ctx.num('rsiLength')),ctx.num('barsBack'),ctx.num('momLength'));
    ctx.marks?.({markers:out.markers.slice(-5000),lines:out.lines.slice(-5000)});return {bullish:out.bullish,bearish:out.bearish};},
@@ -303,7 +310,7 @@ const definitions:readonly CatalogDefinition[]=[
   plots:AUTO_FIB_EXT_LEVELS.map(([ratio,id,label],k)=>({id,label,color:EXT_COLORS[k],width:1,...(ratio>2.618?{visible:false}:{})})),
   provenance:[{url:LIST,facts:'"Auto Fib Extension" is in the built-in list.'},{url:LV+'textbook-trend-based-fib-extension',facts:'Trend-based extension over three pivots A, B, C: level = C + ratio x (B - A), ratios 0 .. 4.236.'},{url:LV+'textbook-zigzag-percent-reversal',facts:'Pivots are the OpenCandle percent-reversal zig zag (the R23 Zig zag kernel), as for Auto fib retracement.'}],
   unknownDefaults:['Deviation 3 % and Depth 10 (as Auto fib retracement), the level set and 3.618 / 4.236 hidden by default are OpenCandle-defined.',COLORS_LV],
-  policies:['Repaints like the reference drawing: the three newest completed zig zag pivots move when a new leg completes, and the levels then carry values from the new C pivot to the newest bar. Bars with a missing high or low are unavailable.'],
+  policies:['Repaints like the reference drawing: the three newest completed zig zag pivots move when a new leg completes, and the levels then carry values from the new C pivot to the newest bar. C counts as completed only once the zig zag has a later point, so nothing is drawn while the third leg is still forming. Bars with a missing high or low are unavailable.'],
   calculate({bars,num}){const out:Record<string,NumericSeries>=Object.fromEntries(AUTO_FIB_EXT_LEVELS.map(([,id])=>[id,nulls(bars.length)])),three=lastThreePivots(bars,num('deviation'),num('depth'));
    if(!three)return out;const [a,b,c]=three;
    for(const [ratio,id] of AUTO_FIB_EXT_LEVELS){const level=zero(c.price+ratio*(b.price-a.price));for(let i=c.index;i<bars.length;i++)if(finite(bars[i].high)&&finite(bars[i].low))out[id][i]=level;}
@@ -314,7 +321,7 @@ const definitions:readonly CatalogDefinition[]=[
   plots:[{id:'median',label:'Median',color:C.amber,width:1},{id:'upper',label:'Upper',color:C.cyan,width:1},{id:'lower',label:'Lower',color:C.cyan,width:1}],
   provenance:[{url:LIST,facts:'"Auto Pitchfork" is in the built-in list.'},{url:LV+'textbook-andrews-pitchfork',facts:'Andrews pitchfork over pivots A, B, C: the median line runs from A through the midpoint of B and C; the tines are parallel to it through B and C.'}],
   unknownDefaults:['Deviation 3 % and Depth 10 (as Auto fib retracement) and the original (Andrews) pitchfork are OpenCandle-defined.',COLORS_LV],
-  policies:['Repaints like the reference drawing: the pivots move when a new zig zag leg completes. The median line starts at A and the tines at B and C; all run to the newest bar. Upper is the tine through the higher of B and C.'],
+  policies:['Repaints like the reference drawing: the pivots (the three newest completed zig zag pivots, so C is confirmed by a later zig zag point) move when a new zig zag leg completes. The median line starts at A and the tines at B and C; all run to the newest bar. Upper is the tine through the higher of B and C.'],
   calculate({bars,num}){const n=bars.length,out:Record<string,NumericSeries>={median:nulls(n),upper:nulls(n),lower:nulls(n)},three=lastThreePivots(bars,num('deviation'),num('depth'));
    if(!three)return out;const [a,b,c]=three,mid={index:(b.index+c.index)/2,price:(b.price+c.price)/2},slope=(mid.price-a.price)/(mid.index-a.index);
    const [hi,lo]=b.price>=c.price?[b,c]:[c,b];

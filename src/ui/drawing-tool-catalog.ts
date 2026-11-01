@@ -76,9 +76,9 @@ const REFERENCE_CATALOG:readonly DrawingToolGroup[]=Object.freeze([
  group({id:'trend',label:'Trend tools',glyph:'╱',iconId:'trend-line',dataName:'linetool-group-trend-line',sections:[
   section('DW.TREND','Lines',[
    tool('DW.TREND.TRENDLINE','LineToolTrendLine','Trendline','trendline','trend-line',{aliases:['trend line','alt+t'],hotkey:key('Alt + T','setTool',true),hint:SHIFT_45}),
-   tool('DW.TREND.RAY','LineToolRay','Ray','ray','ray'),
-   tool('DW.TREND.INFO_LINE','LineToolInfoLine','Info line','infoline','info-line'),
-   tool('DW.TREND.EXTENDED_LINE','LineToolExtended','Extended line','extendedline','extended-line'),
+   tool('DW.TREND.RAY','LineToolRay','Ray','ray','ray',{hint:SHIFT_45}),
+   tool('DW.TREND.INFO_LINE','LineToolInfoLine','Info line','infoline','info-line',{hint:SHIFT_45}),
+   tool('DW.TREND.EXTENDED_LINE','LineToolExtended','Extended line','extendedline','extended-line',{hint:SHIFT_45}),
    tool('DW.TREND.TREND_ANGLE','LineToolTrendAngle','Trend angle','trendangle','trend-angle',{hint:SHIFT_45}),
    tool('DW.TREND.HORIZONTAL_LINE','LineToolHorzLine','Horizontal line','hline','horizontal-line',{hotkey:key('Alt + H','drawRightThere',true)}),
    tool('DW.TREND.HORIZONTAL_RAY','LineToolHorzRay','Horizontal ray','hray','horizontal-ray',{hotkey:key('Alt + J','drawRightThere',true)}),
@@ -168,7 +168,7 @@ const REFERENCE_CATALOG:readonly DrawingToolGroup[]=Object.freeze([
   ]),
   section('LV.SECTION.ARROWS','Arrows',[
    missing('DW.SHAPE.ARROW_MARKER','LineToolArrowMarker','Arrow marker','arrow-marker','The renderer has no arrow marker shape. '+NEEDS_OBSERVATION,'arrow'),
-   tool('DW.SHAPE.ARROW','LineToolArrow','Arrow','arrow','arrow'),
+   tool('DW.SHAPE.ARROW','LineToolArrow','Arrow','arrow','arrow',{hint:SHIFT_45}),
    tool('DW.SHAPE.ARROW_UP','LineToolArrowMarkUp','Arrow mark up','arrowmarkup','arrow-mark-up'),
    tool('DW.SHAPE.ARROW_DOWN','LineToolArrowMarkDown','Arrow mark down','arrowmarkdown','arrow-mark-down'),
   ]),

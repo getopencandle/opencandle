@@ -32,7 +32,7 @@ const barAt=(x:number)=>Math.round(x/10*1000)/1000;
 
 describe('registration',()=>{
  it('every 0.8.1 fix replaced its native registration',()=>{
-  expect(drawingFixStatus().map(row=>[row.type,row.state])).toEqual(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork','fibfan','gannfan','fibspeedfan','fibtimezones','gannbox','gannsquare','parallelchannel','fibextension','fibextensiontrend','datepricerange','pricenote','pricelabel','fibarcs','ray','infoline','headshoulders','regressionchannel','elliottimpulse','elliottcorrection','callout','comment','note'].map(type=>[type,'registered']));
+  expect(drawingFixStatus().map(row=>[row.type,row.state])).toEqual(['pitchfork','schiffpitchfork','modifiedschiffpitchfork','insidepitchfork','fibfan','gannfan','fibspeedfan','fibtimezones','gannbox','gannsquare','parallelchannel','fibextension','fibextensiontrend','datepricerange','pricenote','pricelabel','fibarcs','ray','infoline','headshoulders','regressionchannel','fixedrangevp','anchoredvwap','cypher','elliottimpulse','elliottcorrection','callout','comment','note'].map(type=>[type,'registered']));
  });
 });
 

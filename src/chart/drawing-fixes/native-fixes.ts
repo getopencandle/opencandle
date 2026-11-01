@@ -26,15 +26,20 @@
 //    Pearson's R (the signed correlation of close with bar index, the reading a regression trend reports; lvFitLabel).
 //  * Third round: Fib speed resistance fan lines (including the vertical 0 time line) and the Trend-based fib extension levels
 //    follow the drawn direction; Gann box time divisions carry their ratio labels; Gann fan angles are written in the classic
-//    time x price notation (1/2 is the steep 63.75 degree line); Price note and Price label write their price with the
+//    time x price notation (1x2 is the steep line, as on the Gann square); Price note and Price label write their price with the
 //    instrument tick (lvPriceTag, read by the LV-VELA-DRAWING-FIXES-1 painter).
+//  * Fourth round: Schiff, Modified Schiff and Inside pitchfork take the pivot-to-P1 midpoint on screen (on the drawn line on a
+//    log scale). Fixed range volume profile, Anchored VWAP (./volume-fixes.ts) and Cypher validity (./pattern-fixes.ts).
 //  * Default level additions (new drawings only; saved levels never change): Trend-based fib extension 0.236, 0.786, 1.272,
 //    3.618 and 4.236; Fib time zones 55 and 89.
 //
 // Elliott waves (an origin point) live in ./elliott-origin.ts; they register after the OpenCandle wave and pattern modules,
 // which pin the native labels.
 import type {DrawingTypeMeta} from '@luxalgo/vela';
-import {cloneStyle,fail,lvKey,method,nativeBase,type Init,type NativeBase,type NativeModel,type Projector} from '../lv-drawing-pin';
+import {cloneStyle,fail,type Init,type NativeBase,type NativeModel,type Projector} from '../lv-drawing-pin';
+import {FIXED,LINEAR,meta,pinned,probeInit,type Anchor} from './fix-pins';
+import {containingBarOpen,defineAnchoredVwap,defineFixedRangeVolumeProfile} from './volume-fixes';
+import {defineCypher} from './pattern-fixes';
 import type {LvDrawingToolModule,LvTypeDefinition} from '../lv-types/contract';
 import {defineLvDrawingToolModule} from '../lv-types/contract';
 import {barMidX,barStepX,channelLineY,directedRay,segmentDistance,type Segment} from './geometry';
@@ -43,7 +48,6 @@ import {DRAWING_TEXT_WRAP_WIDTH,wrapTextLines} from './text-wrap';
 import {REGRESSION_DEFAULT_DEVIATION,regressionDeviation} from './regression-deviation';
 export {REGRESSION_DEFAULT_DEVIATION,regressionDeviation};
 
-type Anchor={time:number;price:number};
 type Level={ratio:number;color:string;enabled:boolean;label?:string};
 interface Entry{color:string;label?:string;x1:number;y1:number;x2:number;y2:number;numberText:string;numberX:number;numberY:number;numberAlign:string;labelX:number;labelY:number}
 interface SegmentModel extends NativeModel{geometry(proj:Projector):{segments:number[][];fill:number[][]|null}|null;medianStart?(a:Anchor,b:Anchor,c:Anchor):Anchor}
@@ -54,21 +58,6 @@ function px(model:{paneId:string},proj:Projector,p:Anchor|undefined):[number,num
  if(!p)return null;const y=proj.yOf(p.price,model.paneId),x=proj.xOf(p.time);
  return y==null||!Number.isFinite(x)||!Number.isFinite(y)?null:[x,y];
 }
-/** A linear test projector (x = time, y = 1000 - price) for the pins. */
-const LINEAR={xOf:(time:number)=>time,yOf:(price:number)=>1000-price,width:2000,height:1000,pxToPoint:(x:number,y:number)=>({time:x,price:1000-y}),barsBetween:(a:number,b:number)=>Math.abs(b-a)} as unknown as Projector;
-const probeInit=(anchors:Anchor[]):Init=>({id:'lv-drawing-type-probe',paneId:'price',createdAt:0,anchors});
-
-function meta(base:NativeBase,create:(init:Init)=>NativeModel):DrawingTypeMeta{
- const m=base.meta;
- return{...m,type:lvKey(m.type),defaultStyle:cloneStyle(m),create:init=>create(init)} as DrawingTypeMeta;
-}
-function pinned(type:string,members:readonly string[]):NativeBase{
- const base=nativeBase(type);
- if(Object.hasOwn(base.prototype,'lvDrawingFix081'))fail(type+' is already fixed by another module instance');
- for(const key of members)method(base.prototype,key);
- return base;
-}
-const FIXED={lvDrawingFix081:{value:true,enumerable:false}} as const;
 
 // ---------------------------------------------------------------- ray and info line (adopted prototypes)
 
@@ -130,10 +119,11 @@ export function pitchforkGeometry(kind:PitchforkKind,model:{anchors:readonly Anc
  const P2=px(model,proj,c);if(!P2)return null;
  const w=proj.width,h=proj.height,back:Segment=[P0[0],P0[1],P1[0],P1[1]];
  if(kind==='pitchfork')return{segments:pitchforkSegments(P0,P1,P2,P0,w,h),fill:null};
- // Schiff: the median starts halfway up the pivot-to-P1 leg (in price), at the pivot's bar. Modified Schiff: at the midpoint
- // of that leg, its bar being the bar-space midpoint. Inside: the median runs through the base midpoint parallel to the line
- // from the leg midpoint to P2.
- const midY=proj.yOf((a.price+b.price)/2,model.paneId);if(midY==null||!Number.isFinite(midY))return null;
+ // Schiff: the median starts halfway up the pivot-to-P1 leg, at the pivot's bar. Modified Schiff: at the midpoint of that leg,
+ // its bar being the bar-space midpoint. Inside: the median runs through the base midpoint parallel to the line from the leg
+ // midpoint to P2. "Halfway" is taken on screen, like every other midpoint here, so on a log scale the origin sits on the
+ // displayed pivot-to-P1 line (identical to the price average on a linear scale).
+ const midY=(P0[1]+P1[1])/2;
  if(kind==='schiffpitchfork')return{segments:pitchforkSegments(P0,P1,P2,[P0[0],midY],w,h,{construction:[back]}),fill:null};
  const B:[number,number]=[barMidX(P0[0],P1[0]),midY];
  if(kind==='modifiedschiffpitchfork')return{segments:pitchforkSegments(P0,P1,P2,B,w,h,{construction:[back]}),fill:null};
@@ -187,15 +177,19 @@ function defineFibFan():DrawingTypeMeta{
  Object.defineProperties(LvFibFan.prototype,FIXED);
  return meta(base,init=>new LvFibFan(init));
 }
-/** Gann fan angle labels in the classic time x price notation: "a/b" is a units of time per b units of price, so 1/1 is the
- *  45 degree line, 1/2 the steep line rising two price units per time unit (63.75 degrees), 2/1 the shallow one (26.25 degrees),
- *  out to 1/8 (82.5) and 8/1 (7.5). Sources: W. D. Gann's angle table as given by Investopedia "Gann Angles" and "Gann Fan"
- *  (1x2 = 63.75, 2x1 = 26.25, 1x8 = 82.5, 8x1 = 7.5 degrees), the notation the Gann square in this app uses. The native fan
- *  writes the price-per-time ratio instead (2/1 on the steep line), so its default labels are swapped here. A label the user
- *  typed is kept; only a native default label is rewritten, so saved drawings keep their geometry and now read correctly. */
+/** Gann fan angle labels in the classic time x price notation, written with an "x" as the Gann square writes them: "axb" is
+ *  a units of time per b units of price, so 1x1 is the 45 degree line, 1x2 the steep line rising two price units per time unit,
+ *  2x1 the shallow one, out to 1x8 and 8x1. On an equal-unit scale the slopes are arctan(2) = 63.43 and arctan(1/2) = 26.57
+ *  degrees (1x8 82.87, 8x1 7.13); Gann's table quotes them as 63.75, 26.25, 82.5 and 7.5 (Investopedia "Gann Angles", "Gann
+ *  Fan"). The code uses the slope ratios, never the quoted angles. The native fan writes the price-per-time ratio with a slash
+ *  (2/1 on the steep line), and drawings made with the 0.8.1 labels store the swapped slash form (1/2); both default forms are
+ *  written "1x2" here. A label the user typed is kept; only a default label is rewritten, so saved drawings keep their
+ *  geometry and read the same way as the Gann square. */
 export function classicGannFanLabel(ratio:number,label:string|undefined,nativeDefaults:ReadonlyMap<number,string>):string{
- const text=label??String(ratio);
- return nativeDefaults.get(ratio)===text&&/^\d+\/\d+$/.test(text)?text.split('/').reverse().join('/'):text;
+ const text=label??String(ratio),native=nativeDefaults.get(ratio);
+ const m=native===undefined?null:/^(\d+)\/(\d+)$/.exec(native);if(!m)return text;
+ const [,price,time]=m;
+ return text===native||text===time+'/'+price||text===time+'x'+price?time+'x'+price:text;
 }
 function defineGannFan():DrawingTypeMeta{
  const base=pinned('gannfan',['entryLines','hitTest','defaultLevels']);
@@ -205,6 +199,8 @@ function defineGannFan():DrawingTypeMeta{
  const nativeDefaults=new Map(sample.defaultLevels().map(lv=>[lv.ratio,lv.label??String(lv.ratio)]));
  if(nativeDefaults.get(2)!=='2/1'||nativeDefaults.get(0.5)!=='1/2')fail('gann fan default labels changed');
  class LvGannFan extends Base{
+  /** The label a level shows (the chart and the settings dialog), without changing what is stored. */
+  lvLevelLabel(ratio:number,label:string|undefined):string{return label===undefined?'':classicGannFanLabel(ratio,label,nativeDefaults);}
   /** New drawings store the classic labels. */
   defaultLevels(){return super.defaultLevels().map(lv=>({...lv,label:classicGannFanLabel(lv.ratio,lv.label,nativeDefaults)}));}
   entryLines(proj:Projector){
@@ -541,7 +537,7 @@ function defineRegression():DrawingTypeMeta{
   fit(proj:Projector):RegressionFit|null{
    const [a,b]=this.anchors;if(!a||!b)return null;
    const read=(proj as {barsInRange?:(from:number,to:number)=>{time:number;close:number}[]|null}).barsInRange;
-   const bars=read?read(Math.min(a.time,b.time),Math.max(a.time,b.time)):null;
+   const bars=read?read(containingBarOpen(proj,Math.min(a.time,b.time)),Math.max(a.time,b.time)):null;
    const f=bars?regressionFit(bars,regressionDeviation(this.reg.upperDeviation),regressionDeviation(this.reg.lowerDeviation)):null;
    if(f)this.cachedRange={min:Math.min(f.mid0,f.mid1)-f.down,max:Math.max(f.mid0,f.mid1)+f.up};
    return f;
@@ -590,6 +586,9 @@ export const DRAWING_FIXES_081_MODULE:LvDrawingToolModule=defineLvDrawingToolMod
   replace('infoline',defineInfoLine),
   replace('headshoulders',defineHeadShoulders),
   replace('regressionchannel',defineRegression),
+  replace('fixedrangevp',defineFixedRangeVolumeProfile),
+  {type:'anchoredvwap',base:'anchoredvwap',define:defineAnchoredVwap,replacesNative:true,requiresPaintHook:true},
+  replace('cypher',defineCypher),
  ],
 });
 /** Registered AFTER the OpenCandle tool modules: Pin and Table build on the native Note and keep its plain box. */

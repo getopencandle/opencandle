@@ -168,7 +168,8 @@ export interface CatalogDefinition {
  valueSuffix?:'%';
  provenance:readonly {url:string;facts:string}[];unknownDefaults?:readonly string[];policies:readonly string[];
  calculate(ctx:CatalogContext):Record<string,NumericSeries>;
- warmup(value:(key:string)=>number):number;work(barCount:number,value:(key:string)=>number):number;
+ /** text: a choice input's effective value, for kinds whose warm-up depends on a choice (absent = not supplied). */
+ warmup(value:(key:string)=>number,text?:(key:string)=>string):number;work(barCount:number,value:(key:string)=>number):number;
 }
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 /** LV placeholder bound, kept only where no fact exists (adx, supertrend, lsma, smma). */
@@ -266,9 +267,10 @@ export const CATALOG_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
   // ao.legacy has inputCount 0: the editor shows no inputs. Stored pre-fix Fast/Slow lengths still load and are honored.
   retiredInputs:[{key:'fast',title:'Fast length',defval:5,...LENGTH},{key:'slow',title:'Slow length',defval:34,...LENGTH}],
   migrate(inputs){const out={...inputs};if((out.fast??5)===5&&(out.slow??34)===34){delete out.fast;delete out.slow;}return out;},
-  plots:[{id:'histogram',label:'OA',kind:'histogram',color:'#ff006e',width:1}],histogramPalette:true,histogramColors:{growing:'#007f0e',falling:'#872323'},
+  // The recorded descriptor titles the plot OA; the legend says AO (the tool's name). The plot id stays histogram.
+  plots:[{id:'histogram',label:'AO',kind:'histogram',color:'#ff006e',width:1}],histogramPalette:true,histogramColors:{growing:'#007f0e',falling:'#872323'},
   provenance:[{url:HELP+'awesome-oscillator-ao',facts:'AO = SMA(hl2, 5) - SMA(hl2, 34); the two periods default to 5 and 34; Growing and Falling bar colors.'},{url:F+'ao.std',facts:'name Awesome oscillator, short title AO.'},{url:F+'ao.legacy',facts:'inputCount 0; format inherit.'},{url:F+'ao.plot.ao',facts:'plot title OA (sic, as recorded), histogram #ff006e width 1.'},{url:F+'ao.palette.pal.0',facts:'Growing #007f0e; pal.1 Falling #872323.'}],
-  policies:['Bars rising versus the prior value use the growing colors and other bars the falling colors, for both signs.','The periods are fixed at 5 and 34 (no inputs, per the legacy descriptor); a saved pre-fix instance keeps its stored Fast/Slow lengths.'],
+  policies:['Bars above the prior value use the growing colors and bars below it the falling colors, for both signs. An equal bar keeps the prior bar\'s color and the first bar after a gap is falling, the same rule as the Accelerator oscillator (OpenCandle-defined; Williams defines only higher and lower bars).','The periods are fixed at 5 and 34 (no inputs, per the legacy descriptor); a saved pre-fix instance keeps its stored Fast/Slow lengths.'],
   calculate({bars,tk,num}){const hl2=bars.map(bar=>(bar.high+bar.low)/2),a=tk.sma(hl2,num('fast')),b=tk.sma(hl2,num('slow'));return {histogram:a.map((value,i)=>finite(value)&&finite(b[i])?zero(value-(b[i] as number)):null)};},
   warmup:value=>Math.max(value('fast'),value('slow')),work:count=>count*140},
  {id:'aroon',name:'Aroon',acronym:'Aroon',overlay:false,inputs:[{key:'length',title:'Length',defval:14,...LENGTH_2000}],plots:[{id:'up',label:'Aroon Up',color:'#ff6a00',width:1},{id:'down',label:'Aroon Down',color:'#0094ff',width:1}],precision:2,valueSuffix:'%',
@@ -328,7 +330,7 @@ export const CATALOG_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
   warmup:value=>Math.max(value('length'),value('atrLength')),work:(count,value)=>count*(value('length')*2+32)},
  {id:'dc',name:'Donchian channels',acronym:'DC',overlay:true,inputs:[{key:'length',title:'Length',defval:20,...LENGTH_2000}],plots:[{id:'basis',label:'Basis',color:'#ff6a00',width:1},{id:'upper',label:'Upper',color:'#0094ff',width:1},{id:'lower',label:'Lower',color:'#0094ff',width:1}],band:'plots',fill:{color:'#0094ff',opacity:5},
   provenance:[{url:F+'dc.std',facts:'name Donchian channels, short title DC.'},{url:F+'dc.input.length',facts:'Length 20, 1..2000.'},{url:F+'dc.plot.DonchianBasis',facts:'Basis #ff6a00, Upper/Lower #0094ff, width 1.'},{url:F+'dc.fill.areaBackground',facts:'#0094ff transparency 95.'},{url:HELP+'donchian-channels-dc',facts:'Upper = highest high over Length; Lower = lowest low; Basis = (upper + lower) / 2; Length default 20; Offset default 0.'},{url:AC,facts:'donchian channels: length 20, offset 0.'}],
-  policies:['Offset uses the shared OpenCandle display offset.'],
+  policies:['Upper and Lower include the current bar, so the high or low of a bar can reach the channel but never break it. For breakouts use Price channel, which leaves out the current bar, or set Offset to 1 (Donchian\'s own rule compares with the prior periods; ChartSchool, Price Channels).','Offset uses the shared OpenCandle display offset.'],
   calculate({bars,num}){const n=num('length'),h=highs(bars),l=lows(bars),upper=bars.map((_,i)=>extreme(h,i,n,'max')),lower=bars.map((_,i)=>extreme(l,i,n,'min'));return {basis:upper.map((value,i)=>value!==null&&lower[i]!==null?(value+(lower[i] as number))/2:null),upper,lower};},
   warmup:value=>value('length'),work:(count,value)=>count*value('length')*2},
  {id:'env',name:'Envelope',acronym:'Env',overlay:true,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:20,...LENGTH_2000},{key:'percent',title:'Percent',type:'float',defval:10},SOURCE,{key:'exponential',title:'Exponential',type:'bool',defval:false}],

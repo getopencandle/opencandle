@@ -17,6 +17,8 @@ import {DrawingChecklist} from './DrawingChecklist';
 import {captureToolDefault,type DrawingToolDefault} from '../chart/drawing-tool-defaults';
 import type {DrawingPreviewPort} from '../chart/drawing-preview';
 import {BarsPatternSourceSection,barsPatternSectionModel,type BarsPatternData,type BarsPatternSelection} from './BarsPatternSource';
+import {ToolAbout} from './ToolAbout';
+import {drawingTypeReference} from './drawing-reference';
 
 interface Props {chart:ChartController;id:string;ownerToken?:object;isCurrent?:()=>boolean;onClose:()=>void;onChange:()=>boolean|void;assertOwner?:()=>void;
  /** Image picker (reference dialog.LineToolImage.style.1): imports the chosen local file through the workspace guards and holds it until the dialog closes; returns its id and natural size, or a message. */
@@ -49,6 +51,8 @@ function initialDraft(opened:ReturnType<typeof open>){
 function dialogTabList(editor:{type:string;levels?:unknown}|null):string[]{
  const tabs:string[]=[...(dialogTabsFor(editor?.type??'')??['Style','Coordinates','Visibility'])];
  if(editor?.levels)tabs.splice(tabs.indexOf('Visibility'),0,'Levels');
+ // About last, only when the tool has a reference file.
+ if(editor&&drawingTypeReference(editor.type))tabs.push('About');
  return tabs;
 }
 /** The dialog is open for the selected drawing, and App renders it only while that drawing is selected. The pinned
@@ -234,6 +238,7 @@ export function DrawingDialog({chart,id,ownerToken,isCurrent,onClose,onChange,as
    {original.fibBackgroundDiagnostic&&<p role="alert">{original.fibBackgroundDiagnostic}</p>}
    {original.fibTextDiagnostic&&<p role="alert">{original.fibTextDiagnostic}</p>}
    {(state.tab==='Inputs'||state.tab==='Style'||state.tab==='Text')&&renderTab(state.tab)}
+   {state.tab==='About'&&<ToolAbout file={drawingTypeReference(original.type)}/>}
    {original.type===LV_BARS_PATTERN&&state.tab==='Style'&&<BarsPatternSourceSection editorValue={original.values[BARS_PATTERN_SOURCE_PATH]} selection={draft.barsPattern} data={barsPatternData} chart={opened.source} disabled={owner.terminal||owner.applying} onSelect={(selection,value)=>stage({...draft,barsPattern:selection,values:{...draft.values,[BARS_PATTERN_SOURCE_PATH]:value}})}/>}
    {original.type==='trendline'&&state.tab==='Style'&&original.statsDiagnostic&&<p role="alert">{original.statsDiagnostic}</p>}
    {original.type==='box'&&state.tab==='Style'&&original.boxExtendDiagnostic&&<p role="alert">{original.boxExtendDiagnostic}</p>}

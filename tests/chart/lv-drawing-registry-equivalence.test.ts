@@ -148,17 +148,28 @@ const BEFORE={
 // 0.8.1 drawing spec fixes: new Gann fan drawings store the classic time x price angle labels (the ratio 2
 //   line reads 1/2). Only registered (the gannfan sample levels) and all move. Proof: dropping the Gann fan defaultLevels
 //   override reproduces the previous registered pin exactly. Previous: all e2678e5a, registered 54b17759.
+// 0.8.2 drawing fixes: new Gann fan drawings store the 1x2 form of the angle labels (as the Gann square writes them), so the
+//   gannfan sample levels move registered. The Fixed range volume profile, Anchored VWAP and Cypher replacements keep their
+//   meta, schema and sample records, so they move nothing. This pin also records the 0.8.2 harmonic series cover and position
+//   tool changes (portCatalog 170b99eb, registered 101d9e98), which were not re-pinned when they landed. Proof: with the Gann
+//   fan label change and the three replacements removed, the snapshot gives exactly portCatalog 170b99eb and registered
+//   101d9e98; adding back the replacements alone leaves both unchanged. Previous: all eb1efd05, portCatalog ca36cfb7,
+//   registered 4555c86a.
+// 0.8.2 drawing follow-ups: the Arrow, Ray, Extended line and Info line rows gain the Shift 45 degree hint and the Pin and
+//   Stickers notes are reworded (catalog); Stickers become one centre anchor with a pixel Size setting (anchor schema 1..1,
+//   schema gains lvStickerSize, sample props carry the size: portCatalog, registered). Nothing else moves. Previous: all
+//   726e3ab7, catalog 9ae61aaf, portCatalog 170b99eb, registered e5b2dc98.
 const PINNED={
- all:'eb1efd056ab0496cfc7d7e33f1d3285fa09682f3acd2f00230bfa4279bc2ef61',
- catalog:'9ae61aaf59ca2288523b80d5ffb464032ac193f3916ded797dcb097b03ec8587',
+ all:'e3409c5e6619a7d606fea05dae63d27526a9e9380fe6271b068eb968db5b30d7',
+ catalog:'923af16b9270703a6f14585187ab33e897dabbd619c04d2690a80c429230fcb1',
  factoryDefinitions:'815d67cb786de19aeab78dba31d5ce4a963e3939dd6ef25e7ace9e0daac31646',
  factoryUnapplied:'4b2595e051490540ce2fc1861a4543f70b709b4a94a52a6533169ed612eca403',
  factoryStatus:'7812034d4bf4c9eaf7376bcd684620431398bd1ba9fd894934bc7abc2ff3d3b2',
  dialogSpecs:'332ce420d6513ddb60469c9cb2ceac29859b723532f1f5a027aa98133e1cb56c',
  dialogUnavailable:'a816dd28be2ae041ca2b1069c6fe9df848d19e02d110b4662f26e94477b5ff51',
  lvStatus:'fadb0efa2df48518660b5a5da223dacf433e0d13e5c6158fcab58ff0966f12d1',
- portCatalog:'ca36cfb7bf3a15eeec6a587c1d3cf1b083fce9cd8f8ab9811fd3d52fb98ecf7b',
- registered:'4555c86aacab1a05ca2bf473c27a6cc4bcc56ae0fb47c7c2c0194b5eac61f006',
+ portCatalog:'d86b41e0a94208273ef0cf920adcd8f6cd7e5766a509cf367dfd1d1d85c842de',
+ registered:'fbdd91f88bc161faeb9e658b34548117bc176d540977fe3a2372cebc51b8f821',
 } as const;
 
 describe('per-tool registry snapshot (baseline, re-pinned at each integration)',()=>{

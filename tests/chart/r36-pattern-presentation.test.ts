@@ -11,6 +11,7 @@ import {selectorView} from '../../src/domain/indicator-selector-catalog';
 import {INDICATOR_KINDS} from '../../src/chart/indicator-settings';
 import {indicatorNames} from '../../src/ui/indicator-dialog-model';
 import {PATTERN_INDICATOR_IDS} from '../../src/domain/indicators-ext/patterns-catalog';
+import {exportEntry} from '../../src/ui/all-indicators-export';
 import type {Bar,BarDataset} from '../../src/domain/types';
 import type {IndicatorId} from '../../src/domain/indicators';
 
@@ -45,13 +46,32 @@ describe(' pattern markers on the chart (SYNTHETIC)',()=>{
   const turns=[100,120,110,120.3,105],closes=[turns[0]];for(let k=1;k<turns.length;k++)for(let s=1;s<=8;s++)closes.push(turns[k-1]+(turns[k]-turns[k-1])*s/8);
   const path=closes.map((close,i)=>({time:D0+i*86400,open:close,high:close+0.5,low:close-0.5,close,volume:1}));
   const row=settings('chpdoubletop'),{output}=renderIndicatorPresentation(row,calculateIndicator(row.kind,path,row.inputs),path,{resolution:'1D'});
-  expect(output.labels!.map(label=>[label.text,label.x,label.yloc])).toEqual([['Double top',path[24].time*1000,'abovebar']]);
+  // The named marker stays on the last pivot (bar 24) and says when the pattern became known; a small dot marks that
+  // signal bar (30, the breakout close).
+  expect(output.labels!.map(label=>[label.text,label.x,label.yloc,label.style,label.tooltip])).toEqual([
+   ['Double top',path[24].time*1000,'abovebar','label_down','Double top\nKnown on 2024-01-08'],
+   ['',path[30].time*1000,'abovebar','circle','Double top: confirmed by a breakout close on 2024-01-08'],
+  ]);
   // Zigzag A-B and B-C, then the neckline at the low 109.5 from B to the breakout bar 30 (0.8.1: new instances require
   // breakout confirmation; the first close below 109.5 is bar 30, close 108.825).
   expect(output.lines!.map(line=>[line.x1/1000,line.y1,line.x2/1000,line.y2])).toEqual([[path[8].time,120.5,path[16].time,109.5],[path[16].time,109.5,path[24].time,120.8],[path[16].time,109.5,path[30].time,109.5]]);
   // Without confirmation (instances saved before 0.8.1) the neckline ends on the bar confirming the last pivot, 29.
   const legacy=renderIndicatorPresentation(row,calculateIndicator(row.kind,path,{...row.inputs,breakout:false}),path,{resolution:'1D'}).output;
   expect(legacy.lines!.at(-1)!.x2/1000).toBe(path[29].time);
+  expect(legacy.labels!.map(label=>[label.x/1000,label.tooltip])).toEqual([[path[24].time,'Double top\nKnown on 2024-01-07'],[path[29].time,'Double top: last pivot confirmed on 2024-01-07']]);
+ });
+ it('the export note says the signal waits for a breakout close (the export runs at new-instance inputs)',()=>{
+  for(const kind of ['chpall','chpbullpennant','chptriangle','chpdoubletop'] as IndicatorId[]){
+   const row=settings(kind);expect(exportEntry(kind,calculateIndicator(kind,bars,row.inputs)).note,kind).toBe('1 on the bar the pattern is confirmed by a breakout close (never earlier, not repainted), else 0. With Require breakout confirmation off, 1 on the bar the pattern\'s last pivot is confirmed.');
+  }
+ });
+ it('an intraday signal bar gives the date and time in UTC; a hidden plot hides the dot with the marker',()=>{
+  const turns=[100,120,110,120.3,105],closes=[turns[0]];for(let k=1;k<turns.length;k++)for(let s=1;s<=8;s++)closes.push(turns[k-1]+(turns[k]-turns[k-1])*s/8);
+  const path=closes.map((close,i)=>({time:D0+i*3600,open:close,high:close+0.5,low:close-0.5,close,volume:1}));
+  const row=settings('chpdoubletop'),result=calculateIndicator(row.kind,path,row.inputs);
+  expect(result.marks!.markers.map(marker=>marker.tooltip)).toEqual(['Double top\nKnown on 2023-12-10 06:00 UTC','Double top: confirmed by a breakout close on 2023-12-10 06:00 UTC']);
+  const hidden={visible:false,color:'#123456',width:1,lineStyle:'solid' as const,kind:'line' as const,priceScale:true,legend:true,dataWindow:true};
+  expect(renderIndicatorPresentation(settings('chpdoubletop',{},{bearish:hidden}),result,path,{resolution:'60'}).output.labels).toBeUndefined();
  });
 });
 

@@ -112,6 +112,11 @@ describe('Volatility zero trend close-to-close (SYNTHETIC)',()=>{
   // Returns +1 and -1 (1, e, 1): mean square 1 -> 100 x 1 x sqrt(4) = 200 (a mean-subtracted estimator would differ).
   close(values('volzt',flat([1,Math.E,1]),{length:2,annual:4}),[N,N,200]);
  });
+ it('Annualization Auto: daily bars of a 24/7 feed use 365; a saved instance keeps its stored Annual',()=>{
+  // D0 is a Saturday, so the calendar infers a 24/7 (UTC) feed; daily spacing -> 365 periods a year.
+  close(values('volzt',flat([1,Math.E,1]),{length:2,annualization:'Auto',annual:4}),[N,N,100*Math.sqrt(365)]);
+  close(values('volzt',flat([1,Math.E,1]),{length:2,annual:4}),[N,N,200]);// no annualization key (saved): Manual
+ });
 });
 
 describe('Typical, Average and Median price (SYNTHETIC)',()=>{

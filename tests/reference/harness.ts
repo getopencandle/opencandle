@@ -22,7 +22,9 @@ export const ALL_IDS:readonly string[]=[...BASE_IDS,...ALL_CATALOG_INDICATOR_IDS
 export const definitionOf=(id:string):CatalogDefinition|undefined=>CATALOG_INDICATORS.find(row=>row.id===id);
 /** New-instance defaults: every catalog input at its defval (what the indicator dialog creates). */
 export function defaultInputs(id:string):Record<string,unknown>{
- const definition=definitionOf(id);if(definition)return Object.fromEntries(definition.inputs.map(input=>[input.key,input.defval]));
+ const definition=definitionOf(id);
+ // Anchored VWAP has no anchor until the user clicks a bar; the fixtures anchor it before their first bar (the user's choice of the first bar).
+ if(definition)return {...Object.fromEntries(definition.inputs.map(input=>[input.key,input.defval])),...(id==='avwap'?{anchor:'1970-01-01'}:{})};
  // The original ten: the app's own new-instance defaults (src/chart/indicator-settings.ts).
  return {...(indicatorDefaults as Record<string,Record<string,unknown>>)[id]};
 }

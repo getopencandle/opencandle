@@ -34,8 +34,11 @@ const CASES:ReadonlyArray<readonly [string,'bullish'|'bearish'|'neutral',readonl
  ['cdlshootingstar','bearish',[[100,102,99.98,100.4]],'the inverted hammer shape, bearish side'],
  ['cdlengulfingbull','bullish',[[101,101.2,99.8,100],[99.9,101.4,99.8,101.3]],'black then white, open 99.9 <= 100, close 101.3 >= 101, body 1.4 > 1'],
  ['cdlengulfingbear','bearish',[[100,101.2,99.8,101],[101.1,101.2,99.6,99.7]],'white then black, open 101.1 >= 101, close 99.7 <= 100, body 1.4 > 1'],
- ['cdlharamibull','bullish',[LONG_BLACK,[100.8,101.8,100.5,101.5]],'long black body 3 > average 1, white body 0.7 inside 100..103'],
- ['cdlharamibear','bearish',[LONG_WHITE,[102.2,102.5,101.2,101.5]],'long white body 3, black body 0.7 inside 100..103'],
+ // Harami and three methods: the second (inner) bodies must be short, at most the average body (TA-Lib BodyShort). With the
+ // long first bar in the window that average is (13 x 1 + 3) / 14 = 1.14, so the 0.7 (harami) and 0.4 to 0.7 (three
+ // methods) bodies below are deliberately short; the near misses in "short bodies" use 1.2 and 1.5.
+ ['cdlharamibull','bullish',[LONG_BLACK,[100.8,101.8,100.5,101.5]],'long black body 3 > average 1, white body 0.7 (short: <= average 1.14) inside 100..103'],
+ ['cdlharamibear','bearish',[LONG_WHITE,[102.2,102.5,101.2,101.5]],'long white body 3, black body 0.7 (short) inside 100..103'],
  ['cdlharamicrossbull','bullish',[LONG_BLACK,[101.5,102,101,101.52]],'long black, then a doji inside its body'],
  ['cdlharamicrossbear','bearish',[LONG_WHITE,[101.5,102,101,101.52]],'long white, then a doji inside its body'],
  ['cdlpiercing','bullish',[LONG_BLACK,[99.5,102.1,99.4,102]],'opens 99.5 below close 100, closes 102 above midpoint 101.5 and below open 103'],
@@ -46,8 +49,8 @@ const CASES:ReadonlyArray<readonly [string,'bullish'|'bearish'|'neutral',readonl
  ['cdleveningstar','bearish',[LONG_WHITE,[103.5,104,103.3,103.8],[103.4,103.5,100.5,100.8]],'small body above 103, black close 100.8 below midpoint 101.5'],
  ['cdlmorningdojistar','bullish',[LONG_BLACK,[99.3,99.6,99,99.31],[99.8,102.5,99.7,102.3]],'the morning star with a doji middle bar'],
  ['cdleveningdojistar','bearish',[LONG_WHITE,[103.6,104,103.3,103.61],[103.4,103.5,100.5,100.8]],'the evening star with a doji middle bar'],
- ['cdlabandonedbabybull','bullish',[LONG_BLACK,[99,99.5,98.5,99.02],[100,101.5,99.8,101.2]],'doji high 99.5 below the black low 99.9, white low 99.8 above the doji high'],
- ['cdlabandonedbabybear','bearish',[LONG_WHITE,[104,104.5,103.5,104.02],[103.2,103.4,101,101.5]],'doji low 103.5 above the white high 103.1, black high 103.4 below the doji low'],
+ ['cdlabandonedbabybull','bullish',[LONG_BLACK,[99,99.5,98.5,99.02],[100,101.5,99.8,101.2]],'long black body 3, doji high 99.5 below its low 99.9, white low 99.8 above the doji high, white body 1.2 not small, close 101.2 at least 30% into the black body (above 100.9)'],
+ ['cdlabandonedbabybear','bearish',[LONG_WHITE,[104,104.5,103.5,104.02],[103.2,103.4,101,101.5]],'long white body 3, doji low 103.5 above its high 103.1, black high 103.4 below the doji low, black body 1.7, close 101.5 below 102.1 (30% into the white body)'],
  ['cdlthreewhitesoldiers','bullish',[[100,102.2,99.9,102],[101,104.2,100.9,104],[103,106.2,102.9,106]],'three long white bodies, each opening inside the prior body and closing higher, upper shadows 0.2 <= 25% of range'],
  ['cdlthreeblackcrows','bearish',[[106,106.1,103.8,104],[105,105.1,101.8,102],[103,103.1,98.8,99]],'three long black bodies, each opening inside the prior body and closing lower, lower shadows 0.2'],
  ['cdltweezerbottom','bullish',[[101,101.2,99,99.5],[99.6,101,99.02,100.8]],'black then white, lows 99 and 99.02 within 5% of range 2.2'],
@@ -58,8 +61,8 @@ const CASES:ReadonlyArray<readonly [string,'bullish'|'bearish'|'neutral',readonl
  ['cdlspinningtopblack','neutral',[[100.3,101,99,100]],'black body 0.3, both shadows longer'],
  ['cdlkickingbull','bullish',[[102,102,100,100],[102.5,104.5,102.5,104.5]],'black marubozu, then a white marubozu whose low 102.5 is above the prior high 102'],
  ['cdlkickingbear','bearish',[[100,102,100,102],[99.5,99.5,97.5,97.5]],'white marubozu, then a black marubozu whose high 99.5 is below the prior low 100'],
- ['cdlrisingthree','bullish',[LONG_WHITE,[102.5,102.8,101.5,101.8],[101.8,102.2,101,101.2],[101.2,101.9,100.8,101.6],[101.6,104.6,101.5,104.4]],'long white, three smaller bodies inside its range, long white closing 104.4 above 103'],
- ['cdlfallingthree','bearish',[LONG_BLACK,[100.5,101.5,100.2,101.2],[101.2,101.9,100.8,101.8],[101.8,102.2,101.4,101.5],[101.4,101.5,98.5,98.7]],'long black, three smaller bodies inside its range, long black closing 98.7 below 100'],
+ ['cdlrisingthree','bullish',[LONG_WHITE,[102.5,102.8,101.5,101.8],[101.8,102.2,101,101.2],[101.2,101.9,100.8,101.6],[101.6,104.6,101.5,104.4]],'long white, three short bodies (0.7, 0.6, 0.4) inside its range, long white closing 104.4 above 103'],
+ ['cdlfallingthree','bearish',[LONG_BLACK,[100.5,101.5,100.2,101.2],[101.2,101.9,100.8,101.8],[101.8,102.2,101.4,101.5],[101.4,101.5,98.5,98.7]],'long black, three short bodies (0.7, 0.6, 0.3) inside its range, long black closing 98.7 below 100'],
  ['cdltristarbull','bullish',[[101,101.5,100.5,101.01],[100,100.5,99.5,100.01],[101,101.5,100.5,101.02]],'three dojis, the middle body below both neighbours'],
  ['cdltristarbear','bearish',[[100,100.5,99.5,100.01],[101,101.5,100.5,101.01],[100,100.5,99.5,100.02]],'three dojis, the middle body above both neighbours'],
  ['cdluptasuki','bullish',[[100,102,99.9,101.8],[102.5,104.2,102.3,104],[103.5,103.6,102.1,102.2]],'white, gap-up white (102.3 > 102), black opening inside the second body and closing 102.2 inside the gap'],
@@ -165,5 +168,46 @@ describe(' All candlestick patterns (SYNTHETIC)',()=>{
   const started=performance.now(),result=calculateIndicator('cdlall',bars,{});
   expect(result.diagnostics).toEqual([]);expect(result.series.map(row=>row.values.length)).toEqual([20000,20000,20000]);
   expect(performance.now()-started).toBeLessThan(5000);
+ });
+});
+
+describe('stricter candlestick rules (SYNTHETIC)',()=>{
+ /** Every prefix reports exactly the full run's signals up to its own last bar (nothing depends on later bars). */
+ const causal=(kind:string,bars:readonly Bar[],plot:string)=>{const full=signal(kind,bars,plot,NO_TREND);
+  for(let end=1;end<=bars.length;end++)expect(signal(kind,bars.slice(0,end),plot,NO_TREND),kind+' prefix '+end).toEqual(full.filter(i=>i<end));};
+ const DOJI_DOWN:C=[99,99.5,98.5,99.02],DOJI_UP:C=[104,104.5,103.5,104.02];
+ it('abandoned baby (TA-Lib ta_CDLABANDONEDBABY.c): a long first body, a third body that is not small, closing 30% into the first body',()=>{
+  // Used to fire: a tiny black bar (body 0.2), a gapped doji and a tiny white bar (body 0.2).
+  expect(signal('cdlabandonedbabybull',withFiller([[100.2,100.3,99.9,100],DOJI_DOWN,[100,100.5,99.8,100.2]]),'bullish',NO_TREND)).toEqual([]);
+  // Only the first bar fails: its body 0.2 is not long (above the average body).
+  expect(signal('cdlabandonedbabybull',withFiller([[100.2,100.3,99.9,100],DOJI_DOWN,[100,101.5,99.8,101.2]]),'bullish',NO_TREND)).toEqual([]);
+  // Third body 0.2 is small (half the average is about 0.54), though its close 101 is past 100.9.
+  expect(signal('cdlabandonedbabybull',withFiller([LONG_BLACK,DOJI_DOWN,[100.8,101.2,99.8,101]]),'bullish',NO_TREND)).toEqual([]);
+  // Third body 1 is not small, but its close 100.8 is short of 100.9 (30% into the black body 100..103).
+  expect(signal('cdlabandonedbabybull',withFiller([LONG_BLACK,DOJI_DOWN,[99.8,100.9,99.7,100.8]]),'bullish',NO_TREND)).toEqual([]);
+  expect(signal('cdlabandonedbabybear',withFiller([LONG_WHITE,DOJI_UP,[103.2,103.4,102.1,102.2]]),'bearish',NO_TREND)).toEqual([]);// close 102.2 above 102.1
+  // The textbook case still fires, and the result does not depend on later bars.
+  const bull=withFiller([LONG_BLACK,DOJI_DOWN,[100,101.5,99.8,101.2]]);expect(signal('cdlabandonedbabybull',bull,'bullish',NO_TREND)).toEqual([22]);
+  causal('cdlabandonedbabybull',bull,'bullish');causal('cdlabandonedbabybear',withFiller([LONG_WHITE,DOJI_UP,[103.2,103.4,101,101.5]]),'bearish');
+ });
+ it('harami (Nison, TA-Lib ta_CDLHARAMI.c): the second body must be short, not just smaller than the first',()=>{
+  // Used to fire: body 1.2 is inside the 3-point first body and smaller than it, but above the average body 1.14.
+  expect(signal('cdlharamibull',withFiller([LONG_BLACK,[100.5,102,100.3,101.7]]),'bullish',NO_TREND)).toEqual([]);
+  expect(signal('cdlharamibear',withFiller([LONG_WHITE,[102.5,102.7,101.1,101.3]]),'bearish',NO_TREND)).toEqual([]);
+  const bull=withFiller([LONG_BLACK,[100.8,101.8,100.5,101.5]]);expect(signal('cdlharamibull',bull,'bullish',NO_TREND)).toEqual([21]);
+  causal('cdlharamibull',bull,'bullish');causal('cdlharamibear',withFiller([LONG_WHITE,[102.2,102.5,101.2,101.5]]),'bearish');
+ });
+ it('rising and falling three methods (Nison, TA-Lib ta_CDLRISEFALL3METHODS.c): each inner body must be short',()=>{
+  // Used to fire: the first inner body 1.5 is smaller than the 3-point first body but above the average body 1.14.
+  expect(signal('cdlrisingthree',withFiller([LONG_WHITE,[102.8,103,101,101.3],[101.8,102.2,101,101.2],[101.2,101.9,100.8,101.6],[101.6,104.6,101.5,104.4]]),'bullish',NO_TREND)).toEqual([]);
+  expect(signal('cdlfallingthree',withFiller([LONG_BLACK,[100.2,102,100,101.7],[101.2,101.9,100.8,101.8],[101.8,102.2,101.4,101.5],[101.4,101.5,98.5,98.7]]),'bearish',NO_TREND)).toEqual([]);
+  const rising=withFiller([LONG_WHITE,[102.5,102.8,101.5,101.8],[101.8,102.2,101,101.2],[101.2,101.9,100.8,101.6],[101.6,104.6,101.5,104.4]]);
+  expect(signal('cdlrisingthree',rising,'bullish',NO_TREND)).toEqual([24]);causal('cdlrisingthree',rising,'bullish');
+  causal('cdlfallingthree',withFiller([LONG_BLACK,[100.5,101.5,100.2,101.2],[101.2,101.9,100.8,101.8],[101.8,102.2,101.4,101.5],[101.4,101.5,98.5,98.7]]),'bearish');
+ });
+ it('the definitions state the short-body and penetration rules',()=>{
+  const text=(kind:string)=>catalogDefinition(kind)!.policies!.join(' ');
+  expect(text('cdlharamibull')).toMatch(/at most shortBody of the average body/);expect(text('cdlrisingthree')).toMatch(/at most shortBody of the average body/);
+  expect(text('cdlabandonedbabybull')).toMatch(/not small and closes at least abandonedPenetration into the first body/);
  });
 });

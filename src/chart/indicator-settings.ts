@@ -31,6 +31,12 @@ export function assertIndicatorEditOffset(kind:IndicatorId,offset:unknown):void{
 export const INDICATOR_MAX_INSTANCES=1000;
 export const INDICATOR_WORK_LIMIT=20000000;
 export const INDICATOR_OUTPUT_LIMIT=2000000;
+/** One chart's whole indicator batch (every instance together). Each instance alone stays within the single-study
+ *  limits above; the batch cap is four studies' worth, so a normal set (20 mixed studies, signal and pattern kinds
+ *  included) fits on 20,000 bars. Measured: such a set holds about 3.4 million native and calculated values (about 140 MiB
+ *  of heap) and calculates in about one second. It only guards against runaway sets, not frame time. */
+export const INDICATOR_BATCH_WORK_LIMIT=4*INDICATOR_WORK_LIMIT;
+export const INDICATOR_BATCH_OUTPUT_LIMIT=4*INDICATOR_OUTPUT_LIMIT;
 export const SMOOTHING_INDICATORS:readonly IndicatorId[]=['sma','ema','rsi','obv'];
 export const SMOOTHING_INPUT_KEYS=['smoothingType','smoothingLength','smoothingMultiplier'] as const;
 /** BullStart/bullEnd and bearStart/bearEnd bound the RSI bull and bear zones. */
@@ -354,10 +360,11 @@ export function clearIndicatorBudgetCache():void{budgetItemCache.clear();validSe
 export function assertIndicatorBatchBudget(items:readonly IndicatorBudgetItem[],barCount:number):{operations:number;numericSlots:number}{
  if(!Array.isArray(items)||items.length>INDICATOR_MAX_INSTANCES)throw new Error('Invalid indicator budget collection.');let operations=0,numericSlots=0;
  for(const item of items){
-  const key=budgetItemKey(item,barCount),cached=key===null?undefined:budgetItemCache.get(key);
-  if(cached){numericSlots+=cached.slots;operations+=cached.work;}
-  else{const slots=indicatorEstimatedSlots(item.kind,barCount,item.inputs,item.presentation,'render',item.plots,item.offset);numericSlots+=slots;const palette=item.kind==='volume'?item.presentation?.volumePalette:undefined;const work=indicatorEstimatedWork(item.kind,barCount,item.inputs)+slots*4+(palette&&palette.mode!=='uniform'?barCount*4:0);operations+=work;
+  const key=budgetItemKey(item,barCount),cached=key===null?undefined:budgetItemCache.get(key);let itemSlots:number,itemWork:number;
+  if(cached){itemSlots=cached.slots;itemWork=cached.work;numericSlots+=itemSlots;operations+=itemWork;}
+  else{const slots=indicatorEstimatedSlots(item.kind,barCount,item.inputs,item.presentation,'render',item.plots,item.offset);numericSlots+=slots;const palette=item.kind==='volume'?item.presentation?.volumePalette:undefined;const work=indicatorEstimatedWork(item.kind,barCount,item.inputs)+slots*4+(palette&&palette.mode!=='uniform'?barCount*4:0);operations+=work;itemSlots=slots;itemWork=work;
    if(key!==null){if(budgetItemCache.size>=BUDGET_ITEM_CACHE_LIMIT)budgetItemCache.delete(budgetItemCache.keys().next().value!);budgetItemCache.set(key,{slots,work});}}
-  if(numericSlots>INDICATOR_OUTPUT_LIMIT||operations>INDICATOR_WORK_LIMIT)throw new Error(`Indicator batch exceeds local limits (${numericSlots}/${INDICATOR_OUTPUT_LIMIT} numeric slots, ${operations}/${INDICATOR_WORK_LIMIT} estimated operations). Reduce history or instances.`);}
+  if(itemSlots>INDICATOR_OUTPUT_LIMIT||itemWork>INDICATOR_WORK_LIMIT)throw new Error(`Indicator batch exceeds local limits (${itemSlots}/${INDICATOR_OUTPUT_LIMIT} numeric slots, ${itemWork}/${INDICATOR_WORK_LIMIT} estimated operations). Reduce history or instances.`);
+  if(numericSlots>INDICATOR_BATCH_OUTPUT_LIMIT||operations>INDICATOR_BATCH_WORK_LIMIT)throw new Error(`Indicator batch exceeds local limits (${numericSlots}/${INDICATOR_BATCH_OUTPUT_LIMIT} numeric slots, ${operations}/${INDICATOR_BATCH_WORK_LIMIT} estimated operations). Reduce history or instances.`);}
  return {operations,numericSlots};
 }

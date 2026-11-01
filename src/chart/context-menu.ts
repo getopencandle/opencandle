@@ -4,7 +4,7 @@ import type {HistoricalPaneKey,HistoricalFrameOwner} from './historical-frame';
 import type {Instrument} from '../domain/types';
 export type RootChartMenuAction='tpo-merge'|'tpo-unmerge'|'note'|'theme'|'indicator'|'objects'|'interval'|'date'|'source-csv'|'indicators-xlsx'|'png-save'|'png-copy'|'price-alert'|'paper-ticket'|'drawing-settings'|'reset-view'|'chart-type-focus'|'remove-drawings'|'remove-indicators'|'drawing-clone'|'drawing-lock'|'drawing-hide'|'drawing-front'|'drawing-back'|'drawing-remove'|'drawing-alert'|'drawing-copy'|'drawing-forward'|'drawing-backward'|'drawing-template'|'drawing-visibility'|'drawing-mirror'|'drawing-flip'|'drawing-cut'|'paste'|'copy-price'|'cursor-lock'|'table-view'
  /** The indicator menu on a clicked plot, the main series rows on the candles. */
- |'indicator-settings'|'indicator-hide'|'indicator-remove'|'indicator-alert'|'indicator-add-on'|'indicator-intervals'|'indicator-copy'|'indicator-order'|'indicator-move'|'indicator-pin'|'series-hide'|'series-pin'
+ |'indicator-settings'|'indicator-hide'|'indicator-remove'|'indicator-alert'|'indicator-add-on'|'indicator-intervals'|'indicator-copy'|'indicator-anchor'|'indicator-order'|'indicator-move'|'indicator-pin'|'series-hide'|'series-pin'
  /** Chart-body rows Add {symbol} to watchlist, Draw horizontal line at {price}, Hide marks on bars, and Paste of a copied indicator. */
  |'watchlist-add'|'hline'|'hide-marks'|'indicator-paste'
  /** Copy the chart's symbol (handled by the menu itself), and app commands run from the menu (options.item names the command). */

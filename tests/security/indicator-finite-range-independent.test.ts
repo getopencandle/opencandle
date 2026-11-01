@@ -64,8 +64,8 @@ it('real aggregate admission includes native output work beyond the calculator-o
  expect(indicatorCalculationWork('sma',100000,{length:9})).toBe(9600000);
  const item={kind:'sma' as const,inputs:{length:9}};
  expect(assertIndicatorBatchBudget([item],100000)).toMatchObject({operations:10800000,numericSlots:300000});
- expect(()=>assertIndicatorBatchBudget([item,item],100000)).toThrow(/limits/);
+ expect(()=>assertIndicatorBatchBudget(Array.from({length:8},()=>item),100000)).toThrow(/limits/);
  const volume={kind:'volume' as const,inputs:{length:20}};
  expect(assertIndicatorBatchBudget([volume],100000)).toMatchObject({operations:12000000,numericSlots:600000});
- expect(()=>assertIndicatorBatchBudget([volume,volume],100000)).toThrow(/limits/);
+ expect(()=>assertIndicatorBatchBudget(Array.from({length:7},()=>volume),100000)).toThrow(/limits/);
 });

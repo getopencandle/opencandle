@@ -78,10 +78,10 @@ it('active smoothing variance overflow preserves base values and separates numer
 it('collection capacity rejects native add and restore before allocating another handle',()=>{
  let calls=0;const rows=Array.from({length:100000},(_,index)=>({time:1700000000+index*60,open:1,high:1,low:1,close:1,volume:1}));
  const chart={panes:{list:()=>[]},addNativeIndicator(){calls++;return {id:'native-'+calls,remove(){},setVisible(){}};}} as unknown as Vela;
- // One100k SMA costs10.8m with native output; a second now exceeds the unchanged20m cap.
- const port=createIndicatorPort(chart,undefined,undefined,()=>rows);port.add('sma',{length:2},{id:'sma-0'});const before=port.serialize();
- expect(()=>port.add('sma',{length:2},{id:'overflow'})).toThrow(/batch exceeds/);expect(calls).toBe(1);expect(port.serialize()).toEqual(before);
- expect(()=>port.restore([...before,{...before[0],id:'overflow'}])).toThrow(/batch exceeds/);expect(calls).toBe(1);expect(port.serialize()).toEqual(before);expect(()=>port.update('sma-0',{inputs:{smoothingType:'SMA+BB',smoothingLength:2}})).toThrow(/batch exceeds/);expect(port.serialize()).toEqual(before);port.dispose();
+ // One 100k SMA costs 10.8m with native output; an eighth exceeds the 80m batch cap (four single-study caps).
+ const port=createIndicatorPort(chart,undefined,undefined,()=>rows);for(let i=0;i<7;i++)port.add('sma',{length:2},{id:'sma-'+i});const before=port.serialize();
+ expect(()=>port.add('sma',{length:2},{id:'overflow'})).toThrow(/batch exceeds/);expect(calls).toBe(7);expect(port.serialize()).toEqual(before);
+ expect(()=>port.restore([...before,{...before[0],id:'overflow'}])).toThrow(/batch exceeds/);expect(calls).toBe(7);expect(port.serialize()).toEqual(before);expect(()=>port.update('sma-0',{inputs:{smoothingType:'SMA+BB',smoothingLength:2}})).toThrow(/batch exceeds/);expect(port.serialize()).toEqual(before);port.dispose();
 });
 it('disposal attempts every native/listener cleanup, unregisters descriptors and retires the port after faults',()=>{
  const removed:string[]=[],types:string[]=[],offs:string[]=[];

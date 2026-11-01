@@ -6,7 +6,8 @@ import {sessionRequestSource} from './source-context';
 import type {NativeIndicatorOutput,LineLikeSeries,PriceLine,Fill,DrawingLabel,DrawingLine,DrawingBox,Background,CandleSeries,CandleBarColor} from '@luxalgo/vela';
 import type {Bar} from '../domain/types';
 import {vwapAnchorKeys,vwapAnchorZone,type IndicatorResult} from '../domain/indicators';
-import {twapPeriodKey} from '../domain/indicators-ext/ind1028-catalog';
+import {twapPeriodKey,williamsBarStates} from '../domain/indicators-ext/ind1028-catalog';
+import {BOLLINGER_BARS_TAILS_PLOT} from '../domain/indicators-ext/indgaps2-catalog';
 import {assertIndicatorBatchBudget,validateIndicatorSettings,indicatorPlotIds,type IndicatorInstanceSettings,type IndicatorPlotStyle,pointPaletteColors} from './indicator-settings';
 import {defaultPlotStyle,indicatorDisplayTime,renderIndicatorSeries} from './indicator-rendering';
 import {indicatorColorOpacity} from './indicator-opacity';
@@ -124,11 +125,13 @@ export function renderIndicatorPresentation(settings:IndicatorInstanceSettings,r
   }
   if(plot.id==='histogram'&&presentation?.histogramPalette){
    const source=presentation.histogramPalette,palette={nonnegativeRising:indicatorColorOpacity(source.nonnegativeRising,style.opacity??100),nonnegativeFalling:indicatorColorOpacity(source.nonnegativeFalling,style.opacity??100),negativeRising:indicatorColorOpacity(source.negativeRising,style.opacity??100),negativeFalling:indicatorColorOpacity(source.negativeFalling,style.opacity??100)};let previous:number|null=null;
+   // Awesome oscillator: the Bill Williams bar rule shared with the Accelerator oscillator (an equal bar keeps its color).
+   const williams=settings.kind==='ao'?williamsBarStates(plot.values):null;
    native.points.forEach((point,ordinal)=>{const value=plot.values[ordinal];if(value===null){previous=null;return;}
-    const rising=previous!==null&&value>previous,color=value>=0?(rising?palette.nonnegativeRising:palette.nonnegativeFalling):(rising?palette.negativeRising:palette.negativeFalling);
+    const rising=williams?williams[ordinal]===0:previous!==null&&value>previous,color=value>=0?(rising?palette.nonnegativeRising:palette.nonnegativeFalling):(rising?palette.negativeRising:palette.negativeFalling);
     point.color=color;previous=value;
    });
-   policies.push('Histogram equality and the first value after a gap use the falling palette; zero is nonnegative.');
+   policies.push(williams?'An equal bar keeps the prior bar\'s color and the first value after a gap uses the falling color, as on the Accelerator oscillator.':'Histogram equality and the first value after a gap use the falling palette; zero is nonnegative.');
   }
   if(settings.kind==='bb'&&(plot.id==='upper'||plot.id==='lower')&&settings.inputs.colorByExpansion===true){
    const upper=result.series.find(row=>row.id==='upper')?.values??[],lower=result.series.find(row=>row.id==='lower')?.values??[],contracting=indicatorColorOpacity(BB_CONTRACTION_COLOR,style.opacity??100);
@@ -247,7 +250,7 @@ export function renderIndicatorPresentation(settings:IndicatorInstanceSettings,r
  }
  if(levelLabels.length&&settings.offset===0)return {output:{series,fills,priceLines,labels:levelLabels},display:Object.freeze(display),precision,diagnostics,policies};
  if(isSwingMarkerKind(settings.kind)&&settings.offset===0){const labels=swingMarkerLabels(settings.kind,result,bars,plotStyle,precision,role=>indicatorDecorationId(settings.id,role));policies.push(SWING_MARKER_POLICY);return {output:{series,fills,priceLines,...(labels.length?{labels}:{})},display:Object.freeze(display),precision,diagnostics,policies};}
- if(patternKind){const marks=patternMarksNative(settings.id,result,bars,plotStyle);if(result.marks)policies.push(PATTERN_MARKS_POLICY);return {output:{series:marks.candles?[...series,marks.candles]:series,fills,priceLines,...(marks.labels.length?{labels:marks.labels}:{}),...(marks.lines.length?{lines:marks.lines}:{}),...(marks.boxes.length?{boxes:marks.boxes}:{})},display:Object.freeze(display),precision,diagnostics,policies};}
+ if(patternKind){const marks=patternMarksNative(settings.id,result,bars,plotStyle,settings.kind==='bbars'?BOLLINGER_BARS_TAILS_PLOT:undefined);if(result.marks)policies.push(PATTERN_MARKS_POLICY);return {output:{series:marks.candles||marks.rangeCandles?[...series,...(marks.rangeCandles?[marks.rangeCandles]:[]),...(marks.candles?[marks.candles]:[])]:series,fills,priceLines,...(marks.labels.length?{labels:marks.labels}:{}),...(marks.lines.length?{lines:marks.lines}:{}),...(marks.boxes.length?{boxes:marks.boxes}:{})},display:Object.freeze(display),precision,diagnostics,policies};}
  return {output:{series,fills,priceLines},display:Object.freeze(display),precision,diagnostics,policies};
 }
 /** One label per confirmed divergence on its later pivot, at the RSI value (bullish below, bearish above), in its
@@ -314,10 +317,12 @@ export function rsiDivergenceBackgroundsNative(settings:IndicatorInstanceSetting
  *  on their own bar (no display offset).
  *  Any catalog kind with `pattern` set uses this path. A marker may name its shape and position (above, below, or
  *  at a price), boxes are price zones (border in the plot color, fill at 20% of the plot opacity), and candles
- *  are one native candle series over the bars' own OHLC in their plot's color (hollow = transparent body). */
+ *  are native candle series over the bars' own OHLC in their plot's color (hollow = transparent body). With `tailsPlot`
+ *  (Bollinger bars) every candle row draws as uniform-width bars instead: a block from high to low in the tails plot's color
+ *  under the open-close body in the row's plot color (a row of the tails plot itself has no body). */
 export const PATTERN_BOX_FILL_SHARE=0.2;
-export function patternMarksNative(instanceId:string,result:IndicatorResult,bars:readonly Bar[],plotStyle:(id:string)=>IndicatorPlotStyle):{labels:DrawingLabel[];lines:DrawingLine[];boxes:DrawingBox[];candles:CandleSeries|null}{
- const labels:DrawingLabel[]=[],lines:DrawingLine[]=[],boxes:DrawingBox[]=[];const marks=result.marks;if(!marks)return {labels,lines,boxes,candles:null};
+export function patternMarksNative(instanceId:string,result:IndicatorResult,bars:readonly Bar[],plotStyle:(id:string)=>IndicatorPlotStyle,tailsPlot?:string):{labels:DrawingLabel[];lines:DrawingLine[];boxes:DrawingBox[];candles:CandleSeries|null;rangeCandles:CandleSeries|null}{
+ const labels:DrawingLabel[]=[],lines:DrawingLine[]=[],boxes:DrawingBox[]=[];const marks=result.marks;if(!marks)return {labels,lines,boxes,candles:null,rangeCandles:null};
  const time=(index:number)=>bars[index]?.time;
  const colorOf=(style:IndicatorPlotStyle)=>indicatorColorOpacity(style.color,style.opacity??100);
  // Readable markers: markers of one bar and side share one label (texts stacked) and bare counts (Sequential 1-8) are small
@@ -338,20 +343,26 @@ export function patternMarksNative(instanceId:string,result:IndicatorResult,bars
  }
  marks.lines.forEach((row,ordinal)=>{
   const style=plotStyle(row.plot),from=time(row.from.index),to=time(row.to.index);if(!style.visible||from===undefined||to===undefined)return;
-  lines.push({id:indicatorDecorationId(instanceId,`pattern:line:${ordinal}`),paneId:'',xloc:'bar_time',x1:from*1000,y1:row.from.price,x2:to*1000,y2:row.to.price,extend:row.extendRight?'right':'none',color:colorOf(style),invisible:false,width:Math.max(1,Math.min(4,Math.round(style.width))),style:style.lineStyle,arrowLeft:false,arrowRight:false});
+  lines.push({id:indicatorDecorationId(instanceId,`pattern:line:${ordinal}`),paneId:'',...(row.overlay?{overlay:true}:{}),xloc:'bar_time',x1:from*1000,y1:row.from.price,x2:to*1000,y2:row.to.price,extend:row.extendRight?'right':'none',color:colorOf(style),invisible:false,width:Math.max(1,Math.min(4,Math.round(style.width))),style:style.lineStyle,arrowLeft:false,arrowRight:false});
  });
  (marks.boxes??[]).forEach((row,ordinal)=>{
   const style=plotStyle(row.plot),from=time(row.from.index),to=time(row.to.index);if(!style.visible||from===undefined||to===undefined)return;
   boxes.push({id:indicatorDecorationId(instanceId,`pattern:box:${ordinal}`),paneId:'',xloc:'bar_time',left:from*1000,top:Math.max(row.from.price,row.to.price),right:to*1000,bottom:Math.min(row.from.price,row.to.price),extend:row.extendRight?'right':'none',bgColor:indicatorColorOpacity(style.color,Math.round((style.opacity??100)*PATTERN_BOX_FILL_SHARE)),borderColor:colorOf(style),borderWidth:Math.max(1,Math.min(4,Math.round(style.width))),borderStyle:style.lineStyle,textSize:'auto',hAlign:'center',vAlign:'center',wrap:false,fontFamily:'default',bold:false,italic:false});
  });
- let candles:CandleSeries|null=null;
- if(marks.candles?.length){
-  // One row per chart bar: the renderer reads candle series by bar index, so a skipped bar keeps a NaN placeholder
-  // (never painted, read out or scaled) instead of shifting every later candle left.
+ // One row per chart bar: the renderer reads candle series by bar index, so a skipped bar keeps a NaN placeholder
+ // (never painted, read out or scaled) instead of shifting every later candle left. Uniform-width bars are two series (a
+ // range block under a body block) because each series holds one row per bar.
+ type Shape='candle'|'range'|'body';
+ const candleSeries=(list:readonly {index:number;plot:string;hollow?:boolean}[],shape:Shape,prefix:string):CandleSeries|null=>{
   const rows:CandleSeries['bars']=bars.map(bar=>({time:bar.time*1000,open:NaN,high:NaN,low:NaN,close:NaN})),colors:CandleBarColor[]=bars.map(()=>({color:'rgba(0,0,0,0)',wickColor:'rgba(0,0,0,0)',borderColor:'rgba(0,0,0,0)'}));let known=0;
-  for(const row of marks.candles){const style=plotStyle(row.plot),bar=bars[row.index];if(!style.visible||!bar||![bar.open,bar.high,bar.low,bar.close].every(Number.isFinite))continue;const color=colorOf(style);
-   rows[row.index]={time:bar.time*1000,open:bar.open,high:bar.high,low:bar.low,close:bar.close};colors[row.index]={color:row.hollow?'rgba(0,0,0,0)':color,wickColor:color,borderColor:color};known++;}
-  if(known){const first=colors.find((_,index)=>Number.isFinite(rows[index].close))!.borderColor!;candles={id:`lv-pattern-candles:${JSON.stringify(instanceId)}`,title:'Candles',paneId:'',kind:'candle',visible:true,display:{pane:true,priceScale:false,legend:false,dataWindow:false},bars:rows,barColors:colors,style:{up:first,down:first,wickUp:first,wickDown:first,borderUp:first,borderDown:first}};}
- }
- return {labels,lines,boxes,candles};
+  for(const row of list){const style=plotStyle(row.plot),bar=bars[row.index];if(!style.visible||!bar||![bar.open,bar.high,bar.low,bar.close].every(Number.isFinite))continue;const color=colorOf(style),time=bar.time*1000;
+   rows[row.index]=shape==='range'?{time,open:bar.high,high:bar.high,low:bar.low,close:bar.low}:shape==='body'?{time,open:bar.open,high:Math.max(bar.open,bar.close),low:Math.min(bar.open,bar.close),close:bar.close}:{time,open:bar.open,high:bar.high,low:bar.low,close:bar.close};
+   colors[row.index]={color:row.hollow?'rgba(0,0,0,0)':color,wickColor:color,borderColor:color};known++;}
+  if(!known)return null;const first=colors.find((_,index)=>Number.isFinite(rows[index].close))!.borderColor!;
+  return {id:`${prefix}:${JSON.stringify(instanceId)}`,title:'Candles',paneId:'',kind:'candle',visible:true,display:{pane:true,priceScale:false,legend:false,dataWindow:false},bars:rows,barColors:colors,style:{up:first,down:first,wickUp:first,wickDown:first,borderUp:first,borderDown:first}};
+ };
+ const list=marks.candles??[];
+ if(tailsPlot===undefined)return {labels,lines,boxes,candles:candleSeries(list,'candle','lv-pattern-candles'),rangeCandles:null};
+ const rangeCandles=candleSeries(list.map(row=>({index:row.index,plot:tailsPlot})),'range','lv-pattern-candles-range');
+ return {labels,lines,boxes,candles:candleSeries(list.filter(row=>row.plot!==tailsPlot),'body','lv-pattern-candles'),rangeCandles};
 }

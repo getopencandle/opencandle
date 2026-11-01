@@ -6,7 +6,9 @@ import {calculateIndicator} from '../../src/domain/indicators';
 import {catalogDefinition,ALL_CATALOG_INDICATOR_IDS} from '../../src/domain/indicator-catalog';
 import {IND1028_INDICATOR_IDS,tieAveragedRanks,twapPeriodKey} from '../../src/domain/indicators-ext/ind1028-catalog';
 import {indicatorAlertBlock} from '../../src/domain/indicator-alertability';
-import {LV_INDICATOR_PALETTE,LV_HISTOGRAM_COLORS,LV_GUIDE_COLOR,INDICATOR_KINDS,indicatorDefaults} from '../../src/chart/indicator-settings';
+import {LV_INDICATOR_PALETTE,LV_HISTOGRAM_COLORS,LV_GUIDE_COLOR,INDICATOR_KINDS,indicatorDefaults,defaultIndicatorPresentation,type IndicatorInstanceSettings} from '../../src/chart/indicator-settings';
+import {renderIndicatorPresentation} from '../../src/chart/indicator-presentation';
+import {indicatorWarmupBars} from '../../src/ui/indicator-dialog-model';
 import type {Bar} from '../../src/domain/types';
 
 const DAY=86400,D0=19700*DAY,N=null;
@@ -49,6 +51,14 @@ describe('Stochastic momentum index (SYNTHETIC)',()=>{
   close(values('smi',b,{lengthK:1,lengthD:1,lengthEMA:1},'smi'),[50,-100]);close(values('smi',b,{lengthK:1,lengthD:1,lengthEMA:1},'ema'),[50,-100]);
   // %K length 2 on bar 1: hh 12, ll 6, midpoint 9, rel -3, range 6 -> -100; bar 0 has no full window.
   close(values('smi',b,{lengthK:2,lengthD:1,lengthEMA:1},'smi'),[N,-100]);
+ });
+ it('bars needed = K + 2D + E - 3 (16 at the defaults 10/3/3), the first bar of the signal line',()=>{
+  // The window is full at index K - 1; each SMA-seeded EMA adds its length - 1: 9 + 2 + 2 + 2 = index 15, 16 bars.
+  const b=Array.from({length:40},(_,i)=>bar(i,100+Math.sin(i),101+Math.sin(i)+(i%3)*0.3,99+Math.sin(i)-(i%2)*0.2,100+Math.cos(i)));
+  expect(indicatorWarmupBars('smi' as never,{})).toBe(16);
+  for(const inputs of [{},{lengthK:5,lengthD:4,lengthEMA:2},{lengthK:1,lengthD:1,lengthEMA:1}]){
+   const ema=values('smi',b,inputs,'ema');expect(ema.findIndex(value=>value!==null)+1,JSON.stringify(inputs)).toBe(indicatorWarmupBars('smi' as never,inputs));
+  }
  });
 });
 
@@ -124,7 +134,22 @@ describe('Accelerator oscillator (SYNTHETIC)',()=>{
   // hl2 = i: SMA5 = i - 2, SMA34 = i - 16.5, AO = 14.5 from bar 33; SMA5 of AO from bar 37; AC = 0.
   const b=Array.from({length:40},(_,i)=>bar(i,i,i+1,i-1,i));const ac=values('accelosc',b);
   expect(ac.slice(0,37).every(value=>value===null)).toBe(true);close(ac.slice(37),[0,0,0]);
-  const states=catalogDefinition('accelosc')!.pointPalette!.state(()=>[N,1,2,1.5,1.5]);expect(states).toEqual([N,0,0,1,0]);
+  // First bar falling; an equal bar keeps the prior color (the Awesome oscillator rule); a gap restarts at falling.
+  expect(catalogDefinition('accelosc')!.pointPalette!.state(()=>[N,1,2,1.5,1.5])).toEqual([N,1,0,1,1]);
+  expect(catalogDefinition('accelosc')!.pointPalette!.state(()=>[N,1,2,2,N,3])).toEqual([N,1,0,0,N,1]);
+ });
+});
+
+describe('Awesome oscillator (SYNTHETIC)',()=>{
+ it('legend label AO, plot id unchanged; an equal bar keeps the prior color, as on the Accelerator oscillator',()=>{
+  const b=Array.from({length:6},(_,i)=>bar(i,10,11,9,10)),result=calculateIndicator('ao',b);
+  expect(result.series.map(row=>[row.id,row.label])).toEqual([['histogram','AO']]);
+  // Presentation over given histogram values: first falling, rising, equal (keeps rising), falling, equal (keeps falling).
+  const shaped={...result,series:[{...result.series[0],values:[N,1,2,2,1.5,1.5]}]};
+  const settings:IndicatorInstanceSettings={id:'ao1',kind:'ao',inputs:{...indicatorDefaults.ao} as never,plots:{},offset:0,visible:true,presentation:defaultIndicatorPresentation('ao')};
+  const {output}=renderIndicatorPresentation(settings,shaped as never,b,{resolution:'1D'});
+  const colors=(output.series!.find(row=>(row as {points?:unknown}).points) as unknown as {points:{color?:string}[]}).points.map(point=>point.color);
+  expect(colors[2]).not.toBe(colors[1]);expect(colors[3]).toBe(colors[2]);expect(colors[4]).toBe(colors[1]);expect(colors[5]).toBe(colors[4]);
  });
 });
 

@@ -91,13 +91,20 @@ describe('VWAP and TWAP break at the anchor reset',()=>{
 });
 
 describe('Average daily range on an intraday chart uses completed daily ranges',()=>{
- it('steps once per day and ignores the developing day',()=>{
-  // SYNTHETIC 1h bars, 24 per UTC day; day d spans a range of 2 + d.
-  const bars:Bar[]=Array.from({length:24*4},(_,i)=>{const d=Math.floor(i/24),mid=100;return {time:Date.UTC(2025,5,2)/1000+i*3600,open:mid,high:mid+(i%24===5?1+d/2:0.1),low:mid-(i%24===7?1+d/2:0.1),close:mid,volume:1};});
+ it('steps once per day and ignores the developing day and the first loaded day',()=>{
+  // SYNTHETIC 1h bars, 24 per UTC day; day d spans a range of 2 + d. Day 0 is the first loaded day and never counts.
+  const bars:Bar[]=Array.from({length:24*5},(_,i)=>{const d=Math.floor(i/24),mid=100;return {time:Date.UTC(2025,5,2)/1000+i*3600,open:mid,high:mid+(i%24===5?1+d/2:0.1),low:mid-(i%24===7?1+d/2:0.1),close:mid,volume:1};});
   const adr=calculateIndicator('adr',bars,{length:2},{resolution:'1h',calendar:'utc'}).series[0].values;
-  expect(adr.slice(0,48).every(value=>value===null)).toBe(true);
-  expect(new Set(adr.slice(48,72))).toEqual(new Set([2.5]));// days 0 and 1: ranges 2 and 3
-  expect(new Set(adr.slice(72,96))).toEqual(new Set([3.5]));// days 1 and 2
+  expect(adr.slice(0,72).every(value=>value===null)).toBe(true);
+  expect(new Set(adr.slice(72,96))).toEqual(new Set([3.5]));// days 1 and 2: ranges 3 and 4
+  expect(new Set(adr.slice(96,120))).toEqual(new Set([4.5]));// days 2 and 3
+ });
+ it('a history that starts mid-day does not count the partial first day',()=>{
+  // SYNTHETIC: the load starts at 20:00 UTC, so day 0 holds 4 bars with a range of only 0.2; days 1 and 2 span 4 each.
+  const start=Date.UTC(2025,5,2,20)/1000,bars:Bar[]=Array.from({length:4+48+24},(_,i)=>{const t=start+i*3600,hour=new Date(t*1000).getUTCHours(),full=i>=4;return {time:t,open:100,high:100+(full&&hour===5?2:0.1),low:100-(full&&hour===7?2:0.1),close:100,volume:1};});
+  const adr=calculateIndicator('adr',bars,{length:1},{resolution:'1h',calendar:'utc'}).series[0].values;
+  expect(adr.slice(0,28).every(value=>value===null)).toBe(true);// the partial day 0 and day 1 itself
+  expect(new Set(adr.slice(28,52))).toEqual(new Set([4]));expect(new Set(adr.slice(52))).toEqual(new Set([4]));
  });
 });
 

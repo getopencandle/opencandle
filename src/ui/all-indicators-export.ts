@@ -38,7 +38,11 @@ const finiteCount=(values:readonly (number|null)[])=>{let count=0;for(const valu
 const binary=(values:readonly (number|null)[])=>values.every(value=>value===null||value===0||value===1);
 function noteFor(kind:IndicatorId,result:IndicatorResult):string{
  const definition=catalogDefinition(kind),notes:string[]=[];
- if(definition?.pattern==='chart')notes.push('1 on the bar the pattern is confirmed (never earlier, not repainted), else 0.'+(definition.inputs.some(input=>input.key==='breakout')?' With Require breakout confirmation on, tops, bottoms and head and shoulders wait for the breakout close.':''));
+ if(definition?.pattern==='chart'){
+  // The export runs at new-instance inputs, so the breakout input is at its default.
+  const breakout=definition.inputs.find(input=>input.key==='breakout');
+  notes.push(breakout?.defval===true?'1 on the bar the pattern is confirmed by a breakout close (never earlier, not repainted), else 0. With Require breakout confirmation off, 1 on the bar the pattern\'s last pivot is confirmed.':'1 on the bar the pattern\'s last pivot is confirmed (never earlier, not repainted), else 0.');
+ }
  else if(definition?.pattern==='candlestick')notes.push('1 on the bar that completes the pattern, else 0.');
  if(definition?.profile)notes.push('The volume histogram is chart display only; POC, VAH and VAL are the per-bar values.');
  if(definition?.viewport)notes.push('Calculated over the chart\'s visible range at export time.');

@@ -297,9 +297,9 @@ const definitions:CatalogDefinition[]=[
  {id:'ulcer',name:'Ulcer index',acronym:'UI',overlay:false,sourceSeries:true,
   inputs:[{key:'length',title:'Length',defval:14,...LENGTH},SOURCE],
   plots:[{id:'ulcer',label:'Ulcer index',color:BLUE,width:1}],
-  provenance:[{url:LV+'martin-mccann-investors-guide-to-fidelity-funds-1989',facts:'Peter Martin (1987): percent drawdown R = 100 x (price - highest price of n) / highest price of n; Ulcer index = square root of the mean of R squared over n; n = 14.'}],
+  provenance:[{url:LV+'chartschool-ulcer-index',facts:'ChartSchool, Ulcer Index: percent drawdown R = 100 x (price - highest price of the last n) / highest price of the last n; Ulcer index = square root of the mean of R squared over n; n = 14. This rolling-maximum form is the one computed.'},{url:LV+'martin-mccann-investors-guide-to-fidelity-funds-1989',facts:'Peter Martin (1987) devised the Ulcer index. His own pseudo-code (tangotools.com/ui/ui.htm) measures each drawdown from a running peak that starts with the window, not from the highest price of the last n, so it gives different numbers.'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Length 14 is the author value; the source input, the color and the width are OpenCandle-defined.'],
-  policies:['The highest source and the mean of squares use the same Length, so the first value is on bar 2 x Length - 2. A zero highest source is unavailable.'],
+  policies:['Drawdowns are measured from the highest source of the last Length bars (the ChartSchool rolling form); Martin\'s own running-peak form gives different numbers. The highest source and the mean of squares use the same Length, so the first value is on bar 2 x Length - 2. A zero highest source is unavailable.'],
   calculate({source,num}){const n=num('length'),top=rolling(source,n,'max'),drawdown=pair(source,top,(a,b)=>b===0?null:100*(a-b)/b);
    return {ulcer:drawdown.map((_,i)=>{if(i<n-1)return null;let sum=0;for(let k=i-n+1;k<=i;k++){const r=drawdown[k];if(!finite(r))return null;sum+=r*r;}return zero(Math.sqrt(sum/n));})};},
   warmup:value=>2*value('length')-1,work:(count,value)=>count*value('length')*3},
@@ -352,6 +352,7 @@ const definitions:CatalogDefinition[]=[
   policies:['The moving-average rating starts on bar 200 (the 200-bar averages) and the oscillator rating on bar 50. After that, a vote its indicator cannot give on a bar (a flat range, a zero divisor) counts as neutral. A missing close is unavailable. Rating is based on All = the mean of the two group ratings, or one group alone.'],
   calculate(ctx){const {ma,osc}=technicalRatings(ctx),use=ctx.str('ratingsUse');
    const rating=use==='Moving averages'?ma:use==='Oscillators'?osc:pair(ma,osc,(a,b)=>(a+b)/2);return {rating:rating.map(value=>value===null?null:zero(value)),ma,osc};},
-  warmup:()=>TECH_RATING_READY.ma,work:count=>count*400},
+  // Oscillators alone are ready at bar 50; any choice with the moving averages needs the 200-bar averages.
+  warmup:(_value,text)=>text?.('ratingsUse')==='Oscillators'?TECH_RATING_READY.osc:TECH_RATING_READY.ma,work:count=>count*400},
 ];
 export const R40_INDICATORS:readonly CatalogDefinition[]=definitions;

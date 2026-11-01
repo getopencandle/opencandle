@@ -7,13 +7,16 @@ All notable changes to OpenCandle are listed here. The format follows [Keep a Ch
 ### Added
 - New **Export all indicators (.xlsx)** item in the chart menu. It calculates every built-in indicator at its default settings on the chart's bars and saves one workbook with Data, Patterns, Drawings and Key sheets.
 - 12 new built-in indicators, each written from its original published definition:
-  - Bollinger Bands breach, DI cross signals (with ADX filter and Wilder's extreme point rule), MACD divergence and RSI failure swings.
-  - Anchored VWAP with three standard deviation bands, Session VWAPs (Tokyo, London, New York), Opening range breakout and Relative volume.
+  - Bollinger Bands breach, DI cross signals (signal on the cross bar, Wilder's extreme point drawn as a stop level, ADXR filter), MACD divergence and RSI failure swings (with a minimum swing size).
+  - Anchored VWAP with three standard deviation bands, placed by clicking the bar to anchor it (Change anchor in its menus), Session VWAPs (Tokyo, London, New York), Opening range breakout and Relative volume.
   - Support and resistance zones, Adaptive trend channel, Auto fib multi-scale (short, medium and long lookbacks) and Auto fib range volume profile.
 - RSI can show forming divergences (off by default). They are drawn dashed and can change until confirmed.
 - Auto fib retracement has a Lookback window mode.
 - Watchlist columns for ADR (14), % of ADR used, position in the day's range, and price versus the prior day's range and today's open, with a one-click Day range columns preset.
 - Long and short position tools can set the stop from ATR (k x ATR, default 2 x ATR 14) and size the quantity from your risk.
+- An **About** tab in every indicator's and drawing tool's settings (and an info button in the Indicators list, Ctrl+I) explains what the tool is for, how its author meant it to be used, how it is calculated, its defaults, and where OpenCandle makes its own choices, with sources.
+- Historical volatility and the Volatility indicators have an Annualization setting. Auto, the default for new instances, follows the chart interval and market.
+- Every chart pattern offers Require breakout confirmation (on for new instances). With it on, flags, pennants, wedges, cup and handle, triangles and rectangles signal only on the breakout close, and patterns that fail first are not reported.
 
 ### Fixed
 - XABCD, Cypher, ABCD and Three Drives patterns draw above the candles.
@@ -22,6 +25,29 @@ All notable changes to OpenCandle are listed here. The format follows [Keep a Ch
 - Auto trendlines from old pivots no longer stretch the price scale.
 - The position tools' quantity box is readable on light chart backgrounds.
 - OpenCandle.exe's file properties show the OpenCandle copyright.
+- Fixed range volume profile counts each bar's volume once, spread across the bar's range (it could count a bar up to four times). It keeps its start bar on coarser intervals and its whole last bar on finer ones.
+- Anchored VWAP (drawing) keeps its start bar on coarser intervals and draws nothing until there is volume.
+- Schiff, Modified Schiff and Inside pitchforks start in the right place on log charts.
+- Cypher is marked valid only when its points go the right way.
+- Dashed and dotted lines work on curves, arcs and brush strokes.
+- Stickers keep their size when you zoom or change interval.
+- Regression trend alerts restart when you change a deviation. Drawings anchored inside the newest bar snap to it.
+- Chart pattern tooltips say when the pattern became known, and a dot marks the bar where the signal fired.
+- Abandoned baby, Harami and Rising/Falling three methods follow their textbook body conditions.
+- Pivot points (Auto) use yearly pivots on weekly and monthly charts.
+- McGinley dynamic no longer overshoots price or turns negative after a large drop.
+- Rob Booker Knoxville divergence signals once per divergence.
+- Bollinger bars follow John Bollinger's 2024 definition.
+- Auto fib extension and Auto pitchfork wait for a confirmed third pivot.
+- Average daily range on intraday charts ignores a partial first day.
+- Awesome and Accelerator oscillators colour an equal bar like the previous one, and the AO legend reads "AO".
+- Bars needed is correct for SMI and Technical ratings.
+- Labels and notes: "Bull + bear power", Donchian channels includes the current bar (use Price channel for breakouts), Mass index shows its 27 and 26.5 levels.
+- Table view stays fast with thousands of rows on a live chart.
+- You can add many more indicators to one chart before hitting the calculation limit (20 mixed indicators on 20,000 bars works).
+- Opening range breakout's legend shows the session it actually uses (00:00 UTC on 24/7 markets).
+- Pattern and signal markers in indicator panes stay clear of the pane's legend.
+- DI cross signals keeps its pane scaled to the DI lines.
 
 ### Security
 - Electron updated to 44.9.1, which includes a security fix and stops trusting compromised eMudhra intermediate certificates.

@@ -10,7 +10,7 @@ import {isVwapEventAnchor} from '../domain/vwap-event-anchors';
 import {parseIndicatorSource} from '../domain/indicator-source';
 import {isSealedIndicatorValues} from '../domain/indicator-sealed-values';
 import {isDerivedStyle} from './derived/common';
-import {INDICATOR_OUTPUT_LIMIT,INDICATOR_WORK_LIMIT,indicatorDefaults,indicatorPlotIds,type IndicatorInstanceSettings} from './indicator-settings';
+import {INDICATOR_OUTPUT_LIMIT,INDICATOR_BATCH_OUTPUT_LIMIT,INDICATOR_BATCH_WORK_LIMIT,indicatorDefaults,indicatorPlotIds,type IndicatorInstanceSettings} from './indicator-settings';
 import {defaultPlotStyle} from './indicator-rendering';
 import type {IndicatorPrecision} from './indicator-number-format';
 import type {AnalysisPublicationHost,AnalysisPublicationOwner} from './analysis-publication';
@@ -186,7 +186,7 @@ class Pipeline implements BuiltinPresentationControl {
   const prior=this.sourceTokens.get(reservation),preparation=prior?.preparation,group=preparation?.group;
   if(this.closed||!prior?.live||prior.model!==model||!group||preparationOwners.get(group)?.deref()!==prior||!alpacaSeasonalityPreparationGroupKnown(group)||this.settlementWaitByModel.has(model)||this.settlementWaits.size>=1000)return null;
   const W=own(budget,'operations'),U=own(budget,'numericSlots'),cost=BUILTIN_SEASONALITY_SETTLEMENT_WAIT_COST;
-  if(typeof wake!=='function'||![W,U].every(value=>Number.isSafeInteger(value)&&value>=0)||W+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+cost.operations>INDICATOR_WORK_LIMIT||U+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+cost.numericSlots>INDICATOR_OUTPUT_LIMIT)return null;
+  if(typeof wake!=='function'||![W,U].every(value=>Number.isSafeInteger(value)&&value>=0)||W+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+cost.operations>INDICATOR_BATCH_WORK_LIMIT||U+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+cost.numericSlots>INDICATOR_BATCH_OUTPUT_LIMIT)return null;
   if(this.closed||!prior.live||prior.model!==model||prior.preparation!==preparation||this.settlementWaitByModel.has(model))return null;
   // Reuse the existing shared admission counters, without creating a source
   // token or acquiring authority to continue any old provider request.
@@ -296,7 +296,7 @@ class Pipeline implements BuiltinPresentationControl {
   this.pruneSources();
   // At most one pending per actual owned model. An accepted parent stays charged during replacement.
   for(const previous of [...this.sourceReservations])if(previous.model===model&&!previous.accepted)this.releaseSource(previous);
-  if(this.closed||!owned()||budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+cost.operations>INDICATOR_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+cost.numericSlots+cost.pendingSlots>INDICATOR_OUTPUT_LIMIT)return null;
+  if(this.closed||!owned()||budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+cost.operations>INDICATOR_BATCH_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+cost.numericSlots+cost.pendingSlots>INDICATOR_BATCH_OUTPUT_LIMIT)return null;
   const state:SourceReservationState={model,owned,controller:new AbortController(),cost:Object.freeze({...cost}),accepted:false,live:true,releaseRequested:false,scene:null};this.sourceReservations.add(state);this.sourcePendingW+=cost.operations;this.sourcePendingSlots+=cost.numericSlots+cost.pendingSlots;
   const assert=()=>{if(!state.live||state.releaseRequested||this.closed||!state.owned?.()){this.releaseSource(state);throw missing();}};
   const token:BuiltinSourceReservation=Object.freeze({signal:state.controller.signal,assertCurrent:assert,accept:()=>{assert();if(state.accepted)return;const prior=[...this.sourceReservations].filter(other=>other!==state&&other.model===state.model&&other.accepted);state.accepted=true;this.sourcePendingW-=cost.operations;this.sourcePendingSlots-=cost.numericSlots+cost.pendingSlots;this.sourceAcceptedW+=cost.operations;this.sourceAcceptedU+=cost.numericSlots;for(const previous of prior)this.releaseSource(previous);assert();},release:()=>this.releaseSource(state)});this.sourceTokens.set(token,state);return token;
@@ -428,9 +428,9 @@ class Pipeline implements BuiltinPresentationControl {
  private clearAll(){this.pruneSources();for(const draft of this.active)this.release(draft);this.states=new WeakMap();this.epoch={};this.W=0;this.U=0;this.epochSource=null;}
  reconcile(budget:BuiltinProducerBudget){
   // Optional source service yields first. Admission of a source itself never clears accepted scalar state.
-  if(budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW>INDICATOR_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots>INDICATOR_OUTPUT_LIMIT)this.releaseSources();
-  if(budget.operations+this.W+this.pendingW>INDICATOR_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots>INDICATOR_OUTPUT_LIMIT)this.clearAll();
-  if(budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW>INDICATOR_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots>INDICATOR_OUTPUT_LIMIT)throw Error('The study batch still owns a Seasonality scene above the current shared budget. Reduce its history/year range or remove it before adding this study.');
+  if(budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW>INDICATOR_BATCH_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots>INDICATOR_BATCH_OUTPUT_LIMIT)this.releaseSources();
+  if(budget.operations+this.W+this.pendingW>INDICATOR_BATCH_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots>INDICATOR_BATCH_OUTPUT_LIMIT)this.clearAll();
+  if(budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW>INDICATOR_BATCH_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots>INDICATOR_BATCH_OUTPUT_LIMIT)throw Error('The study batch still owns a Seasonality scene above the current shared budget. Reduce its history/year range or remove it before adding this study.');
  }
  private source(){if(!this.publication||this.closed)return false;this.publication.assertMutable?.();if(this.epochSource&&!this.epochSource.isCurrent())this.clearAll();if(!this.epochSource)this.epochSource=this.publication.captureOwner();return this.epochSource.isCurrent();}
  private release(draft:Draft){if(draft.released)return;draft.released=true;this.pendingW-=draft.W;this.pendingSlots-=draft.U+draft.K;this.active.delete(draft);this.drafts.delete(draft.token);draft.plots=[];draft.groups=[];draft.bars=[];draft.input=[];draft.primary=[];draft.rowLists=undefined;draft.series=[];draft.source=()=>{throw missing();};draft.frame=()=>false;draft.owned=()=>false;}
@@ -446,8 +446,8 @@ class Pipeline implements BuiltinPresentationControl {
    this.reconcile(budget);
    if(!this.source())return;
    // A later real scalar calculation may reclaim optional source headroom, preserving its accepted normal proof.
-   if(budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+W>INDICATOR_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+U+K>INDICATOR_OUTPUT_LIMIT)this.releaseSources();
-   if(!this.source()||budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+W>INDICATOR_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+U+K>INDICATOR_OUTPUT_LIMIT)return;
+   if(budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+W>INDICATOR_BATCH_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+U+K>INDICATOR_BATCH_OUTPUT_LIMIT)this.releaseSources();
+   if(!this.source()||budget.operations+this.W+this.pendingW+this.sourceAcceptedW+this.sourcePendingW+W>INDICATOR_BATCH_WORK_LIMIT||budget.numericSlots+this.U+this.pendingSlots+this.sourceAcceptedU+this.sourcePendingSlots+U+K>INDICATOR_BATCH_OUTPUT_LIMIT)return;
    const token:BuiltinNumericDraft={plot:(plot,index)=>this.plot(token,plot,index),value:(plot,index,value)=>this.value(token,plot,index,value),sealedValues:(plot,values)=>this.sealedValues(token,plot,values),finishPlot:index=>this.finishPlot(token,index)};
    const draft:Draft={token,model,owned,settings,result,bars,input,primary,source,style,frame:()=>false,epoch:this.epoch,groups:[],inputs:settings.inputs,styles:settings.plots,presentation:settings.presentation,timeframe:settings.presentation?own(settings.presentation,'timeframe',true):undefined,plots:[],series,count:N,plotCount:P,seen:0,W,U,K,asynchronous,haOpen:undefined,haClose:undefined,valid:true,released:false,metadataSlots:0,rowLists:this.rowCaches};reserved=draft;this.drafts.set(token,draft);this.active.add(draft);this.pendingW+=W;this.pendingSlots+=U+K;
    const core=own(this.chart,'orchestrator');if(own(core,'bars')!==input)throw missing();const last=own(input,String(N-1)),frameKeys=['time','open','high','low','close','volume'] as const,frameValues=frameKeys.map(key=>own(last,key,true)),primaryLast=own(primary,String(N-1)),primaryValues=frameKeys.map(key=>own(primaryLast,key,true));

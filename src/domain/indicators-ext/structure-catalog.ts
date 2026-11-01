@@ -2,7 +2,7 @@ import type {Bar,NumericSeries} from '../types';
 import type {CatalogDefinition,CatalogInput} from '../indicator-catalog';
 import type {PatternBox,PatternLine} from './patterns-catalog';
 import {pivotPoints} from './r40-catalog';
-import {AUTO_FIB_LEVELS} from './r27-catalog';
+import {AUTO_FIB_LEVELS,FIB_COLORS} from './r27-catalog';
 import {fibLevelPrice,lookbackFibSwing,rollingFibSwings,zigzagFibSwing,type FibSwing} from './fib-swing';
 import {anchoredProfileLevels,VP_EXTRA_POLICIES,R38_POLICIES,VP_SHARED} from './vp-catalog';
 import {VOLUME_PROFILE_POLICIES} from '../volume-profile';
@@ -168,6 +168,20 @@ export function fibRangeSwing(bars:readonly Bar[],range:string,value:(key:string
  const length=value(scaleKey(range)+'Length');return lookbackFibSwing(bars,bars.length-length,bars.length-1);
 }
 
+/** The fib level plot ids of Auto fib range volume profile ('fib' + the Auto fib retracement level id: fibl0 .. fibl1). */
+export const fibVpPlotId=(levelId:string)=>'fib'+levelId;
+/** The Fibonacci levels of the range swing (the Auto fib retracement level set and direction: level 0 at the swing end,
+ *  level 1 at its start) from the swing start through the last bar, on bars with a high and a low; all null without a
+ *  swing or with Show Fibonacci levels off. Like the profile, they are the latest swing's levels and move with it. */
+export function fibVpLevels(bars:readonly Bar[],swing:FibSwing|null,show:boolean):Record<string,NumericSeries>{
+ const out:Record<string,NumericSeries>={};
+ for(const [ratio,id] of AUTO_FIB_LEVELS){
+  const values=nulls(bars.length);out[fibVpPlotId(id)]=values;if(!swing||!show)continue;
+  const price=fibLevelPrice(swing,ratio);for(let i=swing.start.index;i<bars.length;i++)if(finite(bars[i].high)&&finite(bars[i].low))values[i]=price;
+ }
+ return out;
+}
+
 const FIB_SOURCE={url:LV+'textbook-fibonacci-retracement',facts:'Fibonacci retracement levels 0, 23.6, 38.2, 50, 61.8, 78.6 and 100 percent of a swing, measured back from the swing end.'};
 const DISPLAY_POLICY='The plots are calculated on every bar from that bar and earlier bars only (what was knowable then); they are what alerts, the legend, the data window and replay read. The chart draws the latest state as lines and boxes in the plot colors (a hidden plot hides its drawing); lines count toward the price scale only over their own bars.';
 
@@ -175,7 +189,7 @@ const definitions:readonly CatalogDefinition[]=[
  {id:'srzones',name:'Support and resistance zones',acronym:'S/R Zones',overlay:true,pattern:'chart',
   keywords:['support','resistance','S/R','zones','pivot','levels','supply','demand'],
   inputs:[int('left','Pivot left bars',10,1,500),int('right','Pivot right bars',10,1,500),{key:'zoneMode',title:'Zone width',type:'string',defval:'ATR',options:SR_ZONE_MODES},
-   int('atrLength','ATR length',14,1,500),{key:'atrMultiplier',title:'ATR multiplier',type:'float',defval:0.25,min:0.01,max:10,step:0.05},
+   int('atrLength','ATR length',14,1,500),{key:'atrMultiplier',title:'ATR multiplier',type:'float',defval:0.25,min:0.05,max:10,step:0.05},
    int('maxZones','Max zones',8,1,50),{key:'showBroken',title:'Show broken zones',type:'bool',defval:true}],
   plots:[{id:'support',label:'Support',color:C.up,width:1},{id:'resistance',label:'Resistance',color:C.down,width:1},{id:'zone',label:'Zone',color:C.blue,width:1},{id:'broken',label:'Broken zone',color:C.guide,width:1}],
   provenance:[{url:LV+'edwards-magee-technical-analysis-of-stock-trends',facts:'Robert D. Edwards and John Magee, Technical Analysis of Stock Trends (1948): support and resistance are price levels where earlier swings turned; a level holds until price closes decisively through it.'},
@@ -223,15 +237,17 @@ const definitions:readonly CatalogDefinition[]=[
  {id:'autofibvp',name:'Auto fib range volume profile',acronym:'Fib VP',overlay:true,requiresVolume:true,segmented:true,profile:true,
   keywords:['fibonacci','fib','volume profile','POC','value area','auto fib','range'],
   inputs:[{key:'range',title:'Fib range',type:'string',defval:'Medium',options:FIB_VP_RANGES},...LOOKBACK_INPUTS,...ZIGZAG_INPUTS,
-   VP_SHARED.rowsLayout,VP_SHARED.rowSize,VP_SHARED.volume,VP_SHARED.valueArea,VP_SHARED.placement('Left'),VP_SHARED.width,...VP_SHARED.extras],
-  plots:VP_SHARED.plots,continuousPlots:VP_SHARED.continuous,
+   VP_SHARED.rowsLayout,VP_SHARED.rowSize,VP_SHARED.volume,VP_SHARED.valueArea,VP_SHARED.placement('Left'),VP_SHARED.width,...VP_SHARED.extras,
+   {key:'showFib',title:'Show Fibonacci levels',type:'bool',defval:true}],
+  plots:[...VP_SHARED.plots,...AUTO_FIB_LEVELS.map(([,id,label],k)=>({id:fibVpPlotId(id),label:'Fib '+label,color:FIB_COLORS[k],width:1}))],continuousPlots:VP_SHARED.continuous,
   provenance:[FIB_SOURCE,{url:LV+'textbook-zigzag-percent-reversal',facts:'The Zig zag range is the latest completed leg of the OpenCandle percent-reversal zig zag, as for Auto fib retracement.'},
    {url:LV+'textbook-volume-profile',facts:'A volume profile spreads the volume traded over a range of bars into price rows; the point of control (POC) is the row with the most volume and the value area the rows around it holding the Value Area Volume share (70%).'}],
-  unknownDefaults:[VP_SHARED.unknownShared,'Fib range Medium (choices Short 50, Medium 150, Long 400 bars and the Auto fib retracement zig zag with deviation 3% and depth 10), Placement Left and the acronym Fib VP are OpenCandle-defined.'],
+  unknownDefaults:[VP_SHARED.unknownShared,'Fib range Medium (choices Short 50, Medium 150, Long 400 bars and the Auto fib retracement zig zag with deviation 3% and depth 10), Placement Left and the acronym Fib VP are OpenCandle-defined.','Fibonacci levels '+FIB_LEVEL_TEXT+' of the range swing, shown by default in the Auto fib retracement colors, are OpenCandle-defined choices.'],
   policies:[...VOLUME_PROFILE_POLICIES,...VP_EXTRA_POLICIES,...R38_POLICIES,
    'OpenCandle-defined range: one profile from the start of the chosen auto Fibonacci swing (the earlier of the highest high and lowest low of the lookback, or the start of the latest completed zig zag leg) through the last bar, recalculated as bars arrive, so its levels move with the anchor. With a lookback range the profile spans exactly the swing low to the swing high.',
-   'OpenCandle-defined alerts: POC, VAH and VAL are alertable with Number Of Rows; the alert recalculates the profile on the observed bars without finer bars.'],
-  calculate(ctx){const swing=fibRangeSwing(ctx.bars,ctx.str('range'),ctx.num);return anchoredProfileLevels(ctx,swing?swing.start.index:null);},
+   'Fibonacci levels: the retracement levels of the same swing, level 0 at the swing end and level 1 at its start (the Auto fib retracement convention), drawn from the swing start through the last bar over the profile, so retracements can be compared with the POC and value area. They move with the swing, like the profile.',
+   'OpenCandle-defined alerts: POC, VAH, VAL and the Fibonacci levels are alertable with Number Of Rows; the alert recalculates the profile on the observed bars without finer bars.'],
+  calculate(ctx){const swing=fibRangeSwing(ctx.bars,ctx.str('range'),ctx.num);return {...anchoredProfileLevels(ctx,swing?swing.start.index:null),...fibVpLevels(ctx.bars,swing,ctx.bool('showFib'))};},
   warmup:()=>1,work:VP_SHARED.work},
 ];
 export const STRUCTURE_INDICATORS:readonly CatalogDefinition[]=Object.freeze(definitions);

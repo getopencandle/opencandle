@@ -86,7 +86,7 @@ const mainScaleSideOf=(snapshot:ChartMenuSnapshot):'left'|'right'=>{try{return s
  * Pin to scale, Copy, Hide, Remove, Object tree, Settings) in that order with its separators. As in the rest of this menu a row
  * the host cannot run is left out; so are the favorite row (its state lives in the workspace) and the hotkey hints (on the chart
  * those keys act on drawings and the symbol, not on the indicator). */
-const INDICATOR_ROW_ACTIONS:Partial<Record<LegendMoreItemId,RootChartMenuAction>>={alert:'indicator-alert',addIndicator:'indicator-add-on',visualOrder:'indicator-order',intervals:'indicator-intervals',moveTo:'indicator-move',pinToScale:'indicator-pin',copy:'indicator-copy',hide:'indicator-hide',remove:'indicator-remove',objectTree:'objects',settings:'indicator-settings'};
+const INDICATOR_ROW_ACTIONS:Partial<Record<LegendMoreItemId,RootChartMenuAction>>={anchor:'indicator-anchor',alert:'indicator-alert',addIndicator:'indicator-add-on',visualOrder:'indicator-order',intervals:'indicator-intervals',moveTo:'indicator-move',pinToScale:'indicator-pin',copy:'indicator-copy',hide:'indicator-hide',remove:'indicator-remove',objectTree:'objects',settings:'indicator-settings'};
 /** On a comparison series the note row names that series' market (the App note action targets it). */
 function comparisonNoteLabel(snapshot:ChartMenuSnapshot):string|null{const entity=snapshot.entity;if(entity.kind!=='series'||entity.owner==='main'||entity.owner.kind!=='comparison')return null;const id=entity.owner.id;try{const row=snapshot.controller.comparisons.list().find(item=>item.id===id);return row?'Note for '+row.dataset.instrument.symbol:null;}catch{return null;}}
 export function indicatorMenuEntries(snapshot:ChartMenuSnapshot,actions:ChartContextActions):MenuEntry[]{
@@ -96,7 +96,7 @@ export function indicatorMenuEntries(snapshot:ChartMenuSnapshot,actions:ChartCon
  const title=indicatorAcronyms[row.kind]??row.kind,order=rows.map(item=>({id:item.id,paneId:item.paneId})),vela=snapshot.controller.chart;
  const placement=(()=>{try{return vela?readIndicatorScalePlacement(vela,row.rendererId):null;}catch{return null;}})();
  const ordering=!!actions['indicator-order']&&indicatorVisualOrderAvailable(order,row.id);
- const menu=legendMoreMenu('indicator',{surface:'legend',title,value:null,hidden:!row.visible,favorite:false,scalePlacement:placement,mainScaleSide:mainScaleSideOf(snapshot),linkedToSeries:false,routes:{favorite:false,visualOrder:ordering,copy:!!actions['indicator-copy']}});
+ const menu=legendMoreMenu('indicator',{surface:'legend',title,value:null,hidden:!row.visible,favorite:false,scalePlacement:placement,mainScaleSide:mainScaleSideOf(snapshot),linkedToSeries:false,routes:{favorite:false,visualOrder:ordering,copy:!!actions['indicator-copy'],anchor:row.kind==='avwap'&&!!actions['indicator-anchor']}});
  const children:Partial<Record<RootChartMenuAction,MenuChild[]>>={
   'indicator-order':ordering?visualOrderItems(indicatorOrderState(order,row.id)).filter(item=>!item.disabled).map(item=>({id:item.id,label:item.label})):[],
   'indicator-move':(()=>{try{return indicatorMoveChoices(snapshot.controller,row.rendererId,rows).filter(choice=>!choice.disabled).map(choice=>({id:choice.id,label:choice.label}));}catch{return [];}})(),

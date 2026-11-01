@@ -8,7 +8,8 @@ it('report-stuck opens only the fixed issue form, takes no input, and stays out 
  const main=readFileSync('electron/main.cjs','utf8'),preload=readFileSync('electron/preload.cjs','utf8');
  expect(main).toContain("const REPORT_STUCK_URL='https://github.com/getopencandle/opencandle/issues/new?template=where-i-got-stuck.yml';");
  expect(main).toContain("'lv:help:report-stuck': async value => {noInput(value);await require('electron').shell.openExternal(REPORT_STUCK_URL);return {opened:true};},");
- expect(main.match(/openExternal\(/g)?.length).toBe(1);
+ // The other opener is the checked tool reference link (reference-link-ipc.test.ts).
+ expect(main.match(/openExternal\(/g)?.length).toBe(2);
  expect(preload).toContain("reportStuck: () => invoke('lv:help:report-stuck'),");
  const {secondaryChannels,SECONDARY_CHANNELS}=nodeRequire('../../electron/windows.cjs');
  const channels:readonly string[]=SECONDARY_CHANNELS??secondaryChannels??[];

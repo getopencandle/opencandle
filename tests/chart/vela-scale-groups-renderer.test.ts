@@ -80,7 +80,7 @@ describe('LV-VELA-COMPAT-10 plan',()=>{
   expect([...compat10StepIds]).toEqual(['scale-groups-scene','scale-groups-left-columns','scale-groups-slot','scale-groups-scale-for','scale-groups-autoscale','scale-groups-invert','scale-groups-set-pane','scale-groups-set-pane-record','scale-groups-api','scale-groups-remove']);
   for(const row of plan.files as any[]){
    if(!row.path.endsWith('.js')&&!row.path.endsWith('.cjs')){expect(row.afterSha256).toBe(row.compat9Sha256);continue;}
-   expect(row.transformations.slice(-38,-28).map((s:any)=>s.id)).toEqual([...compat10StepIds]);
+   expect(row.transformations.slice(-41,-31).map((s:any)=>s.id)).toEqual([...compat10StepIds]);
    expect(row.transformations.find((s:any)=>s.id==='scale-groups-scene').after).toContain('/*! LarryVision LV-VELA-SCALE-GROUPS-1 modification, 2026-10-22.');
   }
  });

@@ -104,7 +104,9 @@ export function drawingAlertKey(record:unknown):string{
  const count=ANCHOR_COUNTS[record.type];
  if(!plainArray(record.anchors,8)||record.anchors.length!==count)throw new Error('Drawing alert anchor count is invalid');
  const anchors=record.anchors.map(anchor=>{if(!plain(anchor)||!finite(anchor.time)||!finite(anchor.price))throw new Error('Drawing alert anchors require finite time and price');return [anchor.time,anchor.price];});
- if(record.type==='regressionchannel')return JSON.stringify([record.type,anchors.map(row=>row[0]).sort((a,b)=>a-b),'close',2,'population residual deviation']);
+ // The regression band width is part of its geometry: equal upper and lower deviations write one number (the default 2 keeps the
+ // earlier key, so existing alerts do not restart), different ones write both.
+ if(record.type==='regressionchannel'){const props=plain(record.props)?record.props as Record<string,unknown>:{},up=regressionDeviation(props.upperDeviation),down=regressionDeviation(props.lowerDeviation);return JSON.stringify([record.type,anchors.map(row=>row[0]).sort((a,b)=>a-b),'close',up===down?up:[up,down],'population residual deviation']);}
  // A Fib channel's enabled levels place its outer lines, so they belong to its geometry.
  if(record.type==='fibchannel')return JSON.stringify([record.type,anchors,extension(record.type,record),readFibChannelAlert(record.props).enabledRatios]);
  return JSON.stringify([record.type,anchors,extension(record.type,record)]);

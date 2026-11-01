@@ -64,7 +64,7 @@ const seededLag=averageLag;
 export function indicatorWarmupBars(kind:IndicatorId,inputs:Record<string,unknown>):number{
  const definition=catalogDefinition(kind);
  // Retired catalog inputs (e.g. AO Fast/Slow) keep their recorded defaults when absent.
- const value=(key:string)=>finiteNumber(Object.hasOwn(inputs,key)?inputs[key]:indicatorDefaults[kind][key]??definition?.retiredInputs?.find(row=>row.key===key)?.defval,1);if(definition)return definition.warmup(key=>value(key));
+ const value=(key:string)=>finiteNumber(Object.hasOwn(inputs,key)?inputs[key]:indicatorDefaults[kind][key]??definition?.retiredInputs?.find(row=>row.key===key)?.defval,1);if(definition)return definition.warmup(key=>value(key),key=>String(Object.hasOwn(inputs,key)?inputs[key]:indicatorDefaults[kind][key]??''));
  let last=0;// zero-based index of the first bar where every base plot can be finite
  switch(kind){
   case 'sma':last=value('length')-1;break;

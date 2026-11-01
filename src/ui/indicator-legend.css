@@ -91,3 +91,9 @@
 /* The chart Sell/Qty/Buy group sits under the series heading; the price-pane legend rows start below it
    (ChartTradingButtonsPlacement publishes the group height; 0 when the buttons are off or hidden). */
 .chart-workspace>.indicator-legend>.lv-legend-price-scroll{margin-top:var(--lv-trade-buttons-h,0px)}
+/* Anchored VWAP click-a-bar placement: crosshair over the chart, a hint at the top, and the legend's unanchored hint. */
+.chart-workspace[data-anchor-placing] [data-chart-tree],.chart-workspace[data-anchor-placing] [data-chart-tree] canvas{cursor:crosshair !important}
+.lv-anchor-placement{position:absolute;top:44px;left:50%;transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:10px;padding:6px 8px 6px 12px;border:1px solid var(--lv-accent);border-radius:var(--lv-radius-plate);background:var(--lv-bg-tooltip);color:var(--lv-tooltip-text);font-size:13px;box-shadow:var(--lv-shadow);pointer-events:auto}
+.lv-anchor-placement button{margin:0;padding:2px 10px}
+.lv-legend-anchor-hint{margin:0 0 0 6px;padding:0 6px;border:1px dashed var(--lv-accent);border-radius:3px;background:transparent;color:var(--lv-accent);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+.lv-legend-anchor-hint[aria-pressed=true]{background:var(--lv-accent);color:var(--lv-bg-surface)}

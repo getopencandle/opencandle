@@ -3,7 +3,9 @@
 import {describe,expect,it} from 'vitest';
 import {calculateIndicator,type IndicatorCalculationOptions} from '../../src/domain/indicators';
 import {catalogDefinition,ALL_CATALOG_INDICATOR_IDS} from '../../src/domain/indicator-catalog';
-import {VWAP_SESSION_INDICATOR_IDS,anchorInstant} from '../../src/domain/indicators-ext/vwap-session-catalog';
+import {VWAP_SESSION_INDICATOR_IDS,AVWAP_UNANCHORED_MESSAGE,anchorInstant,anchorTextAt,anchoredVwapIndex} from '../../src/domain/indicators-ext/vwap-session-catalog';
+import {createIncrementalIndicatorSession} from '../../src/domain/indicator-incremental';
+import {legendMoreMenu} from '../../src/chart/legend-model';
 import {TRADING_SESSION_DEFAULT_WINDOWS} from '../../src/domain/indicators-ext/trading-sessions-catalog';
 import {indicatorAlertBlock} from '../../src/domain/indicator-alertability';
 import {INDICATOR_KINDS,defaultIndicatorPresentation,indicatorDefaults,type IndicatorInstanceSettings} from '../../src/chart/indicator-settings';
@@ -52,8 +54,8 @@ describe('catalog shape (SYNTHETIC)',()=>{
 
 describe('Anchored VWAP (SYNTHETIC)',()=>{
  const days=weekdays.slice(0,4).map((time,i)=>flat(time,[10,12,11,13][i],[100,300,0,200][i]));
- it('a blank anchor starts at the first bar: VWAP and the 1 SD band by hand',()=>{
-  const result=run('avwap',days,{},{resolution:'1D',calendar:'utc'});expect(result.diagnostics).toEqual([]);
+ it('anchored on the first bar: VWAP and the 1 SD band by hand',()=>{
+  const result=run('avwap',days,{anchor:'2024-01-01'},{resolution:'1D',calendar:'utc'});expect(result.diagnostics).toEqual([]);
   // VWAP: 10; (1000 + 3600) / 400 = 11.5; zero volume keeps 11.5; (4600 + 2600) / 600 = 12.
   expect(values(result,'vwap')).toEqual([10,11.5,11.5,12]);
   // Bar 1 deviation: sqrt((100 x 1.5^2 + 300 x 0.5^2) / 400) = sqrt(0.75).
@@ -62,7 +64,7 @@ describe('Anchored VWAP (SYNTHETIC)',()=>{
   for(const id of ['upper2','lower2','upper3','lower3'])expect(values(result,id).every(value=>value===null),id).toBe(true);// bands 2 and 3 off
  });
  it('Percentage bands are VWAP +/- |VWAP| x multiplier / 100',()=>{
-  const result=run('avwap',days,{bandMode:'Percentage',band2Enabled:true},{resolution:'1D',calendar:'utc'});
+  const result=run('avwap',days,{anchor:'2024-01-01',bandMode:'Percentage',band2Enabled:true},{resolution:'1D',calendar:'utc'});
   expect(values(result,'upper1')[3]).toBeCloseTo(12.12,12);expect(values(result,'lower2')[3]).toBeCloseTo(11.76,12);
  });
  it('the anchor bar holds the anchor instant, or is the first bar after a gap; earlier bars are unavailable',()=>{
@@ -91,7 +93,62 @@ describe('Anchored VWAP (SYNTHETIC)',()=>{
  it('a bar with missing volume is a gap at that bar only',()=>{
   const bars=days.map((bar,i)=>i===1?{...bar,volume:NaN}:bar);
   // Bar 1 is skipped: 10; gap; (1000 + 0) / 100 = 10; (1000 + 2600) / 300 = 12.
-  expect(values(run('avwap',bars,{},{resolution:'1D'}),'vwap')).toEqual([10,N,10,12]);
+  expect(values(run('avwap',bars,{anchor:'2024-01-01'},{resolution:'1D'}),'vwap')).toEqual([10,N,10,12]);
+ });
+});
+
+describe('Anchored VWAP placement and stability (SYNTHETIC)',()=>{
+ /** 1-minute bars from 2024-11-04 13:00 UTC; price and volume vary with the index so every bar moves the sums. */
+ const minutes=Array.from({length:600},(_,i)=>({time:at('2024-11-04T13:00:00Z')+i*60,open:100+i%7,high:102+i%11,low:98-i%5,close:100+i%13,volume:1+(i*37)%17}));
+ const options={resolution:'1',calendar:'utc' as const};
+ const series=(bars:readonly Bar[],anchor:string,opts:Options=options)=>{const result=run('avwap',bars,{anchor,band2Enabled:true,band3Enabled:true},opts);return Object.fromEntries(result.series.map(row=>[row.id,row.values]));};
+ const byTimeOf=(bars:readonly Bar[],rows:Record<string,readonly (number|null)[]>)=>new Map(bars.map((bar,i)=>[bar.time,Object.keys(rows).map(id=>rows[id][i])]));
+ it('an instance without an anchor draws nothing and asks for a click; there is no first-bar fallback',()=>{
+  const result=run('avwap',minutes,{},options);
+  expect(result.diagnostics).toEqual([AVWAP_UNANCHORED_MESSAGE]);
+  for(const row of result.series)expect(row.values.every(value=>value===null),row.id).toBe(true);
+  expect(anchoredVwapIndex(minutes,null,'1')).toBe(minutes.length);
+  expect(catalogDefinition('avwap')!.inputs.find(row=>row.key==='anchor')!.defval).toBe('');
+ });
+ it('the text stored by a click reads back to the clicked bar (exchange clock, DST, seconds bars)',()=>{
+  for(const [bars,zone,resolution] of [[halfHours,'America/New_York','30'],[halfHours,'UTC','30'],[BARS.crypto1h,'UTC','60']] as const)
+   bars.forEach((bar,i)=>expect(anchoredVwapIndex(bars,anchorInstant(anchorTextAt(bar.time,zone),zone),resolution),zone+' bar '+i).toBe(i));
+  expect(anchorTextAt(at('2024-11-04T14:30:00Z'),'America/New_York')).toBe('2024-11-04 09:30');
+  expect(anchorTextAt(at('2024-11-01T13:30:00Z'),'America/New_York')).toBe('2024-11-01 09:30');
+  // 01:00 to 02:00 New York repeats on 3 November 2024: the second 01:00 (06:00 UTC) is written in UTC so it reads back exactly.
+  expect(anchorTextAt(at('2024-11-03T05:00:00Z'),'America/New_York')).toBe('2024-11-03 01:00');expect(anchorTextAt(at('2024-11-03T06:00:00Z'),'America/New_York')).toBe('2024-11-03 06:00Z');
+  const seconds=Array.from({length:120},(_,i)=>flat(at('2024-11-04T14:30:00Z')+i*5,100+i));
+  expect(anchorTextAt(seconds[7].time,'UTC')).toBe('2024-11-04 14:30:35');
+  seconds.forEach((bar,i)=>expect(anchoredVwapIndex(seconds,anchorInstant(anchorTextAt(bar.time,'UTC'),'UTC'),'5S'),'5S bar '+i).toBe(i));
+ });
+ it('older history loaded in front of the chart keeps every value from the anchor on',()=>{
+  const anchor=anchorTextAt(minutes[400].time,'UTC'),tail=minutes.slice(300),full=byTimeOf(minutes,series(minutes,anchor)),paged=byTimeOf(tail,series(tail,anchor));
+  for(const bar of tail)expect(paged.get(bar.time),String(bar.time)).toEqual(full.get(bar.time));
+  expect(full.get(minutes[400].time)![0]).not.toBeNull();expect(full.get(minutes[399].time)![0]).toBeNull();
+ });
+ it('a capped live window that drops its oldest bar and appends a new one keeps the anchored values',()=>{
+  const anchor=anchorTextAt(minutes[450].time,'UTC'),before=minutes.slice(100,500),after=minutes.slice(101,501);
+  const a=byTimeOf(before,series(before,anchor)),b=byTimeOf(after,series(after,anchor));
+  for(const bar of after.slice(0,-1))expect(b.get(bar.time),String(bar.time)).toEqual(a.get(bar.time));
+ });
+ it('forming-bar updates through the incremental session equal the full calculation',()=>{
+  const session=createIncrementalIndicatorSession(),anchor=anchorTextAt(minutes[200].time,'UTC'),inputs={anchor,band2Enabled:true} as never;
+  let bars=minutes.slice(0,300);
+  for(let tick=0;tick<12;tick++){
+   const last=bars.at(-1)!;bars=tick%4===3?[...bars,{...last,time:last.time+60,volume:2}]:[...bars.slice(0,-1),{...last,close:last.close+0.5,high:Math.max(last.high,last.close+0.5),volume:last.volume+3}];
+   const live=session.calculate('avwap',bars,inputs,options),reference=calculateIndicator('avwap',bars,inputs,options);
+   expect(live.series.map(row=>[row.id,[...row.values]])).toEqual(reference.series.map(row=>[row.id,[...row.values]]));
+  }
+ });
+ it('a 1-minute anchor lands on the hour that holds it after an interval switch',()=>{
+  const hours=Array.from({length:10},(_,h)=>{const slice=minutes.slice(h*60,h*60+60);return {time:slice[0].time,open:slice[0].open,high:Math.max(...slice.map(bar=>bar.high)),low:Math.min(...slice.map(bar=>bar.low)),close:slice.at(-1)!.close,volume:slice.reduce((sum,bar)=>sum+bar.volume,0)};});
+  const anchor=anchorTextAt(minutes[250].time,'UTC'),vwap=series(hours,anchor,{resolution:'60',calendar:'utc'}).vwap;
+  expect(vwap.slice(0,5)).toEqual([N,N,N,N,expect.any(Number)]);// minute 250 is in hour 4 (minutes 240 to 299)
+  expect(anchorInstant(anchor,'UTC')).toBe(minutes[250].time);
+ });
+ it('the legend menu offers Change anchor only where the host connects it',()=>{
+  const ids=(anchor:boolean)=>legendMoreMenu('indicator',{surface:'legend',title:'AVWAP',value:null,hidden:false,favorite:false,routes:{anchor}}).flatMap(row=>row.kind==='item'?[row.id]:[]);
+  expect(ids(true)).toContain('anchor');expect(ids(false)).not.toContain('anchor');
  });
 });
 
@@ -177,20 +234,24 @@ describe('Opening range breakout (SYNTHETIC)',()=>{
 
 describe('Relative volume (SYNTHETIC)',()=>{
  const bars=(volumes:readonly number[])=>volumes.map((volume,i)=>flat(i*DAY,100,volume));
- it('RVOL = volume / SMA(volume, length); Above threshold is 1 at or over the threshold',()=>{
+ it('RVOL = volume / the average of the previous length bars; Above threshold is 1 at or over the threshold',()=>{
   const result=run('relvolume',bars([10,10,10,40,5]),{length:3});expect(result.diagnostics).toEqual([]);
-  // SMA(3): -, -, 10, 20, 55/3. RVOL: -, -, 1, 2, 15/55.
-  expect(values(result,'ma').slice(0,4)).toEqual([N,N,10,20]);expect(values(result,'ma')[4]).toBeCloseTo(55/3,12);
-  expect(values(result,'rvol').slice(0,4)).toEqual([N,N,1,2]);expect(values(result,'rvol')[4]).toBeCloseTo(3/11,12);expect(values(result,'high')).toEqual([N,N,0,1,0]);
+  // The baseline leaves the current bar out (it is the average of the preceding bars): bar 3 reads SMA(10, 10, 10) = 10,
+  // bar 4 reads SMA(10, 10, 40) = 20. RVOL: -, -, -, 40 / 10 = 4, 5 / 20 = 0.25. (An average including the current bar
+  // gave 2 at bar 3 and capped RVOL at the length.)
+  expect(values(result,'ma')).toEqual([N,N,N,10,20]);
+  expect(values(result,'rvol')).toEqual([N,N,N,4,0.25]);expect(values(result,'high')).toEqual([N,N,N,1,0]);
   const state=catalogDefinition('relvolume')!.pointPalette!.state(id=>values(result,id));expect(state).toEqual([N,N,N,0,N]);
  });
- it('defaults are length 20 and threshold 2',()=>{
+ it('defaults are length 20 and threshold 2; a 10x spike after 20 even bars reads 10',()=>{
   const definition=catalogDefinition('relvolume')!;expect(definition.inputs.map(row=>[row.key,row.defval])).toEqual([['length',20],['threshold',2]]);
+  expect(definition.warmup(key=>({length:20} as Record<string,number>)[key])).toBe(21);
+  expect(values(run('relvolume',bars([...new Array(20).fill(100),1000])),'rvol')[20]).toBe(10);
  });
  it('missing volume leaves a gap at that bar only',()=>{
-  // The bar with no volume is skipped: SMA(3) over 10, 10, 10 then 10, 10, 40.
+  // The bar with no volume is skipped: bar 4's baseline is SMA(3) over bars 0, 2 and 3 = 10, so RVOL = 40 / 10.
   const result=run('relvolume',bars([10,NaN,10,10,40]),{length:3});
-  expect(values(result,'volume')).toEqual([10,N,10,10,40]);expect(values(result,'ma')).toEqual([N,N,N,10,20]);expect(values(result,'rvol')).toEqual([N,N,N,1,2]);
+  expect(values(result,'volume')).toEqual([10,N,10,10,40]);expect(values(result,'ma')).toEqual([N,N,N,N,10]);expect(values(result,'rvol')).toEqual([N,N,N,N,4]);
  });
 });
 

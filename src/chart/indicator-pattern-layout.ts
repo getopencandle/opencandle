@@ -227,11 +227,13 @@ export function installPatternLabelLayout(renderer:NativeRenderer,blocked:()=>re
  installed.set(scene,dispose);return dispose;
 }
 
-/** The chart heading (symbol and OHLC line), legend rows and trading buttons over a plot canvas, in plot pixels (DOM boxes that intersect the canvas). */
+/** The chart heading (symbol and OHLC line), legend rows and trading buttons over a plot canvas, in plot pixels (DOM boxes that intersect the canvas).
+ *  The legend rows of every pane count (a study pane's legend sits at the top of that pane), so markers near the top of an
+ *  RSI or DI pane move clear of its legend text the same way price-pane labels do. A hidden pane legend has no box. */
 export function legendBoxesOver(canvas:unknown):LayoutRect[]{
  if(typeof Element==='undefined'||!(canvas instanceof Element))return [];
  const base=canvas.getBoundingClientRect(),doc=canvas.ownerDocument,out:LayoutRect[]=[];
- for(const element of doc.querySelectorAll('.chart-heading > *, .lv-legend-pane[data-legend-pane="price"] > *, .lv-trade-buttons')){
+ for(const element of doc.querySelectorAll('.chart-heading > *, .lv-legend-pane > *, .lv-trade-buttons')){
   const box=element.getBoundingClientRect();if(!box.width||!box.height)continue;
   if(box.right<=base.left||box.left>=base.right||box.bottom<=base.top||box.top>=base.bottom)continue;
   out.push({left:box.left-base.left,top:box.top-base.top,right:box.right-base.left,bottom:box.bottom-base.top});

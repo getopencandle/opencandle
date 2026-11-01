@@ -2,12 +2,15 @@
 // including after in-place mutation (settings objects are edited in place) and for every refused shape.
 import {expect,it} from 'vitest';
 import {performance} from 'node:perf_hooks';
-import {assertIndicatorBatchBudget,clearIndicatorBudgetCache,indicatorDefaults,indicatorPlotIds,defaultIndicatorPresentation,indicatorEstimatedSlots,indicatorEstimatedWork,validateIndicatorSettings,INDICATOR_KINDS,INDICATOR_OUTPUT_LIMIT,INDICATOR_WORK_LIMIT,INDICATOR_MAX_INSTANCES,type IndicatorBudgetItem} from '../../src/chart/indicator-settings';
+import {assertIndicatorBatchBudget,clearIndicatorBudgetCache,indicatorDefaults,indicatorPlotIds,defaultIndicatorPresentation,indicatorEstimatedSlots,indicatorEstimatedWork,validateIndicatorSettings,INDICATOR_KINDS,INDICATOR_OUTPUT_LIMIT,INDICATOR_WORK_LIMIT,INDICATOR_BATCH_OUTPUT_LIMIT,INDICATOR_BATCH_WORK_LIMIT,INDICATOR_MAX_INSTANCES,type IndicatorBudgetItem} from '../../src/chart/indicator-settings';
 
-// Verbatim pre-lane batch budget (the oracle).
+// The uncached batch budget rule (the oracle).
 function referenceBudget(items:readonly IndicatorBudgetItem[],barCount:number):{operations:number;numericSlots:number}{
  if(!Array.isArray(items)||items.length>INDICATOR_MAX_INSTANCES)throw new Error('Invalid indicator budget collection.');let operations=0,numericSlots=0;
- for(const item of items){const slots=indicatorEstimatedSlots(item.kind,barCount,item.inputs,item.presentation,'render',item.plots,item.offset);numericSlots+=slots;const palette=item.kind==='volume'?item.presentation?.volumePalette:undefined;operations+=indicatorEstimatedWork(item.kind,barCount,item.inputs)+slots*4+(palette&&palette.mode!=='uniform'?barCount*4:0);if(numericSlots>INDICATOR_OUTPUT_LIMIT||operations>INDICATOR_WORK_LIMIT)throw new Error(`Indicator batch exceeds local limits (${numericSlots}/${INDICATOR_OUTPUT_LIMIT} numeric slots, ${operations}/${INDICATOR_WORK_LIMIT} estimated operations). Reduce history or instances.`);}
+ for(const item of items){const slots=indicatorEstimatedSlots(item.kind,barCount,item.inputs,item.presentation,'render',item.plots,item.offset);numericSlots+=slots;const palette=item.kind==='volume'?item.presentation?.volumePalette:undefined;const work=indicatorEstimatedWork(item.kind,barCount,item.inputs)+slots*4+(palette&&palette.mode!=='uniform'?barCount*4:0);operations+=work;
+  // Each study within the single-study limits, the whole batch within the batch limits.
+  if(slots>INDICATOR_OUTPUT_LIMIT||work>INDICATOR_WORK_LIMIT)throw new Error(`Indicator batch exceeds local limits (${slots}/${INDICATOR_OUTPUT_LIMIT} numeric slots, ${work}/${INDICATOR_WORK_LIMIT} estimated operations). Reduce history or instances.`);
+  if(numericSlots>INDICATOR_BATCH_OUTPUT_LIMIT||operations>INDICATOR_BATCH_WORK_LIMIT)throw new Error(`Indicator batch exceeds local limits (${numericSlots}/${INDICATOR_BATCH_OUTPUT_LIMIT} numeric slots, ${operations}/${INDICATOR_BATCH_WORK_LIMIT} estimated operations). Reduce history or instances.`);}
  return {operations,numericSlots};
 }
 const outcome=(run:()=>unknown)=>{try{return{ok:run()};}catch(error){return{error:String(error)};}};

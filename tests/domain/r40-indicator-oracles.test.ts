@@ -3,6 +3,7 @@ import {calculateIndicator} from '../../src/domain/indicators';
 import {catalogDefinition,ALL_CATALOG_INDICATOR_IDS} from '../../src/domain/indicator-catalog';
 import {R40_INDICATOR_IDS,bbTrendState,ratingVoteAbove,ratingBucket,levelVote,crossVote,TECH_RATING_COLORS} from '../../src/domain/indicators-ext/r40-catalog';
 import {indicatorAlertBlock} from '../../src/domain/indicator-alertability';
+import {indicatorWarmupBars} from '../../src/ui/indicator-dialog-model';
 import type {Bar} from '../../src/domain/types';
 
 // Hand-computed oracles for these built-ins. All bars are SYNTHETIC fixtures made up
@@ -105,6 +106,11 @@ describe('Price channel (SYNTHETIC)',()=>{
   close(values('pricechannel',b,{length:2},'lower'),[N,N,4,5,5]);
   close(values('pricechannel',b,{length:2},'center'),[N,N,6,6.5,7.5]);
  });
+ it('Donchian channels include the current bar (Price channel does not) and say so, pointing breakouts to Price channel or offset 1',()=>{
+  const b=fromCloses([5,7,6,9,4]);
+  close(values('dc',b,{length:2},'upper'),[N,8,8,10,10]);// the current high counts: i1 max(6, 8)
+  expect(catalogDefinition('dc')!.policies.join(' ')).toMatch(/include the current bar.*Price channel.*Offset to 1/);
+ });
 });
 
 describe('Linear regression slope (SYNTHETIC)',()=>{
@@ -143,6 +149,11 @@ describe('Ulcer index (SYNTHETIC)',()=>{
   // Length 2, closes 10,8,8,12,6. Highest close: -,10,8,12,12. Drawdown %: -,-20,0,0,-50.
   // UI: i2 sqrt((400 + 0) / 2), i3 0, i4 sqrt((0 + 2500) / 2)
   close(values('ulcer',fromCloses([10,8,8,12,6]),{length:2}),[N,N,Math.sqrt(200),0,Math.sqrt(1250)]);
+ });
+ it('cites ChartSchool for the rolling-maximum form and says Martin\'s running-peak form differs',()=>{
+  const facts=catalogDefinition('ulcer')!.provenance.map(row=>row.facts).join(' ');
+  expect(facts).toMatch(/ChartSchool/);expect(facts).toMatch(/tangotools\.com\/ui\/ui\.htm/);expect(facts).toMatch(/different numbers/);
+  expect(catalogDefinition('ulcer')!.provenance[0].facts).not.toMatch(/^Peter Martin/);
  });
 });
 
@@ -215,5 +226,11 @@ describe('Technical ratings (SYNTHETIC)',()=>{
   expect(rating).toBeCloseTo((1+osc)/2,12);
   expect(values('techrating',up,{ratingsUse:'Moving averages'},'rating').at(-1)).toBeCloseTo(1,12);
   expect(values('techrating',up,{ratingsUse:'Oscillators'},'rating').at(-1)).toBeCloseTo(osc,12);
+ });
+ it('bars needed follow the group choice: Oscillators alone are ready at 50, any choice with moving averages at 200',()=>{
+  expect(indicatorWarmupBars('techrating' as never,{ratingsUse:'Oscillators'})).toBe(50);
+  expect(indicatorWarmupBars('techrating' as never,{ratingsUse:'Moving averages'})).toBe(200);expect(indicatorWarmupBars('techrating' as never,{})).toBe(200);
+  const up=fromCloses(Array.from({length:80},(_,i)=>50+i+0.01*i*i));
+  expect(values('techrating',up,{ratingsUse:'Oscillators'},'rating').findIndex(value=>value!==null)+1).toBe(50);
  });
 });

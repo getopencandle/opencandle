@@ -28,7 +28,7 @@
       "path": "dist/chunk-UNUVPQFW.js",
       "beforeSha256": "64b30329ebd75b5b1207ef3765d1ce8dffaf4c267d36ded3d9290e588249ddea",
       "magnetSha256": "ffd29906030d486cfbb5f1ee390bd04191fb095146a2bb1bf0bf672179c3dc1d",
-      "afterSha256": "9fbab6422578634073cd9bf5ecf12462b2ee0beff5bf6e8e64f5604a387529f2",
+      "afterSha256": "9d54f510b42215345574eed085a6ec65007b1a36f396301c319dd8952df8cb1a",
       "compat5Sha256": "78660487c57cf594f405d14c67ab3e18f4fe6b1dc6046fbb29a86e12bb74fb39",
       "compat2Sha256": "f57e1e36beb7e7b94cd6d56785ceef920ec3768c1522e04bc186cc54a707b67e",
       "compat3Sha256": "8b885d94eb3c82f0976e5ed9cf26b937dd8ea3999ceac61145a10374be92c6ee",
@@ -533,6 +533,21 @@
           "id": "drawing-fixes-price-label-text",
           "before": "    const [ax, ay] = pts[0];\n    const priceStr = formatPriceTag(a.price);",
           "after": "    const [ax, ay] = pts[0];\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a price note and a price label write their price with the drawing's own price text (lvPriceTag: the instrument tick decimals) when the model has one. */\n    const priceStr = typeof d.lvPriceTag === \"function\" ? d.lvPriceTag() : formatPriceTag(a.price);"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-latest",
+          "before": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;",
+          "after": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0])) return null;\n  /*! LarryVision LV-VELA-DRAWING-FIXES-1: an anchor inside the latest bar's own period is drawn on that bar too. */\n  const lvLast = times.length - 1;\n  if (ms >= times[lvLast]) return ms > times[lvLast] && ms - times[lvLast] < interval ? lvLast : null;"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-from",
+          "before": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,",
+          "after": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the open time of the loaded bar whose own period contains a time (a time drawn on a finer interval, also inside the latest bar), or the time itself; lvIntervalMs is the bar interval of the chart the projector was made for. Drawings that compute from a start bar (Anchored VWAP, Fixed range volume profile, Regression trend) read it; barsInRange itself is unchanged. */\n    lvContainingBarOpen: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? time : coords.times[bar];\n    },\n    lvIntervalMs: coords.intervalMs,"
+        },
+        {
+          "id": "drawing-fixes-connected-segments",
+          "before": "    for (const s of g.segments) {\n      this.stroke(ctx, d.style, () => {\n        ctx.moveTo(s[0], s[1]);\n        ctx.lineTo(s[2], s[3]);\n      });\n    }\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: connected segments (a curve, arc, brush, path or polyline) are stroked as one path with round joins, so a dashed or dotted style runs on along the line instead of restarting on every short piece, and joins have no notches or dark overlaps with a translucent colour. */\n    const lvChains = [];\n    for (const s of g.segments) {\n      const chain = lvChains[lvChains.length - 1];\n      const end = chain ? chain[chain.length - 1] : null;\n      if (end && Math.abs(end[0] - s[0]) < 1e-6 && Math.abs(end[1] - s[1]) < 1e-6) chain.push([s[2], s[3]]);\n      else lvChains.push([[s[0], s[1]], [s[2], s[3]]]);\n    }\n    ctx.save();\n    ctx.lineJoin = \"round\";\n    this.stroke(ctx, d.style, () => {\n      for (const c of lvChains) {\n        ctx.moveTo(c[0][0], c[0][1]);\n        for (let i = 1; i < c.length; i += 1) ctx.lineTo(c[i][0], c[i][1]);\n      }\n    });\n    ctx.restore();\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count"
         }
       ],
       "compat6Sha256": "5c51a1550598872e4c012a49dc24f72040679a588313c0037aa1715c7926579e",
@@ -543,13 +558,14 @@
       "compat11Sha256": "a811be74b66f20100a058bc67d4f46345f8359f2ed2d02ddd438b23061650eb2",
       "harmonicSha256": "f8a90c6160097cfc249ece860a195ecc132edd841cb8750152d0bfda641f7774",
       "drawingFixesSha256": "0ed0a8d0a909cb54c0097e5d157e641efa4761dfb03cacebb39ecc1995c499f3",
-      "drawingFixes2Sha256": "1832fff6359c0d292becf089f4d3372e2e014439a9ad79afc941cbf804a4f9e5"
+      "drawingFixes2Sha256": "1832fff6359c0d292becf089f4d3372e2e014439a9ad79afc941cbf804a4f9e5",
+      "drawingFixes3Sha256": "9fbab6422578634073cd9bf5ecf12462b2ee0beff5bf6e8e64f5604a387529f2"
     },
     {
       "path": "dist/index.cjs",
       "beforeSha256": "e608c8c9052a7502340523a7dce7309b1677b4249f860a37da346df284dfb2e6",
       "magnetSha256": "f05474fbaf0728408c3cb06d8d8a9291058587269126db5344e1b5ef63a69b93",
-      "afterSha256": "213a1d88f64b1a52f1e476b460896df606e104a78eea2620de3ac46f56bcd0c2",
+      "afterSha256": "1b3e1fdf890aa4cd8b2fb951910c048b160226f66a698b4ca5da935a6ced99cf",
       "compat5Sha256": "a61b4b9d1a3567c69fb48430e993c4e948d34257866a28523d927e001228d25d",
       "compat2Sha256": "375157034d41882241c2578570d4a942cbbd9b119935e6956db1c66d36785cf2",
       "compat3Sha256": "ba56a926c162cac2be4eee22e43390aba7281bdb3927c1cf84b71d1f6331fcd9",
@@ -1054,6 +1070,21 @@
           "id": "drawing-fixes-price-label-text",
           "before": "    const [ax, ay] = pts[0];\n    const priceStr = formatPriceTag(a.price);",
           "after": "    const [ax, ay] = pts[0];\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a price note and a price label write their price with the drawing's own price text (lvPriceTag: the instrument tick decimals) when the model has one. */\n    const priceStr = typeof d.lvPriceTag === \"function\" ? d.lvPriceTag() : formatPriceTag(a.price);"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-latest",
+          "before": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;",
+          "after": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0])) return null;\n  /*! LarryVision LV-VELA-DRAWING-FIXES-1: an anchor inside the latest bar's own period is drawn on that bar too. */\n  const lvLast = times.length - 1;\n  if (ms >= times[lvLast]) return ms > times[lvLast] && ms - times[lvLast] < interval ? lvLast : null;"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-from",
+          "before": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,",
+          "after": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the open time of the loaded bar whose own period contains a time (a time drawn on a finer interval, also inside the latest bar), or the time itself; lvIntervalMs is the bar interval of the chart the projector was made for. Drawings that compute from a start bar (Anchored VWAP, Fixed range volume profile, Regression trend) read it; barsInRange itself is unchanged. */\n    lvContainingBarOpen: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? time : coords.times[bar];\n    },\n    lvIntervalMs: coords.intervalMs,"
+        },
+        {
+          "id": "drawing-fixes-connected-segments",
+          "before": "    for (const s of g.segments) {\n      this.stroke(ctx, d.style, () => {\n        ctx.moveTo(s[0], s[1]);\n        ctx.lineTo(s[2], s[3]);\n      });\n    }\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: connected segments (a curve, arc, brush, path or polyline) are stroked as one path with round joins, so a dashed or dotted style runs on along the line instead of restarting on every short piece, and joins have no notches or dark overlaps with a translucent colour. */\n    const lvChains = [];\n    for (const s of g.segments) {\n      const chain = lvChains[lvChains.length - 1];\n      const end = chain ? chain[chain.length - 1] : null;\n      if (end && Math.abs(end[0] - s[0]) < 1e-6 && Math.abs(end[1] - s[1]) < 1e-6) chain.push([s[2], s[3]]);\n      else lvChains.push([[s[0], s[1]], [s[2], s[3]]]);\n    }\n    ctx.save();\n    ctx.lineJoin = \"round\";\n    this.stroke(ctx, d.style, () => {\n      for (const c of lvChains) {\n        ctx.moveTo(c[0][0], c[0][1]);\n        for (let i = 1; i < c.length; i += 1) ctx.lineTo(c[i][0], c[i][1]);\n      }\n    });\n    ctx.restore();\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count"
         }
       ],
       "compat6Sha256": "facefcf26f266502b741d514f4a84d07587156d1b06f30cb2aeae0fa8e580a67",
@@ -1064,13 +1095,14 @@
       "compat11Sha256": "2a1f7ddea446018389bc3f8e2a1e10ca5b22a89b9ae132ecb81fcc94a93cf297",
       "harmonicSha256": "170dec9d75dc2bb1fde9df14ddeff47273c2eb8f048ee4b0afce8f9b0f29b4d8",
       "drawingFixesSha256": "a41d90a24f830bf4bb0fc973d92bef9e2511f4631d8afa7092609c463db4b4b1",
-      "drawingFixes2Sha256": "c7232d90502bb86eeef7829d4052c7159b80fb612b7a18ba2049bb928f891cfc"
+      "drawingFixes2Sha256": "c7232d90502bb86eeef7829d4052c7159b80fb612b7a18ba2049bb928f891cfc",
+      "drawingFixes3Sha256": "213a1d88f64b1a52f1e476b460896df606e104a78eea2620de3ac46f56bcd0c2"
     },
     {
       "path": "dist/vela.global.js",
       "beforeSha256": "af13eed0ce6660f7dca4e6c7c4468933104873d2600844eb5c7854cb3434918b",
       "magnetSha256": "81e752710562d99b825f5bbc3a46da92a9fac0defea146d3d5374d10e7883745",
-      "afterSha256": "d8c0be892b8ee04df60dadeec5cb55342887eccb9fb28f181322b51c824371ee",
+      "afterSha256": "75caad79e71aefb4a4b3a57834fbc48b34d2e861786755f4d22d023fcc86533d",
       "compat5Sha256": "68098454960beed5141588abf9ca0314646b4c76203fb2e4c359c327618179b8",
       "compat2Sha256": "68f9318c3455cad36b356edba135f05ba93aec63973251a85df31778acd7fc71",
       "compat3Sha256": "45e8da41dad1d7c72cffc30d5af4f082550b8acb64bec84bde56dc98215b5919",
@@ -1575,6 +1607,21 @@
           "id": "drawing-fixes-price-label-text",
           "before": "      const [ax, ay] = pts[0];\n      const priceStr = formatPriceTag(a.price);",
           "after": "      const [ax, ay] = pts[0];\n      /*! LarryVision LV-VELA-DRAWING-FIXES-1: a price note and a price label write their price with the drawing's own price text (lvPriceTag: the instrument tick decimals) when the model has one. */\n      const priceStr = typeof d.lvPriceTag === \"function\" ? d.lvPriceTag() : formatPriceTag(a.price);"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-latest",
+          "before": "    if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;",
+          "after": "    if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0])) return null;\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: an anchor inside the latest bar's own period is drawn on that bar too. */\n    const lvLast = times.length - 1;\n    if (ms >= times[lvLast]) return ms > times[lvLast] && ms - times[lvLast] < interval ? lvLast : null;"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-from",
+          "before": "      barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,",
+          "after": "      barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,\n      /*! LarryVision LV-VELA-DRAWING-FIXES-1: the open time of the loaded bar whose own period contains a time (a time drawn on a finer interval, also inside the latest bar), or the time itself; lvIntervalMs is the bar interval of the chart the projector was made for. Drawings that compute from a start bar (Anchored VWAP, Fixed range volume profile, Regression trend) read it; barsInRange itself is unchanged. */\n      lvContainingBarOpen: (time) => {\n        const bar = lvBarContainingLogical(coords, time);\n        return bar === null ? time : coords.times[bar];\n      },\n      lvIntervalMs: coords.intervalMs,"
+        },
+        {
+          "id": "drawing-fixes-connected-segments",
+          "before": "      for (const s of g.segments) {\n        this.stroke(ctx, d.style, () => {\n          ctx.moveTo(s[0], s[1]);\n          ctx.lineTo(s[2], s[3]);\n        });\n      }\n    }\n    /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count",
+          "after": "      /*! LarryVision LV-VELA-DRAWING-FIXES-1: connected segments (a curve, arc, brush, path or polyline) are stroked as one path with round joins, so a dashed or dotted style runs on along the line instead of restarting on every short piece, and joins have no notches or dark overlaps with a translucent colour. */\n      const lvChains = [];\n      for (const s of g.segments) {\n        const chain = lvChains[lvChains.length - 1];\n        const end = chain ? chain[chain.length - 1] : null;\n        if (end && Math.abs(end[0] - s[0]) < 1e-6 && Math.abs(end[1] - s[1]) < 1e-6) chain.push([s[2], s[3]]);\n        else lvChains.push([[s[0], s[1]], [s[2], s[3]]]);\n      }\n      ctx.save();\n      ctx.lineJoin = \"round\";\n      this.stroke(ctx, d.style, () => {\n        for (const c of lvChains) {\n          ctx.moveTo(c[0][0], c[0][1]);\n          for (let i = 1; i < c.length; i += 1) ctx.lineTo(c[i][0], c[i][1]);\n        }\n      });\n      ctx.restore();\n    }\n    /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count"
         }
       ],
       "compat6Sha256": "3708227bbb41f7aeccdb40abd6c6595d3db65da4056b5773136a0892c649c742",
@@ -1585,13 +1632,14 @@
       "compat11Sha256": "62d0d9bccc54ec79431b7e19467903ddd609d969e729b7aa5aa17074c224cd56",
       "harmonicSha256": "3bb435fc2ec726e494a3ef52a529b01d84e5f712a03a3bf7215f5ce8b3aebc0e",
       "drawingFixesSha256": "dee5a5fa95a064278547c7700edca8fa774d0cf52bdf7e6fc2358fd3368744d2",
-      "drawingFixes2Sha256": "ba40beb77205b217433f86949bc58742e084b2936ba92a5662ab1b74f724e62f"
+      "drawingFixes2Sha256": "ba40beb77205b217433f86949bc58742e084b2936ba92a5662ab1b74f724e62f",
+      "drawingFixes3Sha256": "d8c0be892b8ee04df60dadeec5cb55342887eccb9fb28f181322b51c824371ee"
     },
     {
       "path": "dist/widget.cjs",
       "beforeSha256": "47cec7b06ea1cb2aaca2cf28a12554945ba143b834ea8bdfc13c62b39b68796c",
       "magnetSha256": "7863e6ee0bcfced3d57aaa277c8ece0fb87aa49823874500e1e768d6be7e85e4",
-      "afterSha256": "9af326fdfc608649e4c10653c3c83db18e3b49b226ae39e8570660deecf93c10",
+      "afterSha256": "d5534e40bf1a381e217ca8411a743fccf36cf643b9c893664970323875203f6a",
       "compat5Sha256": "9917e94181e2b1c550cbc8394091ac6df55a2483b2d6c9543e08a60706effcd4",
       "compat2Sha256": "275a628694fa04f6cb87b15fa108edb6480df12c6f8a4401276b99ee0eab25bf",
       "compat3Sha256": "7a1b641565dcc0737735a7ca1e3ebc2a1b5d938fbc7baec176e8616e1f63ecd9",
@@ -2096,6 +2144,21 @@
           "id": "drawing-fixes-price-label-text",
           "before": "    const [ax, ay] = pts[0];\n    const priceStr = formatPriceTag(a.price);",
           "after": "    const [ax, ay] = pts[0];\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a price note and a price label write their price with the drawing's own price text (lvPriceTag: the instrument tick decimals) when the model has one. */\n    const priceStr = typeof d.lvPriceTag === \"function\" ? d.lvPriceTag() : formatPriceTag(a.price);"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-latest",
+          "before": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;",
+          "after": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0])) return null;\n  /*! LarryVision LV-VELA-DRAWING-FIXES-1: an anchor inside the latest bar's own period is drawn on that bar too. */\n  const lvLast = times.length - 1;\n  if (ms >= times[lvLast]) return ms > times[lvLast] && ms - times[lvLast] < interval ? lvLast : null;"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-from",
+          "before": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,",
+          "after": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the open time of the loaded bar whose own period contains a time (a time drawn on a finer interval, also inside the latest bar), or the time itself; lvIntervalMs is the bar interval of the chart the projector was made for. Drawings that compute from a start bar (Anchored VWAP, Fixed range volume profile, Regression trend) read it; barsInRange itself is unchanged. */\n    lvContainingBarOpen: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? time : coords.times[bar];\n    },\n    lvIntervalMs: coords.intervalMs,"
+        },
+        {
+          "id": "drawing-fixes-connected-segments",
+          "before": "    for (const s of g.segments) {\n      this.stroke(ctx, d.style, () => {\n        ctx.moveTo(s[0], s[1]);\n        ctx.lineTo(s[2], s[3]);\n      });\n    }\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: connected segments (a curve, arc, brush, path or polyline) are stroked as one path with round joins, so a dashed or dotted style runs on along the line instead of restarting on every short piece, and joins have no notches or dark overlaps with a translucent colour. */\n    const lvChains = [];\n    for (const s of g.segments) {\n      const chain = lvChains[lvChains.length - 1];\n      const end = chain ? chain[chain.length - 1] : null;\n      if (end && Math.abs(end[0] - s[0]) < 1e-6 && Math.abs(end[1] - s[1]) < 1e-6) chain.push([s[2], s[3]]);\n      else lvChains.push([[s[0], s[1]], [s[2], s[3]]]);\n    }\n    ctx.save();\n    ctx.lineJoin = \"round\";\n    this.stroke(ctx, d.style, () => {\n      for (const c of lvChains) {\n        ctx.moveTo(c[0][0], c[0][1]);\n        for (let i = 1; i < c.length; i += 1) ctx.lineTo(c[i][0], c[i][1]);\n      }\n    });\n    ctx.restore();\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count"
         }
       ],
       "compat6Sha256": "2bb3c6c6133f95443e9b3729092631f413d7484d34313a9afe0d5e6a984ee1f5",
@@ -2106,13 +2169,14 @@
       "compat11Sha256": "25631fcfcf85089a7290a37660ebcf56807d8a02e78e6c692e6fe817cdc5b392",
       "harmonicSha256": "0ec5061588720c4c753809aa9fda432ec6c3fdebb9fdfc49f50710a67e202d02",
       "drawingFixesSha256": "9f534db47cd66a2e347dd7b3dcaea5f43271c52f12ae5f01e0343adfb3fd5c22",
-      "drawingFixes2Sha256": "189e7c3f67519a8f9a2854acfe444904b46841cfc490417b7b34a73045987a77"
+      "drawingFixes2Sha256": "189e7c3f67519a8f9a2854acfe444904b46841cfc490417b7b34a73045987a77",
+      "drawingFixes3Sha256": "9af326fdfc608649e4c10653c3c83db18e3b49b226ae39e8570660deecf93c10"
     },
     {
       "path": "dist/workspace.cjs",
       "beforeSha256": "90c92a50bb3df3bdbe5d2b4f5c45574e133b9da0bd6ffd31396371ba80ace9cf",
       "magnetSha256": "a6750895efacd0a9b7d81717d64eaf764aad0681898ad6d9ce2332675ddfe997",
-      "afterSha256": "8ceaf77f6d9aaff9bcdbdcbdd75d28d720885a63d06ddd84e5ec5c59511b4fa7",
+      "afterSha256": "10bdf7398721c11480c0737060041f463a7b4b7f15de62f4692caff5cca25ca3",
       "compat5Sha256": "5884ef9682bef18bb696e976d8c07ee10cee0e5167c60be3f92ce2ccd7ccecbd",
       "compat2Sha256": "3222ad85239d4a889cbca4d30d58d42264397d30f609fe16d994a7283b6b539b",
       "compat3Sha256": "328fb0216092e32ee71c83453357053c44050e841fdbdb03fe8f4903ac7dc51b",
@@ -2617,6 +2681,21 @@
           "id": "drawing-fixes-price-label-text",
           "before": "    const [ax, ay] = pts[0];\n    const priceStr = formatPriceTag(a.price);",
           "after": "    const [ax, ay] = pts[0];\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: a price note and a price label write their price with the drawing's own price text (lvPriceTag: the instrument tick decimals) when the model has one. */\n    const priceStr = typeof d.lvPriceTag === \"function\" ? d.lvPriceTag() : formatPriceTag(a.price);"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-latest",
+          "before": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0]) || !(ms < times[times.length - 1])) return null;",
+          "after": "  if (!Array.isArray(times) || times.length < 2 || !(interval > 0) || !(ms > times[0])) return null;\n  /*! LarryVision LV-VELA-DRAWING-FIXES-1: an anchor inside the latest bar's own period is drawn on that bar too. */\n  const lvLast = times.length - 1;\n  if (ms >= times[lvLast]) return ms > times[lvLast] && ms - times[lvLast] < interval ? lvLast : null;"
+        },
+        {
+          "id": "drawing-fixes-bar-containing-from",
+          "before": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,",
+          "after": "    barsInRange: barsInRange ? (from, to) => barsInRange(from, to) : void 0,\n    /*! LarryVision LV-VELA-DRAWING-FIXES-1: the open time of the loaded bar whose own period contains a time (a time drawn on a finer interval, also inside the latest bar), or the time itself; lvIntervalMs is the bar interval of the chart the projector was made for. Drawings that compute from a start bar (Anchored VWAP, Fixed range volume profile, Regression trend) read it; barsInRange itself is unchanged. */\n    lvContainingBarOpen: (time) => {\n      const bar = lvBarContainingLogical(coords, time);\n      return bar === null ? time : coords.times[bar];\n    },\n    lvIntervalMs: coords.intervalMs,"
+        },
+        {
+          "id": "drawing-fixes-connected-segments",
+          "before": "    for (const s of g.segments) {\n      this.stroke(ctx, d.style, () => {\n        ctx.moveTo(s[0], s[1]);\n        ctx.lineTo(s[2], s[3]);\n      });\n    }\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count",
+          "after": "    /*! LarryVision LV-VELA-DRAWING-FIXES-1: connected segments (a curve, arc, brush, path or polyline) are stroked as one path with round joins, so a dashed or dotted style runs on along the line instead of restarting on every short piece, and joins have no notches or dark overlaps with a translucent colour. */\n    const lvChains = [];\n    for (const s of g.segments) {\n      const chain = lvChains[lvChains.length - 1];\n      const end = chain ? chain[chain.length - 1] : null;\n      if (end && Math.abs(end[0] - s[0]) < 1e-6 && Math.abs(end[1] - s[1]) < 1e-6) chain.push([s[2], s[3]]);\n      else lvChains.push([[s[0], s[1]], [s[2], s[3]]]);\n    }\n    ctx.save();\n    ctx.lineJoin = \"round\";\n    this.stroke(ctx, d.style, () => {\n      for (const c of lvChains) {\n        ctx.moveTo(c[0][0], c[0][1]);\n        for (let i = 1; i < c.length; i += 1) ctx.lineTo(c[i][0], c[i][1]);\n      }\n    });\n    ctx.restore();\n  }\n  /** Paint an info line: the segment + a midpoint box reading price change, percent, and bar count"
         }
       ],
       "compat6Sha256": "ee951df24a1336146a7954c61c5ad7a35d86fde8d10a827e9e91b3dbcb84c6f9",
@@ -2627,7 +2706,8 @@
       "compat11Sha256": "a3478af97eba8e29cf73607db75ecf41344a46dcc33e2088f63d874d1da27fa8",
       "harmonicSha256": "9b88ce6e21e13b200532e5d4899946eeb5c5c5029bfffdcf22085f9a0f068128",
       "drawingFixesSha256": "11364af0daa7a396e22516f36e4236008276315ce45b48b2f8456968fbd9a6e1",
-      "drawingFixes2Sha256": "9aed1c5e5de77397c40f83e56c3ab1d4882e396197dfd369fa5a1928b292c08b"
+      "drawingFixes2Sha256": "9aed1c5e5de77397c40f83e56c3ab1d4882e396197dfd369fa5a1928b292c08b",
+      "drawingFixes3Sha256": "8ceaf77f6d9aaff9bcdbdcbdd75d28d720885a63d06ddd84e5ec5c59511b4fa7"
     },
     {
       "path": "dist/index.d.ts",
@@ -2652,7 +2732,8 @@
       "compat11Sha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
       "harmonicSha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
       "drawingFixesSha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
-      "drawingFixes2Sha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb"
+      "drawingFixes2Sha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb",
+      "drawingFixes3Sha256": "155d4d8169446f57b300bad12a334987bb9ab8238b299890ab3771aae28aedbb"
     },
     {
       "path": "dist/index.d.cts",
@@ -2677,7 +2758,8 @@
       "compat11Sha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
       "harmonicSha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
       "drawingFixesSha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
-      "drawingFixes2Sha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19"
+      "drawingFixes2Sha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19",
+      "drawingFixes3Sha256": "88b07643e9b34ca729ecfae4fb6cd96bfa6b137c86d70e20d40d86e3cd92dc19"
     },
     {
       "path": "dist/contributions-BY3zSYiZ.d.ts",
@@ -2707,7 +2789,8 @@
       "compat11Sha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
       "harmonicSha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
       "drawingFixesSha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
-      "drawingFixes2Sha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91"
+      "drawingFixes2Sha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91",
+      "drawingFixes3Sha256": "153d0d311749b9ed079fbd9a6eedfc06051bf027f9e64efeef1c96a32a751f91"
     },
     {
       "path": "dist/contributions-DOm40g5-.d.cts",
@@ -2737,7 +2820,8 @@
       "compat11Sha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
       "harmonicSha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
       "drawingFixesSha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
-      "drawingFixes2Sha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be"
+      "drawingFixes2Sha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be",
+      "drawingFixes3Sha256": "99665eb60512b107b7ca4b96cfbd3f8fc6e68075daabbc07907b6b4cefc029be"
     }
   ],
   "redistribution": [

@@ -11,8 +11,8 @@ const settings=(offset=0):IndicatorInstanceSettings=>({id:'independent-sma',kind
 it('accounts for real dense positive-offset output before admitting the aggregate batch',()=>{
  const single=settings(5),result=calculateIndicator('sma',bars,single.inputs),rendered=renderIndicatorPresentation(single,result,bars),points=(rendered.output.series![0] as LineLikeSeries).points;
  expect(points.map(point=>point.value)).toEqual([null,null,null,null,null,3,9]);
- //16*(100001 points *2 coordinates +1 original numeric value) >2m slots.
- const large=Array.from({length:16},(_,index)=>({...settings(100000),id:'bounded-'+index}));expect(()=>assertIndicatorBatchBudget(large,1)).toThrow(/limit/i);
+ //40*(100001 points *2 coordinates +1 original numeric value) >8m slots (the batch cap, four single-study caps).
+ const large=Array.from({length:40},(_,index)=>({...settings(100000),id:'bounded-'+index}));expect(()=>assertIndicatorBatchBudget(large,1)).toThrow(/limit/i);
 });
 it('multiplies existing CSS alpha by opacity and preserves saved colors without rewriting',()=>{
  expect(indicatorColorOpacity('#ff000080',50)).toBe('rgba(255,0,0,0.25098039215686274)');expect(indicatorColorOpacity('rgba(20,40,60,0.4)',25)).toBe('rgba(20,40,60,0.1)');expect(indicatorColorOpacity('transparent',50)).toBe('rgba(0,0,0,0)');expect(indicatorColorOpacity('#AbC',100)).toBe('#AbC');

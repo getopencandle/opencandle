@@ -8,6 +8,7 @@ import {INDGAPS2_INDICATOR_IDS,knoxvilleDivergence,moonPhaseTime,moonPhasesBetwe
 import {indicatorAlertBlock} from '../../src/domain/indicator-alertability';
 import {LV_INDICATOR_PALETTE,LV_HISTOGRAM_COLORS,LV_GUIDE_COLOR,INDICATOR_KINDS,defaultIndicatorPresentation,indicatorDefaults,type IndicatorInstanceSettings} from '../../src/chart/indicator-settings';
 import {renderIndicatorPresentation} from '../../src/chart/indicator-presentation';
+import {defaultPlotStyle} from '../../src/chart/indicator-rendering';
 import type {Bar} from '../../src/domain/types';
 
 const DAY=86400,HOUR=3600,D0=19700*DAY,N=null;// D0 is a Saturday (UTC), so the pivot calendar infers UTC for every prefix.
@@ -67,14 +68,32 @@ describe('Gaps (SYNTHETIC)',()=>{
  });
 });
 
-describe('Bollinger bars (SYNTHETIC)',()=>{
- it('hollow when close > open, colored by close against the prior close',()=>{
-  // 0: O10 C11 (first bar: 11 >= open 10 -> up; hollow). 1: O12 C11.5 (>= 11 -> up; filled). 2: O11 C11.2 (< 11.5 -> down; hollow).
-  const bars=[bar(0,10,11.5,9.5,11),bar(1,12,12.5,11,11.5),bar(2,11,11.5,10.8,11.2)],result=calc('bbars',bars);
-  close(plot(result,'up'),[1,1,0]);close(plot(result,'down'),[0,0,1]);
-  expect(result.marks!.candles).toEqual([{index:0,plot:'up',hollow:true},{index:1,plot:'up'},{index:2,plot:'down',hollow:true}]);
-  const {output}=renderIndicatorPresentation(settings('bbars'),result,bars,{resolution:'1D'}),candles=output.series!.find(series=>series.kind==='candle') as {bars:unknown[];barColors:{color:string;borderColor:string}[]};
-  expect(candles.bars).toHaveLength(3);expect(candles.barColors.map(row=>[row.color,row.borderColor])).toEqual([['rgba(0,0,0,0)','#3fbf8f'],['#3fbf8f','#3fbf8f'],['rgba(0,0,0,0)','#e8605a']]);
+describe('Bollinger bars (SYNTHETIC; John Bollinger, 2024)',()=>{
+ // 0: O10 C11 (up body). 1: O12 C11.5 (down body; the close is above the prior close 11, which no longer matters).
+ // 2: O11 C11 (close = open: no body, all tails).
+ const bars=[bar(0,10,11.5,9.5,11),bar(1,12,12.5,11,11.5),bar(2,11,11.5,10.8,11)];
+ it('body by close against open, tails on every bar, no prior-close rule and no hollow bodies',()=>{
+  const result=calc('bbars',bars);
+  close(plot(result,'up'),[1,0,0]);close(plot(result,'down'),[0,1,0]);close(plot(result,'tails'),[1,1,1]);
+  expect(catalogDefinition('bbars')!.plots.map(row=>row.label)).toEqual(['Up body','Down body','Tails']);
+  expect(result.marks!.candles).toEqual([{index:0,plot:'up'},{index:1,plot:'down'},{index:2,plot:'tails'}]);// one row per bar: its body color, or Tails for a doji
+ });
+ it('draws uniform-width bars: a tails block from high to low under a body block from open to close',()=>{
+  const {output}=renderIndicatorPresentation(settings('bbars'),calc('bbars',bars),bars,{resolution:'1D'});
+  const candles=output.series!.filter(series=>series.kind==='candle') as unknown as {bars:{open:number;high:number;low:number;close:number}[];barColors:{color:string;wickColor:string}[]}[];
+  expect(candles).toHaveLength(2);const [tails,bodies]=candles;
+  // Tails: body = the full range (open = high, close = low), so the wick never shows thinner than the bar.
+  expect(tails.bars.map(row=>[row.open,row.high,row.low,row.close])).toEqual([[11.5,11.5,9.5,9.5],[12.5,12.5,11,11],[11.5,11.5,10.8,10.8]]);
+  expect(new Set(tails.barColors.map(row=>row.color))).toEqual(new Set(['#6e9cf2']));
+  // Bodies: high and low collapse onto the body; the doji bar has no body row.
+  expect(bodies.bars.slice(0,2).map(row=>[row.open,row.high,row.low,row.close])).toEqual([[10,11,10,11],[12,12,11.5,11.5]]);expect(Number.isNaN(bodies.bars[2].close)).toBe(true);
+  expect(bodies.barColors.slice(0,2).map(row=>row.color)).toEqual(['#3fbf8f','#e8605a']);
+ });
+ it('a saved instance with the earlier Up close and Down close style rows loads, and its colors color the bodies',()=>{
+  const saved={...settings('bbars'),plots:{up:{...defaultPlotStyle('bbars' as IndicatorId,'up',0),color:'#112233'},down:{...defaultPlotStyle('bbars' as IndicatorId,'down',1),color:'#445566'}}} as IndicatorInstanceSettings;
+  const {output}=renderIndicatorPresentation(saved,calc('bbars',bars),bars,{resolution:'1D'});
+  const bodies=(output.series!.filter(series=>series.kind==='candle') as unknown as {barColors:{color:string}[]}[])[1];
+  expect(bodies.barColors.slice(0,2).map(row=>row.color)).toEqual(['#112233','#445566']);
  });
 });
 
@@ -115,6 +134,14 @@ describe('Rob Booker pivots (SYNTHETIC)',()=>{
 });
 
 describe('Rob Booker - Knoxville divergence (SYNTHETIC)',()=>{
+ it('one divergence signals once, not on every other bar',()=>{
+  // Closes 10 11 12 20 15 21 21.5 22 22.5 23 23.5 24 (high = close + 0.5), RSI held at 80, momentum 1. Bar 3 (high 20.5) is the
+  // swing high; bars 5, 7, 9 and 11 each qualify against it (the bar between each is right after a qualifying bar). It signals
+  // on bar 5 only.
+  const closes=[10,11,12,20,15,21,21.5,22,22.5,23,23.5,24],bars=closes.map((c,i)=>bar(i,c,c+0.5,c-0.5,c)),rsi=closes.map(()=>80);
+  const out=knoxvilleDivergence(bars,rsi,150,1);
+  close(out.bearish,[N,0,0,0,0,1,0,0,0,0,0,0]);expect(out.lines.map(row=>[row.from.index,row.to.index])).toEqual([[3,5]]);expect(out.markers).toHaveLength(1);
+ });
  it('a higher high with lower momentum after an overbought RSI draws a KD line from the earlier swing high',()=>{
   // Highs 5 6 10 7 6 8 11, lows one below. Bar 2 is a swing high (10 >= 6 and 7). Bar 6: 11 > 8, nothing above 11 back to bar 2,
   // momentum(1) close 8.5 - 8 = 0.5 < bar 2's 10 - 6 = 4, and the RSI peaked at 75 in 2..6 -> bearish on bar 6. Bar 5: 8 > 6 but
@@ -156,6 +183,12 @@ describe('Auto fib extension and Auto pitchfork (SYNTHETIC; repaint like the ref
  it('extension levels C + ratio x (B - A) from C to the newest bar',()=>{
   const result=calc('autofibext',bars,inputs);
   close(plot(result,'e0'),[N,N,15,15]);close(plot(result,'e5'),[N,N,20,20]);close(plot(result,'e1'),[N,N,25,25]);close(plot(result,'e1618'),[N,N,31.18,31.18]);
+ });
+ it('C must be a completed pivot: with only three zig zag points (C still forming) nothing is drawn',()=>{
+  // Closes 10 20 15: zig zag 10@0, 20@1 and the forming 15@2, so there is no confirmed C yet.
+  const three=flat([10,20,15]);
+  expect(plot(calc('autofibext',three,inputs),'e0').every(value=>value===null)).toBe(true);
+  expect(plot(calc('autopitchfork',three,inputs),'median').every(value=>value===null)).toBe(true);
  });
  it('median from A through the B-C midpoint, tines through B and C',()=>{
   // Midpoint (1.5, 17.5): slope 7.5 / 1.5 = 5. Median 10 + 5i; upper (B) 20 + 5(i - 1); lower (C) 15 + 5(i - 2).

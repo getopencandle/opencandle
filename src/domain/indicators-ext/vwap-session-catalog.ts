@@ -34,20 +34,37 @@ export function intradayIntervalSeconds(resolution:string|null|undefined,name:st
 const exchangeZoneOf=(calendar:string|null|undefined)=>calendar==='us-equity'?'America/New_York':'UTC';
 
 // ---- Anchored VWAP ----
-const ANCHOR_TEXT=/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?$/;
-/** The instant (seconds) of "YYYY-MM-DD" or "YYYY-MM-DD HH:mm" read as a wall clock in `zone`; null for a blank anchor.
- *  A wall time skipped by a DST change resolves to the instant one offset later (OpenCandle-defined). */
+const ANCHOR_TEXT=/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?(Z)?)?$/;
+/** Legend and data notice of an instance that has no anchor yet (new instances wait for a click on the chart). */
+export const AVWAP_UNANCHORED_MESSAGE='Click a bar to set the anchor.';
+/** The instant (seconds) of "YYYY-MM-DD", "YYYY-MM-DD HH:mm" or "YYYY-MM-DD HH:mm:ss" read as a wall clock in `zone` (a
+ *  trailing Z reads the time in UTC instead); null for a blank anchor (not anchored yet). A wall time skipped by a DST change
+ *  resolves to the instant one offset later and a repeated one to its first occurrence (OpenCandle-defined). */
 export function anchorInstant(text:string,zone:string):number|null{
  if(typeof text!=='string'||text.length>40)throw new Error('The anchor must be YYYY-MM-DD or YYYY-MM-DD HH:mm.');
  const trimmed=text.trim();if(!trimmed)return null;
- const match=ANCHOR_TEXT.exec(trimmed);if(!match)throw new Error('The anchor must be YYYY-MM-DD or YYYY-MM-DD HH:mm (blank anchors at the first loaded bar).');
- const [y,m,d,h,mi]=[1,2,3,4,5].map(k=>Number(match[k]??0));
- if(m<1||m>12||d<1||d>31||h>23||mi>59)throw new Error('The anchor date or time is out of range.');
- const date=new Date(0);date.setUTCFullYear(y,m-1,d);date.setUTCHours(h,mi,0,0);
+ const match=ANCHOR_TEXT.exec(trimmed);if(!match)throw new Error('The anchor must be YYYY-MM-DD or YYYY-MM-DD HH:mm, or click a bar to set it.');
+ const [y,m,d,h,mi,se]=[1,2,3,4,5,6].map(k=>Number(match[k]??0));
+ if(m<1||m>12||d<1||d>31||h>23||mi>59||se>59)throw new Error('The anchor date or time is out of range.');
+ const date=new Date(0);date.setUTCFullYear(y,m-1,d);date.setUTCHours(h,mi,se,0);
  if(date.getUTCMonth()!==m-1||date.getUTCDate()!==d)throw new Error('The anchor date does not exist.');
- const wall=date.getTime()/1000,clock=tradingSessionClock(zone),offsetAt=(time:number)=>{const local=clock(time);return local.day*DAY+local.minute*60-Math.floor(time/60)*60;};
+ const wall=date.getTime()/1000;if(match[7])return wall;
+ const clock=tradingSessionClock(zone),offsetAt=(time:number)=>{const local=clock(time);return local.day*DAY+local.minute*60-Math.floor(time/60)*60;};
  const first=wall-offsetAt(wall);return wall-offsetAt(first);
 }
+/** The anchor text of the bar opening at `time` (a clicked bar): its wall clock in `zone`, "YYYY-MM-DD HH:mm" plus ":ss" when
+ *  the bar opens off the minute. anchorInstant reads it back to the same instant, so the anchor bar is that bar; a bar in the
+ *  hour a DST change repeats, whose wall time would read back to the first occurrence, is written in UTC with a Z. */
+export function anchorTextAt(time:number,zone:string):string{
+ if(!finite(time))throw new Error('The anchor bar has no time.');
+ const local=tradingSessionClock(zone)(time),seconds=((Math.floor(time)%60)+60)%60,date=new Date(local.day*DAY*1000),pad=(value:number)=>String(value).padStart(2,'0');
+ const text=`${String(date.getUTCFullYear()).padStart(4,'0')}-${pad(date.getUTCMonth()+1)}-${pad(date.getUTCDate())} ${pad(Math.floor(local.minute/60))}:${pad(local.minute%60)}`;
+ const wall=seconds?text+':'+pad(seconds):text;
+ if(anchorInstant(wall,zone)===Math.floor(time))return wall;
+ const utc=new Date(Math.floor(time)*1000).toISOString();return utc.slice(0,10)+' '+utc.slice(11,seconds?19:16)+'Z';
+}
+/** The exchange clock the anchor text of a chart is read in (New York for US equities, UTC otherwise). */
+export const anchorZoneOf=(calendar:string|null|undefined)=>exchangeZoneOf(calendar);
 /** End (exclusive, seconds) of the chart bar opening at `time` for the declared interval; null when the length is unknown. */
 function barEnd(time:number,resolution:string|null|undefined):number|null{
  let spec:ReturnType<typeof parseInterval>;try{if(typeof resolution!=='string')return null;spec=parseInterval(resolution);}catch{return null;}
@@ -58,10 +75,11 @@ function barEnd(time:number,resolution:string|null|undefined):number|null{
  const date=new Date(time*1000);date.setUTCMonth(date.getUTCMonth()+spec.multiplier);return date.getTime()/1000;
 }
 /** The anchor bar: the bar holding the anchor instant, or the first bar after it when the instant falls in a gap; the first
- *  bar at or after the instant when the bar length is unknown; bar 0 for a blank anchor; bars.length when no loaded bar is
- *  at or after it. It depends only on the bar's own time, so a prefix finds the same bar (no look-ahead). */
+ *  bar at or after the instant when the bar length is unknown; bars.length (nothing drawn) for a blank anchor or when no
+ *  loaded bar is at or after it. It depends only on the bar's own time, so a prefix finds the same bar (no look-ahead), and
+ *  older history loaded before the anchor never moves it. */
 export function anchoredVwapIndex(bars:readonly Bar[],anchor:number|null,resolution:string|null|undefined):number{
- if(anchor===null)return 0;
+ if(anchor===null)return bars.length;
  for(let i=0;i<bars.length;i++){const time=bars[i].time,end=barEnd(time,resolution);if(end===null?time>=anchor:anchor<end)return i;}
  return bars.length;
 }
@@ -113,7 +131,10 @@ const SESSION_KEYS=['tokyo','london','newYork'] as const;
 // ---- Opening range breakout ----
 export interface OpeningRangeSeries {high:NumericSeries;low:NumericSeries;mid:NumericSeries;up1:NumericSeries;up2:NumericSeries;down1:NumericSeries;down2:NumericSeries;breakUp:NumericSeries;breakDown:NumericSeries}
 /**
- * Crabel's opening range: the high and low of the bars that open in the first `duration` minutes of the session. The lines
+ * Opening range in the common charting convention: the high and low of the bars that open in the first `duration` minutes of
+ * the session, and a breakout as the first close beyond that range. This is not Crabel's original method, which enters by
+ * stop orders one "stretch" (the 10-day average of |open - nearest extreme of the day|) beyond the opening, with no wait for a
+ * close; no stretch is used here. The lines
  * start on the first session bar opening at or after the range end (the range bars have all closed by then, so no look-ahead)
  * and run to the session end. Midpoint = (high + low) / 2; targets = high + k x range and low - k x range (k = 1, 2).
  * Breakout up (down) is the first close of the session above the high (below the low) after the range, valued at that close.
@@ -137,10 +158,16 @@ export const ORB_DURATIONS=['5','15','30','60'] as const;
 export const ORB_SESSIONS=['Exchange','Custom'] as const;
 
 // ---- Relative volume ----
-/** RVOL = volume / SMA(volume, length) (OpenCandle-defined (common practice): the ratio has no single author). `high` is 1
- *  when RVOL >= threshold, else 0; a zero average leaves the bar unavailable. */
+/** RVOL = volume / the SMA of the `length` bars with volume before the current bar (the cited rule: volume against the average
+ *  of the preceding bars; OpenCandle-defined (common practice) beyond that, the ratio has no single author). The current bar is
+ *  left out of its own baseline, so a spike is measured against normal volume and RVOL is not capped at `length`. `ma` is that
+ *  same prior-bars average, so the line and the ratio agree. `high` is 1 when RVOL >= threshold, else 0; a bar with missing
+ *  volume or a zero average is unavailable. */
 export function relativeVolumeSeries(volumes:readonly (number|null)[],sma:(values:readonly (number|null)[],period:number)=>NumericSeries,length:number,threshold:number):{volume:NumericSeries;ma:NumericSeries;rvol:NumericSeries;high:NumericSeries}{
- const volume=volumes.map(value=>finite(value)&&value>=0?value:null),ma=sma(volume,length);
+ const volume=volumes.map(value=>finite(value)&&value>=0?value:null),rolling=sma(volume,length),ma=nulls(volume.length);
+ // The SMA at the latest earlier bar with volume covers exactly the `length` valid volumes before bar i.
+ let prior:number|null=null;
+ for(let i=0;i<volume.length;i++){if(volume[i]===null)continue;ma[i]=prior;const mean=rolling[i];prior=finite(mean)?mean:null;}
  const rvol=volume.map((value,i)=>{const mean=ma[i];return value!==null&&finite(mean)&&mean>0?value/mean:null;});
  return {volume,ma,rvol,high:rvol.map(value=>value===null?null:value>=threshold?1:0)};
 }
@@ -149,16 +176,17 @@ const BAND_INPUTS:CatalogInput[]=[1,2,3].flatMap(n=>[{key:`band${n}Enabled`,titl
 const definitions:readonly CatalogDefinition[]=[
  {id:'avwap',name:'Anchored VWAP',acronym:'AVWAP',overlay:true,requiresVolume:true,
   keywords:['anchored','VWAP','AVWAP','volume weighted average price','anchor','bands','standard deviation'],
-  inputs:[{key:'anchor',title:'Anchor date and time (YYYY-MM-DD HH:mm, blank = first bar)',type:'string',defval:''},SOURCE,
+  inputs:[{key:'anchor',title:'Anchor date and time (YYYY-MM-DD HH:mm, or click a bar on the chart)',type:'string',defval:''},SOURCE,
    {key:'bandMode',title:'Bands calculation mode',type:'string',defval:'Standard Deviation',options:['Standard Deviation','Percentage']},...BAND_INPUTS],
   plots:[{id:'vwap',label:'VWAP',color:C.blue,width:2},
    ...[1,2,3].flatMap(n=>[{id:`upper${n}`,label:`Upper band ${n}`,color:[C.green,C.amber,C.pink][n-1],width:1},{id:`lower${n}`,label:`Lower band ${n}`,color:[C.green,C.amber,C.pink][n-1],width:1}])],
   provenance:[{url:LV+'vwap-berkowitz-logue-noser-1988',facts:'Berkowitz, Logue and Noser, "The Total Cost of Transactions on the NYSE", Journal of Finance 43(1), 1988: VWAP = sum(price x volume) / sum(volume) over the period.'},
    {url:LV+'anchored-vwap-shannon-2023',facts:'B. Shannon, Maximum Trading Gains with Anchored VWAP (2023): the VWAP is started at a chosen anchor bar (an event such as a high, low, gap or earnings) and accumulated from there.'}],
-  unknownDefaults:['A blank anchor starts at the first loaded bar (OpenCandle-defined): it is the only anchor that needs no event choice and never moves when a new bar arrives. The anchor text is read in the exchange clock (New York for US equities, UTC otherwise).','Source hlc3, band mode Standard Deviation, band 1 on at 1 and bands 2 and 3 off at 2 and 3 are OpenCandle-defined defaults matching the VWAP built-in. Colors are OpenCandle\'s own palette.'],
+  unknownDefaults:['The anchor is placed by the user (OpenCandle-defined): adding the study asks for a click on the anchor bar, which stores the open time of that bar, and an instance without an anchor draws nothing until one is set. There is no automatic anchor, so loading older history, new bars and interval changes never move it. The anchor text is read in the exchange clock (New York for US equities, UTC otherwise).','Source hlc3, band mode Standard Deviation, band 1 on at 1 and bands 2 and 3 off at 2 and 3 are OpenCandle-defined defaults matching the VWAP built-in. Colors are OpenCandle\'s own palette.'],
   policies:['The anchor bar is the bar that holds the anchor instant, or the first bar after it when the instant falls between bars. Bars before the anchor are unavailable; an anchor after the last loaded bar draws nothing yet.','Sums run exactly as the VWAP built-in sums its session. A bar with a missing price or volume is unavailable and the sums continue past it.','Standard Deviation bands use the volume-weighted population deviation around the anchored VWAP (West\'s weighted update). Percentage bands are VWAP +/- |VWAP| x multiplier / 100. A band that is switched off is unavailable.','Every value reads only the anchor bar through the current bar.'],
-  calculate({bars,source,num,str,bool,chart}){
-   const from=anchoredVwapIndex(bars,anchorInstant(str('anchor'),exchangeZoneOf(chart?.calendar)),chart?.resolution);
+  calculate({bars,source,num,str,bool,chart,diagnostic}){
+   const anchor=anchorInstant(str('anchor'),exchangeZoneOf(chart?.calendar));if(anchor===null)diagnostic?.(AVWAP_UNANCHORED_MESSAGE);
+   const from=anchoredVwapIndex(bars,anchor,chart?.resolution);
    const mode=str('bandMode');if(mode!=='Standard Deviation'&&mode!=='Percentage')throw new Error('Anchored VWAP bands support only the Standard Deviation and Percentage modes.');
    return {...anchoredVwapSeries(bars,source,from,mode,[1,2,3].map(n=>({enabled:bool(`band${n}Enabled`),multiplier:num(`band${n}Multiplier`)})))};},
   warmup:()=>1,work:count=>count*24},
@@ -187,7 +215,7 @@ const definitions:readonly CatalogDefinition[]=[
   plots:[{id:'high',label:'OR high',color:C.up,width:2},{id:'low',label:'OR low',color:C.down,width:2},{id:'mid',label:'OR midpoint',color:C.guide,width:1},
    {id:'up1',label:'Target up x1',color:C.green,width:1},{id:'up2',label:'Target up x2',color:C.green,width:1},{id:'down1',label:'Target down x1',color:C.pink,width:1},{id:'down2',label:'Target down x2',color:C.pink,width:1},
    {id:'breakUp',label:'Breakout up',kind:'cross',color:C.up,width:4},{id:'breakDown',label:'Breakout down',kind:'cross',color:C.down,width:4}],
-  provenance:[{url:LV+'opening-range-breakout-crabel-1990',facts:'T. Crabel, Day Trading with Short Term Price Patterns and Opening Range Breakout (1990): the opening range is the high and low of the first minutes of the session; a move beyond it is a breakout in that direction.'}],
+  provenance:[{url:LV+'opening-range-breakout-crabel-1990',facts:'T. Crabel, Day Trading with Short Term Price Patterns and Opening Range Breakout (1990): the opening range is the high and low of the first minutes of the session; a move beyond it is a breakout in that direction. The original entries are stop orders one "stretch" (the 10-day average of the distance from the open to the nearer extreme of the day) beyond the opening; this study is the common charting convention instead (the range of the first N minutes and the first close beyond it, no stretch).'}],
   unknownDefaults:['Session Exchange = 09:30-16:00 New York for US equities and 00:00-24:00 UTC for 24/7 and other sources (the 0.8.1 session VWAP rule); duration 5 minutes, midpoint on, targets off are OpenCandle-defined defaults. Custom uses the start, end and time zone fields.','Targets at the range high plus 1 and 2 ranges and the range low minus 1 and 2 ranges, a breakout as the first close beyond the range (once per side per session), and markers at that close are OpenCandle-defined. Colors are OpenCandle\'s own palette.'],
   policies:['The range covers the session bars that open in its first Duration minutes; on a chart interval longer than the duration it is the whole first bar. Lines start on the first session bar opening at or after the range end, so they appear only once the range is complete, and stop at the session end.','Breakout up (down) is valued at the close of the first bar after the range that closes above the high (below the low), once per side per session. Every value reads only the current session bars up to the current bar.','Intraday charts only: on daily and longer intervals the study shows a notice and no values. A session with no bar inside the range window, or a range bar with an invalid price, draws no lines.'],
   calculate({bars,str,bool,chart,diagnostic}){
@@ -205,9 +233,9 @@ const definitions:readonly CatalogDefinition[]=[
   plots:[{id:'volume',label:'Volume',kind:'histogram',color:C.blue,width:1},{id:'ma',label:'Volume MA',color:C.amber,width:1},{id:'rvol',label:'RVOL',color:C.violet,width:1,visible:false},{id:'high',label:'Above threshold',color:C.guide,width:1,visible:false}],
   pointPalette:{plot:'volume',colors:[C.pink],labels:['Above threshold'],state:values=>values('high').map(value=>value===1?0:null)},
   provenance:[{url:LV+'relative-volume-common-practice',facts:'Relative volume (RVOL) = volume / average volume of the preceding bars; a ratio of 2 or more is commonly read as unusual activity. The ratio has no single author.'}],
-  unknownDefaults:['OpenCandle-defined (common practice): SMA average including the current bar, length 20, threshold 2.0, the highlight color and the hidden RVOL and Above threshold plots (shown in the legend, data window and alerts; turn them on in the Style tab).'],
-  policies:['RVOL = volume / SMA(volume, MA length); Above threshold is 1 when RVOL is at or above the threshold, else 0. A volume bar is colored with the Above threshold color when RVOL reaches the threshold.','A bar with missing volume is unavailable at that bar only; the average resumes from the bars with volume. A zero average leaves the bar unavailable. Every value reads only the current and earlier bars.'],
+  unknownDefaults:['OpenCandle-defined (common practice): a simple average of the previous MA length bars with volume (the current bar is not part of its own baseline), length 20, threshold 2.0, the highlight color and the hidden RVOL and Above threshold plots (shown in the legend, data window and alerts; turn them on in the Style tab).'],
+  policies:['RVOL = volume / the simple average volume of the MA length bars before it; Volume MA plots that same average. Above threshold is 1 when RVOL is at or above the threshold, else 0. A volume bar is colored with the Above threshold color when RVOL reaches the threshold.','A bar with missing volume is unavailable at that bar only; the average skips it and resumes from the bars with volume. A zero average leaves the bar unavailable. Every value reads only the current and earlier bars.'],
   calculate({bars,tk,num}){return relativeVolumeSeries(bars.map(bar=>bar.volume),tk.sma,num('length'),num('threshold'));},
-  warmup:value=>value('length'),work:count=>count*12},
+  warmup:value=>value('length')+1,work:count=>count*12},
 ];
 export const VWAP_SESSION_INDICATORS:readonly CatalogDefinition[]=definitions;

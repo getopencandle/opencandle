@@ -33,7 +33,7 @@ export function comparisonLegendButtons(hidden:boolean):LegendButton[]{
 
 export const LEGEND_TOGGLER_QA_ID='legend-toggler';
 
-export type LegendMoreItemId='alert'|'addIndicator'|'favorite'|'visualOrder'|'intervals'|'moveTo'|'pinToScale'|'copy'|'hide'|'remove'|'objectTree'|'settings';
+export type LegendMoreItemId='anchor'|'alert'|'addIndicator'|'favorite'|'visualOrder'|'intervals'|'moveTo'|'pinToScale'|'copy'|'hide'|'remove'|'objectTree'|'settings';
 export type LegendAvailability={state:'enabled'}|{state:'unavailable';reason:string};
 /** One More menu row; the indicator menu and the main series menu (src/ui/series-legend-menu.ts) share the shape. */
 export type MoreRow<Id extends string>=
@@ -60,8 +60,8 @@ export interface LegendMoreContext {
  /** Side of the main price scale; absent = right. A shared indicator rides it, so its Pin to scale wording follows. */
  mainScaleSide?:'left'|'right';
  /** Per-item route switches. Alert, addIndicator, favorite, intervals, moveTo, hide, remove, objectTree and settings default
- * to connected; visualOrder and copy default to not connected: the host connects them (visualOrder when the
- * indicator shares its pane, copy through indicatorClipboard). */
+ * to connected; visualOrder, copy and anchor default to not connected: the host connects them (visualOrder when the
+ * indicator shares its pane, copy through indicatorClipboard, anchor for Anchored VWAP). */
  routes?:Partial<Record<LegendMoreItemId,boolean>>;
  /** Move to and Pin to scale exist only when the indicator is "not linked to series".
  * True marks Move to and Pin to scale unavailable. The "Visual order" condition ("indicator on the same pane")
@@ -97,6 +97,8 @@ export function legendMoreMenu(_kind:LegendKind,context:LegendMoreContext):Legen
   // The remove-from-favorites wording (the fact records only "Add this indicator to favorites").
   item('favorite',context.favorite?'Remove this indicator from favorites':'Add this indicator to favorites',state('favorite')),
   sep(4),
+  // Anchored VWAP only: re-enter the click-a-bar placement (the host connects it for that kind).
+  item('anchor','Change anchor',state('anchor',REASONS.route,false)),
   item('visualOrder','Visual order',state('visualOrder',REASONS.visualOrder,false)),
   item('intervals','Visibility on intervals',state('intervals')),
   item('moveTo','Move to',context.linkedToSeries?{state:'unavailable',reason:REASONS.linked}:state('moveTo')),
@@ -112,8 +114,8 @@ export function legendMoreMenu(_kind:LegendKind,context:LegendMoreContext):Legen
  ];
  // The object tree menu is the legend menu minus Object tree and the separator before it.
  const shown=context.surface==='objectTree'?rows.filter(row=>!(row.kind==='item'&&row.id==='objectTree')&&!(row.kind==='separator'&&row.id==='separator-13')):rows;
- // Rows without a connected behavior (Visual order, Copy) are hidden, not shown disabled; separators never lead, trail or double up.
- return tidyMoreRows(shown.filter(row=>!(row.kind==='item'&&(row.id==='visualOrder'||row.id==='copy')&&row.availability.state==='unavailable')));
+ // Rows without a connected behavior (Visual order, Copy, Change anchor) are hidden, not shown disabled; separators never lead, trail or double up.
+ return tidyMoreRows(shown.filter(row=>!(row.kind==='item'&&(row.id==='visualOrder'||row.id==='copy'||row.id==='anchor')&&row.availability.state==='unavailable')));
 }
 
 // Indicator Visual order. OpenCandle stacks its indicators in their list order (the

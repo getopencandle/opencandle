@@ -47,5 +47,7 @@ it('counts every enabled numeric/native pair and fill before the batch allocates
  expect(()=>assertIndicatorBatchBudget([{kind:'vwap',inputs,presentation}],100000)).toThrow(/limit/);
  expect(assertIndicatorBatchBudget([{kind:'vwap',inputs,presentation,offset:76918}],4).numericSlots).toBe(2000000);
  expect(()=>assertIndicatorBatchBudget([{kind:'vwap',inputs,presentation,offset:76919}],4)).toThrow(/limit/);
- expect(()=>assertIndicatorBatchBudget([{kind:'vwap',inputs,presentation,offset:76918},{kind:'vwap',inputs:{},offset:0}],4)).toThrow(/limit/);
+ // The batch holds four single-study caps; one more study past them is refused.
+ const full=Array.from({length:4},()=>({kind:'vwap' as const,inputs,presentation,offset:76918}));expect(assertIndicatorBatchBudget(full,4).numericSlots).toBe(8000000);
+ expect(()=>assertIndicatorBatchBudget([...full,{kind:'vwap',inputs:{},offset:0}],4)).toThrow(/limit/);
 });

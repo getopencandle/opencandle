@@ -57,15 +57,15 @@ describe('additional indicator controls: independent rational oracles',()=>{
  it('pins exact aggregate numeric-slot boundaries before any output is allocated',()=>{
   const inputs={length:1,smoothingType:'SMA+BB',smoothingLength:1,smoothingMultiplier:2},items=[{kind:'sma' as const,inputs,presentation:defaultIndicatorPresentation('sma')},{kind:'sma' as const,inputs},{kind:'sma' as const,inputs}];
   expect(indicatorEstimatedSlots('sma',50000,inputs,items[0].presentation)).toBe(800000);expect(items.reduce((sum,item)=>sum+indicatorEstimatedSlots(item.kind,50000,item.inputs,item.presentation),0)).toBe(2000000);
-  // The repaired SMA work estimate now rejects this old slot-only boundary first.
-  expect(()=>assertIndicatorBatchBudget(items,50000)).toThrow(/estimated operations/);
-  const slotBoundary=Array.from({length:8},()=>({kind:'ema' as const,inputs:{length:1},offset:65000}));
-  expect(assertIndicatorBatchBudget(slotBoundary,40000).numericSlots).toBe(2000000);
-  expect(()=>assertIndicatorBatchBudget([{...slotBoundary[0],plots:{ema:{...style,trackPrice:true}}},...slotBoundary.slice(1)],40000)).toThrow(/2000001\/2000000/);
+  // The repaired SMA work estimate now rejects this old slot-only boundary first (the batch cap is four single-study caps).
+  expect(()=>assertIndicatorBatchBudget([...items,...items,...items,...items],50000)).toThrow(/estimated operations/);
+  const slotBoundary=Array.from({length:32},()=>({kind:'ema' as const,inputs:{length:1},offset:65000}));
+  expect(assertIndicatorBatchBudget(slotBoundary,40000).numericSlots).toBe(8000000);
+  expect(()=>assertIndicatorBatchBudget([{...slotBoundary[0],plots:{ema:{...style,trackPrice:true}}},...slotBoundary.slice(1)],40000)).toThrow(/8000001\/8000000/);
   expect(()=>assertIndicatorBatchBudget([{kind:'sma',inputs:{length:1,smoothingType:'WMA',smoothingLength:50000}}],100000)).toThrow(/operations/);
   expect(indicatorEstimatedSlots('sma',1,{length:1},undefined,'render',{},100000)).toBe(200003);
   expect(indicatorEstimatedSlots('sma',1,{length:1},undefined,'calculation',{},100000)).toBe(1);
-  expect(()=>assertIndicatorBatchBudget(Array.from({length:10},()=>({kind:'sma' as const,inputs:{length:1},offset:100000})),1)).toThrow(/numeric slots/);
+  expect(()=>assertIndicatorBatchBudget(Array.from({length:40},()=>({kind:'sma' as const,inputs:{length:1},offset:100000})),1)).toThrow(/numeric slots/);
  });
  it('preserves legacy frozen identity while rejecting partially upgraded and disabled plot tuples',async()=>{
   const source:AlertSourceSnapshot={kind:'indicator',indicator:'sma',instanceId:'one',snapshotId:'old',plotId:'sma',inputs:{length:2,source:'close'},inputBasis:'standard-ohlc',transformId:'standard'};

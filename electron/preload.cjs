@@ -72,6 +72,8 @@ contextBridge.exposeInMainWorld('lv', Object.freeze({
   startupOpenSymbols: () => invoke('lv:startup:open-symbols'),
   // Opens the fixed "where I got stuck" issue form in the browser (the address lives in main).
   reportStuck: () => invoke('lv:help:report-stuck'),
+  // Opens a source link of a tool's About panel; main accepts only http/https addresses on the reference hosts.
+  openReferenceLink: value => invoke('lv:help:open-reference', value),
   alpacaKeyStatus:() => invoke('lv:alpaca:key-status'),
   saveAlpacaKey: value => invoke('lv:alpaca:key-save', value),
   clearAlpacaKey: () => invoke('lv:alpaca:key-clear'),

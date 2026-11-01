@@ -44,7 +44,8 @@ export const CHART_PATTERNS:readonly ChartPatternInfo[]=Object.freeze([
 export const chartPatternInfo=(id:ChartPatternId):ChartPatternInfo=>CHART_PATTERNS.find(row=>row.id===id)!;
 
 export interface Pivot {index:number;price:number;kind:'high'|'low'}
-export interface ChartPatternHit {id:ChartPatternId;direction:ChartDirection;name:string;/** Confirmation bar (the bar that confirmed the last pivot). */confirmedAt:number;pivots:readonly Pivot[];/** Boundary lines (trend lines or neckline) as pivot-to-pivot segments, extended to confirmedAt. */lines:readonly {from:{index:number;price:number};to:{index:number;price:number}}[]}
+export interface ChartPatternHit {id:ChartPatternId;direction:ChartDirection;name:string;/** Reporting bar: the bar that confirmed the last pivot, or with breakout confirmation the breakout bar. */confirmedAt:number;pivots:readonly Pivot[];/** Boundary lines (trend lines or neckline) as pivot-to-pivot segments, extended to confirmedAt. */lines:readonly {from:{index:number;price:number};to:{index:number;price:number}}[];
+ /** With breakout confirmation: the side the confirming close broke (a rectangle or triangle can break either way). */breakout?:'up'|'down'}
 
 const finite=(value:unknown):value is number=>typeof value==='number'&&Number.isFinite(value);
 
@@ -149,35 +150,70 @@ function test(id:ChartPatternId,p:readonly Pivot[],tol:number,at:number,bars:rea
  return hit(q,[extended(h1,h2,at),extended(l1,l2,at)]);
 }
 
-/** Patterns with a breakout level (Bulkowski: a top is confirmed by a close below the valley or neckline, a bottom by a close
- *  above the peak or neckline). The other shapes are reported unconfirmed (on their last pivot) in both modes. */
-export const BREAKOUT_PATTERNS:ReadonlySet<ChartPatternId>=new Set<ChartPatternId>(['doubletop','doublebottom','tripletop','triplebottom','headshoulders','invheadshoulders']);
-export interface ChartPatternOptions {/** Report breakout patterns on their confirming close instead of on the last pivot. Default false. */breakout?:boolean}
-/** The breakout rule of a found breakout pattern: the level a close must cross at bar k, the extreme a close must not pass
- *  first (the pattern's highest high for a top, lowest low for a bottom: past it the shape is void) and the window. */
-function breakoutRule(hit:ChartPatternHit):{top:boolean;level:(k:number)=>number;invalid:number;window:number}{
+/** Every chart pattern has a breakout rule (Edwards and Magee, "Technical Analysis of Stock Trends", and Bulkowski,
+ *  "Encyclopedia of Chart Patterns": a pattern counts only once a close breaks its boundary; ChartSchool, "Flag, Pennant":
+ *  "a break above resistance signals that the previous advance has resumed"). Without breakout confirmation every shape is
+ *  reported unconfirmed, on the bar that confirms its last pivot. */
+export const BREAKOUT_PATTERNS:ReadonlySet<ChartPatternId>=new Set<ChartPatternId>(CHART_PATTERNS.map(row=>row.id));
+export interface ChartPatternOptions {/** Report patterns on their confirming breakout close instead of on the last pivot. Default false. */breakout?:boolean}
+/** The breakout rule of a found pattern, as levels at bar k: a close above `up` (below `down`) breaks out upward
+ *  (downward); a close above `voidUp` (below `voidDown`) first voids the pattern. `window` is the pattern's own span. */
+interface BreakoutRule {up?:(k:number)=>number;down?:(k:number)=>number;voidUp?:(k:number)=>number;voidDown?:(k:number)=>number;window:number}
+const lineAt=(a:Pivot,b:Pivot)=>{const slope=b.index===a.index?0:(b.price-a.price)/(b.index-a.index);return (k:number)=>b.price+slope*(k-b.index);};
+function breakoutRule(hit:ChartPatternHit):BreakoutRule{
  const p=hit.pivots,top=hit.direction==='bearish',window=p[p.length-1].index-p[0].index;
- const extreme=top?Math.max(...p.filter(row=>row.kind==='high').map(row=>row.price)):Math.min(...p.filter(row=>row.kind==='low').map(row=>row.price));
- if(hit.id==='doubletop'||hit.id==='doublebottom'){const level=p[1].price;return {top,level:()=>level,invalid:extreme,window};}
- if(hit.id==='tripletop'||hit.id==='triplebottom'){const level=top?Math.min(p[1].price,p[3].price):Math.max(p[1].price,p[3].price);return {top,level:()=>level,invalid:extreme,window};}
- // Head and shoulders: the neckline through the two troughs (peaks), continued.
- const [a,b]=[p[1],p[3]],slope=b.index===a.index?0:(b.price-a.price)/(b.index-a.index);
- return {top,level:k=>b.price+slope*(k-b.index),invalid:extreme,window};
+ const flat=(value:number)=>()=>value;
+ // Tops and bottoms: the extreme a close must not pass first (the pattern's highest high for a top, lowest low for a bottom).
+ const extreme=()=>top?Math.max(...p.filter(row=>row.kind==='high').map(row=>row.price)):Math.min(...p.filter(row=>row.kind==='low').map(row=>row.price));
+ const reversal=(level:(k:number)=>number):BreakoutRule=>top?{down:level,voidUp:flat(extreme()),window}:{up:level,voidDown:flat(extreme()),window};
+ switch(hit.id){
+  // Bulkowski: a double top is confirmed by a close below the valley between the tops (a bottom mirrors it).
+  case 'doubletop':case 'doublebottom':return reversal(flat(p[1].price));
+  // ChartSchool, "Triple Top": "the lowest of the intermittent lows marks this key support level".
+  case 'tripletop':case 'triplebottom':return reversal(flat(top?Math.min(p[1].price,p[3].price):Math.max(p[1].price,p[3].price)));
+  // Head and shoulders: the neckline through the two troughs (peaks), continued.
+  case 'headshoulders':case 'invheadshoulders':return reversal(lineAt(p[1],p[3]));
+  case 'bullflag':case 'bullpennant':case 'bearflag':case 'bearpennant':{
+   // Pole p0-e1, consolidation e1, r1, e2, r2. Confirmed by a close beyond the consolidation's far line (ChartSchool:
+   // the break resumes the pole's move). Void on a close past the other line or past the pole midpoint (the detection
+   // already requires the consolidation to hold the midpoint); OpenCandle-defined void rule.
+   const [p0,e1,r1,e2,r2]=p,bull=hit.direction==='bullish',mid=(p0.price+e1.price)/2;
+   if(bull){const upper=lineAt(e1,e2),lower=lineAt(r1,r2);return {up:upper,voidDown:k=>Math.max(lower(k),mid),window};}
+   const upper=lineAt(r1,r2),lower=lineAt(e1,e2);return {down:lower,voidUp:k=>Math.min(upper(k),mid),window};
+  }
+  case 'cuphandle':case 'invcuphandle':{
+   // Rim a, bottom b, rim c, handle d. Cup and handle: a close above the higher rim (O'Neil's pivot is the handle high;
+   // the rim is the ChartSchool resistance and the stricter level). Void on a close below the handle low. Inverted: mirror.
+   const [a,,c,d]=p;
+   return hit.id==='cuphandle'?{up:flat(Math.max(a.price,c.price)),voidDown:flat(d.price),window}:{down:flat(Math.min(a.price,c.price)),voidUp:flat(d.price),window};
+  }
+  default:{
+   // Four-pivot shapes: the line through the two highs and the line through the two lows.
+   const highs=p.filter(row=>row.kind==='high'),lows=p.filter(row=>row.kind==='low'),upper=lineAt(highs[0],highs[1]),lower=lineAt(lows[0],lows[1]);
+   // ChartSchool, "Rising Wedge": confirmed only when the lower support line breaks; the falling wedge mirrors it. A close
+   // through the other line first voids it (OpenCandle-defined).
+   if(hit.id==='risingwedge')return {down:lower,voidUp:upper,window};
+   if(hit.id==='fallingwedge')return {up:upper,voidDown:lower,window};
+   // Rectangle and triangle (ChartSchool: neutral until a breakout on a closing basis): the first close outside either line.
+   return {up:upper,down:lower,window};
+  }
+ }
 }
-/** The breakout bar of a breakout pattern, or null: the first bar after the last pivot whose close crosses the level, within
- *  `window` bars (the pattern's own width, an OpenCandle choice) and before any close past the pattern's extreme. Reported
- *  no earlier than the bar the pattern became known (`confirmedAt`). Reads only bars up to the bar it returns. */
-function breakoutBar(bars:readonly Bar[],hit:ChartPatternHit):number|null{
+/** The breakout of a found pattern, or null: the first bar after the last pivot whose close crosses a breakout level, within
+ *  `window` bars (the pattern's own width, an OpenCandle choice) and before any close past a void level. Reported no
+ *  earlier than the bar the pattern became known (`confirmedAt`). Reads only bars up to the bar it returns. */
+function breakoutBar(bars:readonly Bar[],hit:ChartPatternHit):{at:number;side:'up'|'down'}|null{
  const rule=breakoutRule(hit),last=hit.pivots[hit.pivots.length-1].index,end=Math.min(bars.length-1,last+rule.window);
  for(let k=last+1;k<=end;k++){
   const close=bars[k].close;if(!finite(close))continue;
-  if(rule.top?close>rule.invalid:close<rule.invalid)return null;
-  if(rule.top?close<rule.level(k):close>rule.level(k))return Math.max(k,hit.confirmedAt);
+  if(rule.voidUp&&close>rule.voidUp(k)||rule.voidDown&&close<rule.voidDown(k))return null;
+  if(rule.up&&close>rule.up(k))return {at:Math.max(k,hit.confirmedAt),side:'up'};
+  if(rule.down&&close<rule.down(k))return {at:Math.max(k,hit.confirmedAt),side:'down'};
  }
  return null;
 }
 /** Every hit of the chosen patterns, in reporting-bar order. tolerancePercent is a percent (2 = 2%). With
- *  options.breakout a breakout pattern is reported on its breakout bar (confirmedAt) or not at all. */
+ *  options.breakout a pattern is reported on its breakout bar (confirmedAt, with the broken side) or not at all. */
 export function detectChartPatterns(bars:readonly Bar[],ids:readonly ChartPatternId[],pivotLength:number,tolerancePercent:number,options:ChartPatternOptions={}):ChartPatternHit[]{
  const tol=tolerancePercent/100,out:ChartPatternHit[]=[],seen:Pivot[]=[];
  for(const event of zigzagEvents(bars,pivotLength)){
@@ -186,8 +222,8 @@ export function detectChartPatterns(bars:readonly Bar[],ids:readonly ChartPatter
   for(const id of ids){
    const found=test(id,seen,tol,event.confirmedAt,bars);if(!found)continue;
    if(!options.breakout||!BREAKOUT_PATTERNS.has(id)){out.push(found);continue;}
-   const at=breakoutBar(bars,found);if(at===null)continue;
-   out.push(test(id,found.pivots,tol,at,bars)!);
+   const broke=breakoutBar(bars,found);if(broke===null)continue;
+   out.push({...test(id,found.pivots,tol,broke.at,bars)!,breakout:broke.side});
   }
  }
  // Breakouts can arrive after later pivots; a stable sort keeps the pivot order within one bar.

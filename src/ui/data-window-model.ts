@@ -95,13 +95,21 @@ export function chartHeaderChange(current:{close:number}|null|undefined,previous
 }
 /** The zone the Data window reads, through the shared chart-time-text precedence (an unknown zone is UTC). */
 const zone=(timezone:string)=>chartTimeZone(timezone);
+// One formatter per zone: building an Intl.DateTimeFormat costs far more than formatting with it (Table view formats
+// thousands of rows).
+const dateFormats=new Map<string,Intl.DateTimeFormat>();
+function dateFormatFor(shown:string):Intl.DateTimeFormat{
+ let format=dateFormats.get(shown);
+ if(!format){format=new Intl.DateTimeFormat('en-US',{timeZone:shown,weekday:'short',day:'2-digit',month:'short',year:'2-digit'});if(dateFormats.size>=64)dateFormats.clear();dateFormats.set(shown,format);}
+ return format;
+}
 /** Weekday + date in the chart date format, e.g. Ddd DD Mon 'YY.
  * The chart Date format (scales.dateFormat) applies; the weekday is always shown. The
  * factory format-3 keeps the two-digit day ("Sat 04 Jul '26"). */
 export function formatDataWindowDate(seconds:number,timezone:string,dateFormat?:string):string{
  const shown=zone(timezone);
  if(dateFormat&&dateFormat!==DEFAULT_TIME_SCALE_SETTINGS.dateFormat){const text=formatTimeScaleDate(seconds*1000,shown,{dayOfWeek:true,dateFormat,timeHours:'24'});if(text!==null)return text;}
- const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:shown,weekday:'short',day:'2-digit',month:'short',year:'2-digit'}).formatToParts(new Date(seconds*1000)).map(part=>[part.type,part.value]));
+ const parts=Object.fromEntries(dateFormatFor(shown).formatToParts(new Date(seconds*1000)).map(part=>[part.type,part.value]));
  return parts.weekday+' '+parts.day+' '+parts.month+" '"+parts.year;
 }
 /** Intraday charts add a Time row in the chart time zone: the time of day of the shared chart-time-text

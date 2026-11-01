@@ -31,8 +31,9 @@ describe('finite-range arithmetic resource and caller contracts',()=>{
   expect(assertIndicatorBatchBudget([average],100000)).toEqual({operations:10800000,numericSlots:300000});
   // A new Volume carries the candle-direction palette (0.8.1): its recolor pass adds 4 operations per bar (+400000).
   expect(assertIndicatorBatchBudget([volume],100000)).toEqual({operations:12400000,numericSlots:600000});
-  expect(()=>assertIndicatorBatchBudget([average,average],100000)).toThrow(/21600000\/20000000/);
-  expect(()=>assertIndicatorBatchBudget([volume,volume],100000)).toThrow(/24800000\/20000000/);
+  // The whole batch may hold four single-study caps (80000000 operations).
+  expect(()=>assertIndicatorBatchBudget(Array.from({length:8},()=>average),100000)).toThrow(/86400000\/80000000/);
+  expect(()=>assertIndicatorBatchBudget(Array.from({length:7},()=>volume),100000)).toThrow(/86800000\/80000000/);
   expect(assertIndicatorBatchBudget(Array.from({length:16},()=>average),500)).toEqual({operations:864000,numericSlots:24000});
  });
 

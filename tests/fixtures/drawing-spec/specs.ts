@@ -132,7 +132,7 @@ function regression(from:number,to:number){
 const REG=regression(20,44);
 // Gann (W. D. Gann; Investopedia "Gann Fan" and "Gann Angles"): angles are written TIME x PRICE: 1x1 = 45 degrees, 1x2 = one
 // unit of time for two of price (63.75 degrees, steep), 2x1 = 26.25 degrees (shallow), up to 1x8 = 82.5 and 8x1 = 7.5 degrees.
-const GANN_FAN:[number,string][]=[[1/8,'8/1'],[1/4,'4/1'],[1/3,'3/1'],[1/2,'2/1'],[1,'1/1'],[2,'1/2'],[3,'1/3'],[4,'1/4'],[8,'1/8']];
+const GANN_FAN:[number,string][]=[[1/8,'8x1'],[1/4,'4x1'],[1/3,'3x1'],[1/2,'2x1'],[1,'1x1'],[2,'1x2'],[3,'1x3'],[4,'1x4'],[8,'1x8']];
 const GANN_RATIOS=[0,0.25,0.382,0.5,0.618,0.75,1];
 
 // ---------------------------------------------------------------- the specs
@@ -247,7 +247,7 @@ export const DRAWING_SPECS:readonly DrawingSpec[]=[
    labels:[...GANN_RATIOS.map(r=>({text:String(r),near:[A[0],A[1]+r*dp] as BP,tol:14})),{text:'1x1',near:B,tol:12},{text:'3x1',near:[B[0],A[1]+dp/3],tol:12},{text:'2x1',near:[B[0],A[1]+dp/2],tol:12},{text:'1x2',near:[A[0]+dt/2,B[1]],tol:12},{text:'1x3',near:[A[0]+dt/3,B[1]],tol:12}],
    custom:p=>p.curves.length>=1?[]:['no Gann arcs painted']} as DrawingSpec;}),
  (()=>{const A:BP=[25,250],B:BP=[33,550],slope=(B[1]-A[1])/(B[0]-A[0]);
-  return{id:'DW.GANN.GANN_FAN',type:'gannfan',anchorCount:[2,2],anchors:[A,B],source:'Gann fan (Investopedia "Gann Fan"): nine rays from the pivot; 1x1 through the second point; angles written time x price, so 1x2 (63.75 degrees) is twice as steep as 1x1 and 2x1 (26.25 degrees) half as steep, out to 1x8 (82.5) and 8x1 (7.5).',
+  return{id:'DW.GANN.GANN_FAN',type:'gannfan',anchorCount:[2,2],anchors:[A,B],source:'Gann fan (Investopedia "Gann Fan"): nine rays from the pivot; 1x1 through the second point; angles written time x price as on the Gann square, so 1x2 is twice as steep as 1x1 and 2x1 half as steep, out to 1x8 and 8x1 (slopes 63.43, 26.57, 82.87 and 7.13 degrees on an equal-unit scale; Gann quoted them as 63.75, 26.25, 82.5 and 7.5).',
    segments:GANN_FAN.map(([k])=>ray(A,[B[0],A[1]+k*slope*(B[0]-A[0])])),
    labels:GANN_FAN.map(([k,text])=>({text,near:[B[0],A[1]+k*slope*(B[0]-A[0])] as BP,tol:14}))} as DrawingSpec;})(),
  // ===== Patterns (Carney harmonics; Bulkowski chart patterns)
@@ -267,7 +267,7 @@ export const DRAWING_SPECS:readonly DrawingSpec[]=[
   labels:[{text:'0.618',at:mid(ABCD[0],ABCD[2])},{text:'1.272',at:mid(ABCD[1],ABCD[3])}],exactTexts:['A','B','C','D','0.618','1.272']},
  {id:'DW.PATTERN.TRIANGLE_PATTERN',type:'lvtrianglepattern',anchorCount:[4,4],anchors:[[23,700],[28,300],[33,600],[38,400]],source:'Bulkowski "Symmetrical Triangles": the zigzag A-B-C-D and both boundary lines A-C and B-D drawn to their apex (here bar 45.5, price 475).',
   segments:[...chain([[23,700],[28,300],[33,600],[38,400]]),seg([23,700],[45.5,475]),seg([28,300],[45.5,475])],exactTexts:['A','B','C','D'],fills:2},
- {id:'DW.PATTERN.THREE_DRIVES_PATTERN',type:'lvthreedrives',anchorCount:[6,6],anchors:DRIVES,source:'Three drives (Carney; Bulkowski): drives 1-2-3 with corrections A and B; correction ratios on start-A and 2-B diagonals, drive ratios on 1-2 and A-3 (0.618 / 1.272).',
+ {id:'DW.PATTERN.THREE_DRIVES_PATTERN',type:'lvthreedrives',anchorCount:[6,6],anchors:DRIVES,source:'Three drives (Carney; Bulkowski): drives 1-2-3 with corrections A and B; correction ratios on the start-A and A-B diagonals, drive ratios on 1-2 and 2-3 (0.618 / 1.272).',
   segments:[...chain(DRIVES),...[[0,2],[1,3],[2,4],[3,5]].map(([i,j])=>seg(DRIVES[i],DRIVES[j],{dashed:true}))],
   labels:[{text:'0.618',at:mid(DRIVES[0],DRIVES[2])},{text:'1.272',at:mid(DRIVES[1],DRIVES[3])},{text:'0.618',at:mid(DRIVES[2],DRIVES[4])},{text:'1.272',at:mid(DRIVES[3],DRIVES[5])}],
   exactTexts:['1','A','2','B','3','0.618','1.272','0.618','1.272']},
@@ -399,8 +399,8 @@ export const DRAWING_SPECS:readonly DrawingSpec[]=[
   segments:polygon([[29.8,682],[36.2,682],[36.2,618],[29.8,618]]).map(s=>({...s,dashed:true})),exactTexts:['Image unavailable'],noMirror:'one point'},
  {id:'DW.ANNOTATION.EMOJI',type:'lvemoji',anchorCount:[1,1],anchors:[[35,650]],source:'Emoji stamp: the chosen emoji on the point.',
   labels:[{text:'😀',at:[35,650]}],exactTexts:['😀'],noMirror:'one point'},
- {id:'DW.ANNOTATION.STICKERS',type:'lvsticker',anchorCount:[1,2],anchors:[[33,700],[38,550]],source:'Sticker: the chosen sticker (default BUY badge) inside the box between the points.',
-  labels:[{text:'BUY',near:[35.5,625],tol:15}],exactTexts:['BUY'],noMirror:'the sticker is upright whichever way it is dragged'},
+ {id:'DW.ANNOTATION.STICKERS',type:'lvsticker',anchorCount:[1,1],anchors:[[35.5,625]],source:'Sticker: the chosen sticker (default BUY badge) centred on the point at a fixed pixel size.',
+  labels:[{text:'BUY',near:[35.5,625],tol:15}],exactTexts:['BUY'],noMirror:'one point'},
  {id:'DW.ANNOTATION.ICONS',type:'iconstamp',anchorCount:[1,1],anchors:[[35,650]],source:'Icon stamp: the chosen icon (default star) on the point.',
   labels:[{text:'★',at:[35,650]}],exactTexts:['★'],noMirror:'one point'},
 ];

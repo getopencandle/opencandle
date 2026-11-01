@@ -70,8 +70,8 @@ describe('chart pattern breakout confirmation (Bulkowski) (SYNTHETIC)',()=>{
  it('the policy text names the confirmation rule and both modes',()=>{
   const text=catalogDefinition(kind)!.policies!.join(' ');
   expect(text).toMatch(/Require breakout confirmation/);expect(text).toMatch(/reported unconfirmed/);
-  // Shapes without a breakout level do not offer the input.
-  expect(catalogDefinition('chptriangle')!.inputs.some(row=>row.key==='breakout')).toBe(false);
+  // Every chart pattern now has a breakout rule and offers the input (see r38-chart-patterns2.test.ts).
+  expect(catalogDefinition('chptriangle')!.inputs.find(row=>row.key==='breakout')).toMatchObject({type:'bool',defval:true,legacyOmit:true,legacyDefval:false});
  });
 });
 

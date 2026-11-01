@@ -7,7 +7,7 @@ import {captureToolDefault,connectToolDefaults,loadSharedToolDefaults,restoreDra
 import {clipboardGroups,createObjectClipboard,pastedGroups,pasteRouteFor} from '../../src/chart/drawing-object-clipboard';
 import {createDrawingManager,type DrawingManagerHost} from '../../src/chart/drawing-manager';
 import {lvDrawingTypeStatus} from '../../src/chart/lv-drawing-types';
-import {LV_STICKER,STICKER_DEFAULT_PX,STICKER_PROP,STICKER_ROW} from '../../src/chart/lv-types/sticker';
+import {LV_STICKER,STICKER_DEFAULT_PX,STICKER_PROP,STICKER_ROW,STICKER_SIZE_PROP} from '../../src/chart/lv-types/sticker';
 import {DEFAULT_STICKER,STICKERS,STICKER_IDS,pickSticker,resetStickerPicker,selectedSticker} from '../../src/chart/lv-types/sticker-set';
 import {DRAWING_TOOL_CATALOG} from '../../src/ui/drawing-tool-catalog';
 import {StickerArt,StickerPicker} from '../../src/ui/StickerPicker';
@@ -131,21 +131,35 @@ describe('Stickers tool (original art)',()=>{
   const source=read('src/chart/lv-types/sticker-set.ts')+read('src/ui/StickerPicker.tsx');
   expect(source).not.toMatch(/https?:|data:image|<image|\.png|\.svg['"]|tradingview/i);
  });
- it('a click drops the picked sticker centred at the default size; a drag sizes it; it moves, resizes and round-trips',()=>{
+ it('a click drops the picked sticker centred at a pixel size; it moves, resizes by its Size setting and round-trips',()=>{
   expect(selectedSticker()).toBe(DEFAULT_STICKER);expect(pickSticker('nope')).toBe(false);expect(pickSticker('rocket')).toBe(true);
   const sticker=createDrawing(LV_STICKER as never,{paneId:'price',anchors:[{time:T0+100_000,price:150}]}) as any;
-  expect(sticker.lvSticker).toBe('rocket');expect(sticker.placementMode()).toBe('drag');expect(sticker.anchorSchema().min).toBe(1);
+  expect(sticker.lvSticker).toBe('rocket');expect(sticker.placementMode()).toBe('click');expect(sticker.anchorSchema()).toMatchObject({min:1,max:1});
   sticker.onPlaced(projector);
-  const box=sticker.bounds(projector);
-  expect(box).toEqual({x:120-STICKER_DEFAULT_PX/2,y:150-STICKER_DEFAULT_PX/2,w:STICKER_DEFAULT_PX,h:STICKER_DEFAULT_PX});
+  expect(sticker.bounds(projector)).toEqual({x:120-STICKER_DEFAULT_PX/2,y:150-STICKER_DEFAULT_PX/2,w:STICKER_DEFAULT_PX,h:STICKER_DEFAULT_PX});
   expect(sticker.hitTest(120,150,projector,3)).toBe(true);expect(sticker.hitTest(300,150,projector,3)).toBe(false);
-  expect(sticker.handlePoints(projector)).toHaveLength(2);// two corner handles: drag either one to resize
-  const dragged=createDrawing(LV_STICKER as never,{paneId:'price',anchors:[{time:T0,price:200},{time:T0+120_000,price:80}]}) as any;
-  dragged.onPlaced(projector);expect(dragged.bounds(projector)).toEqual({x:20,y:100,w:120,h:120});
-  const record=sticker.serialize();expect(record.props).toEqual({[STICKER_PROP]:'rocket'});
-  const back=getDrawingType(LV_STICKER as never)!.create(record as never) as any;expect(back.lvSticker).toBe('rocket');expect(back.anchors).toEqual(record.anchors);
-  const moved=back.translateBody(5000,-10,back.anchors);expect(moved).toHaveLength(2);
-  expect(back.schema().fields.map((field:any)=>field.path)).toEqual([STICKER_PROP]);
+  expect(sticker.handlePoints(projector)).toEqual([[120,150]]);expect(sticker.hitHandle(121,151,projector,3)).toBe(0);
+  sticker.applySettings({[STICKER_SIZE_PROP]:100});expect(sticker.bounds(projector)).toEqual({x:70,y:100,w:100,h:100});
+  const record=sticker.serialize();expect(record.props).toEqual({[STICKER_PROP]:'rocket',[STICKER_SIZE_PROP]:100});
+  const back=getDrawingType(LV_STICKER as never)!.create(record as never) as any;expect(back.lvSticker).toBe('rocket');expect(back.anchors).toEqual(record.anchors);expect(back.lvStickerSize).toBe(100);
+  expect(back.translateBody(5000,-10,back.anchors)).toEqual([{time:T0+105_000,price:140}]);
+  expect(back.schema().fields.map((field:any)=>field.path)).toEqual([STICKER_PROP,STICKER_SIZE_PROP]);
+ });
+ it('keeps its pixel size when the chart zooms or the interval coarsens (a time box would shrink to nothing)',()=>{
+  const sticker=createDrawing(LV_STICKER as never,{paneId:'price',anchors:[{time:T0+100_000,price:150}]}) as any;
+  const zoomedOut={...projector,xOf:(time:number)=>20+(time-T0)/10_000};
+  expect(sticker.bounds(zoomedOut)).toMatchObject({w:STICKER_DEFAULT_PX,h:STICKER_DEFAULT_PX});
+  const oneBar={...projector,xOf:()=>400};
+  expect(sticker.bounds(oneBar)).toMatchObject({x:400-STICKER_DEFAULT_PX/2,w:STICKER_DEFAULT_PX});
+ });
+ it('a saved two-corner sticker loads centred on its old box with the pixel size that box has, or the default when it cannot be measured',()=>{
+  const old={id:'s1',type:LV_STICKER,paneId:'price',anchors:[{time:T0,price:200},{time:T0+120_000,price:80}],props:{[STICKER_PROP]:'buy'}};
+  const loaded=getDrawingType(LV_STICKER as never)!.create(structuredClone(old) as never) as any;
+  expect(loaded.anchors).toEqual([{time:T0+60_000,price:140}]);
+  expect(loaded.bounds(projector)).toEqual({x:20,y:100,w:120,h:120});
+  expect(loaded.serialize().props).toEqual({[STICKER_PROP]:'buy',[STICKER_SIZE_PROP]:120});
+  const collapsed=getDrawingType(LV_STICKER as never)!.create(structuredClone(old) as never) as any;
+  expect(collapsed.bounds({...projector,xOf:()=>400})).toMatchObject({w:STICKER_DEFAULT_PX,h:STICKER_DEFAULT_PX});
  });
  it('paints its own shapes into the box (no image), and an unknown saved sticker paints a placeholder',()=>{
   const sticker=createDrawing(LV_STICKER as never,{paneId:'price',anchors:[{time:T0,price:200},{time:T0+100_000,price:100}],props:{[STICKER_PROP]:'buy'}}) as any;
@@ -153,7 +167,7 @@ describe('Stickers tool (original art)',()=>{
   const ops=record.commands.map(command=>command.op);
   expect(ops).toContain('fill');expect(record.commands.find(command=>command.op==='fillText')?.values[0]).toBe('BUY');
   const unknown=createDrawing(LV_STICKER as never,{paneId:'price',anchors:[{time:T0,price:200},{time:T0+100_000,price:100}],props:{[STICKER_PROP]:'future-sticker'}}) as any;
-  expect(unknown.serialize().props).toEqual({[STICKER_PROP]:'future-sticker'});
+  expect(unknown.serialize().props).toEqual({[STICKER_PROP]:'future-sticker'});// not drawn yet: the old box is measured when it is drawn
   const placeholder=drawingCommands();unknown.lvPaint(placeholder.ctx,projector,{fontFamily:'sans-serif',textColor:'#fff',background:'#000'});
   expect(placeholder.commands.map(command=>command.op)).toEqual(['setLineDash','setLineDash','beginPath','rect','stroke']);
  });

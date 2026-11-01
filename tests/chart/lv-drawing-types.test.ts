@@ -17,7 +17,7 @@ const INTEGRATED:readonly (readonly [string,string])[]=[['lvelliotttriangle','el
 const R24:readonly (readonly [string,string,string,number,number])[]=[['lvarrowmarker','triangle','Arrow marker',2,2],['lvtrianglepattern','elliottcorrection','Triangle pattern',4,4],['lvthreedrives','elliottcorrection','Three drives pattern',6,6],['lvtimecycles','triangle','Time cycles',2,2],['lvcycliclines','triangle','Cyclic lines',2,2],['lvsineline','triangle','Sine line',2,2],['lvpitchfan','triangle','Pitchfan',3,3],['lvgannsquarefixed','gannsquare','Gann square fixed',2,2],['lvpositionforecast','triangle','Position forecast',2,2],['lvsector','triangle','Sector',3,3],['lvghostfeed','polyline','Ghost feed',2,512],['lvpin','note','Pin',1,1],['lvtable','note','Table',1,1]];
 const R24_IDS=R24.map(([type])=>type);
 // The Stickers module appended after (type, base, label, anchor min, anchor max; min 1 so a click places it).
-const R29:readonly (readonly [string,string,string,number,number])[]=[['lvsticker','box','Sticker',1,2]];
+const R29:readonly (readonly [string,string,string,number,number])[]=[['lvsticker','box','Sticker',1,1]];
 const R29_IDS=R29.map(([type])=>type);
 const INTEGRATED_IDS=INTEGRATED.map(([type])=>type);
 const texts=(commands:any[])=>commands.filter(command=>command.op==='fillText').map(command=>String(command.values[0]));

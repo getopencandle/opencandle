@@ -27,8 +27,9 @@ export interface PatternMarker {index:number;plot:string;text:string;tooltip:str
   *  down, so it reads the same in an oscillator pane as above/below does on the price pane. Absent = above, pointing down. */
  direction?:'up'|'down'}
 /** A line between two bars. `extendRight` makes it a ray through both points (an unbroken trendline), so only its two
- *  anchor prices reach the pane autoscale, never the projection. */
-export interface PatternLine {plot:string;from:{index:number;price:number};to:{index:number;price:number};extendRight?:boolean}
+ *  anchor prices reach the pane autoscale, never the projection. `overlay` draws a pane study's line on the price pane
+ *  (its prices are price units, as for the RSI Price pane divergences). */
+export interface PatternLine {plot:string;from:{index:number;price:number};to:{index:number;price:number};extendRight?:boolean;overlay?:boolean}
 /** A price zone between two bars (Gaps). `extendRight` continues it past `to` (an open zone). */
 export interface PatternBox {plot:string;from:{index:number;price:number};to:{index:number;price:number};extendRight?:boolean}
 /** A candle over the bar's own OHLC in its plot's color; hollow = border only (Bollinger bars). */
@@ -175,26 +176,45 @@ const ALL_CANDLES:CatalogDefinition={id:'cdlall' as never,name:'All candlestick 
  warmup:()=>TREND_WARMUP+Math.max(...CANDLE_FAMILIES.map(family=>family.size)),work:count=>count*12*CANDLE_FAMILIES.length};
 
 const CHART_INPUTS:readonly CatalogInput[]=[{key:'pivotLength',title:'Pivot length',type:'int',defval:5,min:2,max:50,step:1},{key:'tolerance',title:'Tolerance %',type:'float',defval:2,min:0.1,max:50,step:0.1}];
-/** Added in 0.8.1: new instances wait for the breakout close; saved instances without the key keep the old last-pivot report. */
+/** Added in 0.8.1 for tops, bottoms and head and shoulders, later for every chart pattern: new instances wait for
+ *  the breakout close; saved instances without the key keep the old last-pivot report. */
 const BREAKOUT_INPUT:CatalogInput={key:'breakout',title:'Require breakout confirmation',type:'bool',defval:true,legacyOmit:true,legacyDefval:false};
 const BREAKOUT_INPUTS:readonly CatalogInput[]=[...CHART_INPUTS,BREAKOUT_INPUT];
+/** The signal bar's date for a tooltip: the UTC date for a bar stamped at midnight UTC (daily and longer bars), else the
+ *  UTC date and time, as the other chart marker tooltips write it. */
+export function patternKnownOn(time:number):string{
+ if(!Number.isFinite(time))return '';const iso=new Date(time*1000).toISOString();
+ return time%86400===0?iso.slice(0,10):iso.slice(0,16).replace('T',' ')+' UTC';
+}
+const BREAK_SIDE={up:'upward breakout',down:'downward breakout'} as const;
 function chartOutput(ctx:CatalogContext,ids:readonly ChartPatternId[],plots:readonly PatternDirectionPlot[]):Record<string,NumericSeries>{
  const n=ctx.bars.length,signals:Record<string,number[]>={};for(const plot of plots)signals[plot]=zeros(n);
  // Signals come from every hit (alerts, legend and data window read them, and an earlier bar never changes as bars are
  // added); only the drawn markers and lines are bounded to the newest PATTERN_MARK_LIMIT.
  const breakout=ids.some(id=>BREAKOUT_PATTERNS.has(id))&&ctx.bool('breakout');
  const hits=detectChartPatterns(ctx.bars,ids,ctx.num('pivotLength'),ctx.num('tolerance'),{breakout});
- const grouped=new Map<string,{index:number;plot:PatternDirectionPlot;names:string[]}>(),lines:PatternLine[]=[];
+ // The named marker stays on the pattern's last pivot (where the shape is); its tooltip says when the pattern became
+ // known, and a small dot marks that signal bar, so history never reads as if the pattern was known on the pivot.
+ type Group={index:number;plot:PatternDirectionPlot;names:string[];tips:string[]};
+ const named=new Map<string,Group>(),dots=new Map<string,Group>(),lines:PatternLine[]=[];
+ const add=(map:Map<string,Group>,index:number,plot:PatternDirectionPlot,name:string,tip:string)=>{const key=index+':'+plot;let row=map.get(key);
+  if(!row){row={index,plot,names:[],tips:[]};map.set(key,row);}if(!row.names.includes(name))row.names.push(name);if(!row.tips.includes(tip))row.tips.push(tip);};
  for(const hit of hits){
-  signals[hit.direction][hit.confirmedAt]=1;const at=hit.pivots.at(-1)!.index,key=at+':'+hit.direction;let row=grouped.get(key);
-  if(!row){row={index:at,plot:hit.direction,names:[]};grouped.set(key,row);}if(!row.names.includes(hit.name))row.names.push(hit.name);
+  signals[hit.direction][hit.confirmedAt]=1;
+  const label=hit.breakout&&hit.direction==='neutral'?`${hit.name}, ${BREAK_SIDE[hit.breakout]}`:hit.name,known=patternKnownOn(ctx.bars[hit.confirmedAt].time);
+  add(named,hit.pivots.at(-1)!.index,hit.direction,hit.name,`${label}\nKnown on ${known}`);
+  add(dots,hit.confirmedAt,hit.direction,hit.name,`${label}: ${breakout?'confirmed by a breakout close':'last pivot confirmed'} on ${known}`);
   for(const line of hit.lines)lines.push({plot:hit.direction,from:line.from,to:line.to});
  }
- ctx.marks?.({markers:[...grouped.values()].sort((a,b)=>a.index-b.index).slice(-PATTERN_MARK_LIMIT).map(row=>({index:row.index,plot:row.plot,text:row.names.join('\n'),tooltip:row.names.join(', ')})),lines:lines.slice(-PATTERN_MARK_LIMIT)});
+ const markers:PatternMarker[]=[
+  ...[...named.values()].map(row=>({index:row.index,plot:row.plot,text:row.names.join('\n'),tooltip:row.tips.join('\n')})),
+  ...[...dots.values()].map(row=>({index:row.index,plot:row.plot,text:'',tooltip:row.tips.join('\n'),position:row.plot==='bullish'?'below' as const:'above' as const,shape:'circle' as const})),
+ ].sort((a,b)=>a.index-b.index);
+ ctx.marks?.({markers:markers.slice(-PATTERN_MARK_LIMIT),lines:lines.slice(-PATTERN_MARK_LIMIT)});
  return signals;
 }
-const CHART_POLICY='OpenCandle-defined detection from confirmed pivots (patterns-chart.ts): a pattern is reported on the bar that confirms its last pivot (or, with breakout confirmation, on its later breakout bar), never earlier, and is not repainted. The marker is drawn on that last pivot. Tolerance is the percent within which two levels are equal.';
-const BREAKOUT_POLICY="Require breakout confirmation (on for new instances; off for instances saved before it existed): double and triple tops and bottoms and head and shoulders are reported only on the first close through the valley, peak or neckline (Bulkowski's confirmation), within as many bars after the last pivot as the pattern spans, and only when no earlier close went past the pattern's extreme. The signal is on that breakout bar. Off: the shape is reported unconfirmed, on the bar that confirms its last pivot. Other chart patterns are always reported on their last pivot, unconfirmed.";
+const CHART_POLICY='OpenCandle-defined detection from confirmed pivots (patterns-chart.ts): a pattern is reported on its breakout bar (with breakout confirmation) or on the bar that confirms its last pivot (without it), never earlier, and is not repainted. The named marker is drawn on that last pivot, its tooltip gives the date the pattern became known, and a small dot marks that signal bar. Tolerance is the percent within which two levels are equal.';
+const BREAKOUT_POLICY="Require breakout confirmation (on for new instances; off for instances saved before it existed): a pattern is reported only on the first close through its boundary (Edwards and Magee, Bulkowski), within as many bars after the last pivot as the pattern spans, and only when no earlier close voided it. Tops, bottoms and head and shoulders: a close through the valley, peak or neckline, void past the pattern's extreme. Flags and pennants: a close beyond the upper line (bullish) or lower line (bearish), void on a close past the other line or the pole midpoint. Rising wedge: a close below the lower line; falling wedge: above the upper line; void through the other line. Cup and handle: a close above the higher rim, void below the handle low; inverted cup mirrors it. Rectangle and triangle: the first close outside either line, and the tooltip names the side. The signal is on that breakout bar. Off: the shape is reported unconfirmed, on the bar that confirms its last pivot.";
 /** Common alternative names (search only; the fuller keyword content is a later task). */
 const CHART_KEYWORDS:Partial<Record<ChartPatternId,readonly string[]>>={doubletop:['M pattern'],doublebottom:['W pattern'],headshoulders:['H&S','reversal'],invheadshoulders:['inverse H&S','reversal']};
 function chartEntry([id,name,pattern,acronym]:readonly [string,string,ChartPatternId,string]):CatalogDefinition{
@@ -205,7 +225,7 @@ function chartEntry([id,name,pattern,acronym]:readonly [string,string,ChartPatte
   calculate(ctx){return chartOutput(ctx,[pattern],[info.direction]);},
   warmup:value=>2*value('pivotLength')+1,work:(count,value)=>count*(value('pivotLength')*4+40)};
 }
-const ALL_CHART:CatalogDefinition={id:'chpall' as never,name:'All chart patterns',acronym:'All CP',overlay:true,pattern:'chart',inputs:BREAKOUT_INPUTS,plots:[PLOTS.bullish,PLOTS.bearish,PLOTS.neutral],
+const ALL_CHART:CatalogDefinition={id:'chpall' as never,name:'All chart patterns',acronym:'All CP',overlay:true,pattern:'chart',inputs:[...CHART_INPUTS,{...BREAKOUT_INPUT,title:'Require breakout confirmation (every pattern)'}],plots:[PLOTS.bullish,PLOTS.bearish,PLOTS.neutral],
  provenance:[{url:FACT,facts:'Entry "All chart patterns" in the Chart patterns section.'},{url:LV+'chart-all',facts:'Runs every OpenCandle chart pattern detector on one zigzag.'}],
  unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,BREAKOUT_POLICY,PATTERN_MARKS_POLICY],
  calculate(ctx){return chartOutput(ctx,CHART_PATTERNS.map(row=>row.id),['bullish','bearish','neutral']);},
@@ -237,7 +257,7 @@ export function validPatternMarks(value:PatternMarks,bars:number,plots:readonly 
  for(const row of boxes)if(!plots.includes(row.plot)||!point(row.from)||!point(row.to)||row.to.index<row.from.index)bad();
  for(const row of candles)if(!ok(row.index)||!plots.includes(row.plot))bad();
  const marker=(row:PatternMarker):PatternMarker=>Object.freeze({index:row.index,plot:row.plot,text:row.text,tooltip:row.tooltip,...(row.position!==undefined?{position:row.position}:{}),...(row.position==='price'?{price:row.price}:{}),...(row.shape!==undefined?{shape:row.shape}:{}),...(row.direction!==undefined?{direction:row.direction}:{})});
- return Object.freeze({markers:Object.freeze(value.markers.map(marker)),lines:Object.freeze(value.lines.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to},...(row.extendRight?{extendRight:true}:{})}))),
+ return Object.freeze({markers:Object.freeze(value.markers.map(marker)),lines:Object.freeze(value.lines.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to},...(row.extendRight?{extendRight:true}:{}),...(row.overlay?{overlay:true}:{})}))),
   ...(value.boxes?{boxes:Object.freeze(boxes.map(row=>Object.freeze({plot:row.plot,from:{...row.from},to:{...row.to},...(row.extendRight?{extendRight:true}:{})})))}:{}),
   ...(value.candles?{candles:Object.freeze(candles.map(row=>Object.freeze({index:row.index,plot:row.plot,...(row.hollow?{hollow:true}:{})})))}:{})});
 }

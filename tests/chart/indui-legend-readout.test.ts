@@ -34,3 +34,14 @@ describe('indicatorLegendReadout',()=>{
   expect(indicatorLegendReadout(row,{titles:false,inputs:false})).toEqual({title:'',arguments:'',text:''});
  });
 });
+describe('Opening range breakout legend',()=>{
+ it('names the session the range really uses once the chart calendar is known',()=>{
+  // 24/7 and unknown markets: Exchange is 00:00 UTC, not the unused custom 09:30-16:00.
+  expect(indicatorLegendArguments('orb' as never,{},()=>null,{calendar:'utc'})).toEqual(['Exchange','00:00-24:00 UTC','5 min']);
+  expect(indicatorLegendArguments('orb' as never,{},()=>null,{calendar:null})).toEqual(['Exchange','00:00-24:00 UTC','5 min']);
+  expect(indicatorLegendArguments('orb' as never,{duration:'15'},()=>null,{calendar:'us-equity'})).toEqual(['Exchange','09:30-16:00 New York','15 min']);
+  expect(indicatorLegendArguments('orb' as never,{session:'Custom',start:'08:00',end:'12:00',zone:'Europe/London'},()=>null,{calendar:'utc'})).toEqual(['Custom','08:00-12:00','Europe/London','5 min']);
+  // Without chart facts (a caller that has none) the generic list stays.
+  expect(indicatorLegendArguments('orb' as never,{})).toEqual(['Exchange','09:30','16:00']);
+ });
+});

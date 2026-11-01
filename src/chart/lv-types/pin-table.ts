@@ -140,7 +140,7 @@ export const PIN_MODULE=defineLvDrawingToolModule({
  types:[{type:LV_PIN,base:BASE,define:()=>defineNoteTool(LV_PIN),requiresPaintHook:true}],
  unappliedDefaults:[Object.freeze({toolId:'LineToolNote',factId:'tool.LineToolNote.creation',property:'pointsCount',value:null,reason:'unverified' as const,
   note:'The reference anchor count is not recorded (pointsCountKnown false). Slice approximation pending reference observation: OpenCandle places 1 point, the pin tip, and draws a marker with the text above it. Marker color, text color and font size map to the native line color, text color and text size. Factory defaults are unknown (static-drawing-defaults-2#tool.LineToolNote.status), so nothing is seeded and the native Note style and text remain; those are OpenCandle renderer defaults.'})],
- catalog:[{rowId:'DW.ANNOTATION.PIN',type:LV_PIN,note:'Click to place a pin, then type its note.'}],
+ catalog:[{rowId:'DW.ANNOTATION.PIN',type:LV_PIN,note:'Click to place a pin. Double-click it to write its note.'}],
 });
 export const TABLE_MODULE=defineLvDrawingToolModule({
  id:'table',

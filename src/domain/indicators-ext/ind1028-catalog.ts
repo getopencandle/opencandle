@@ -35,6 +35,14 @@ function extreme(values:readonly (number|null)[],index:number,window:number,pick
 const pair=(a:readonly (number|null)[],b:readonly (number|null)[],f:(x:number,y:number)=>number|null):NumericSeries=>a.map((x,i)=>{const y=b[i];return finite(x)&&finite(y)?f(x,y):null;});
 
 /** Pearson correlation of a full finite window ending at index against x = 0..n-1 (x rises with time); null on a flat window. */
+/** Bill Williams histogram bar states (Awesome and Accelerator oscillators): 0 rising (above the prior bar), 1 falling (below
+ *  it). An equal bar keeps the prior bar's state, as the MetaTrader Awesome and Accelerator indicators do; the first bar
+ *  and the first bar after a gap are falling (OpenCandle-defined, as the histogram palette's gap rule). Null = no value. */
+export function williamsBarStates(values:readonly (number|null|undefined)[]):(0|1|null)[]{
+ let prior:number|null=null,state:0|1=1;
+ return values.map(value=>{if(value===null||value===undefined||!Number.isFinite(value)){prior=null;return null;}
+  state=prior===null?1:value>prior?0:value<prior?1:state;prior=value;return state;});
+}
 export function correlationWithIndex(values:readonly (number|null)[],index:number,n:number):number|null{
  if(index<n-1)return null;let sy=0,syy=0,sxy=0;const sx=n*(n-1)/2,sxx=(n-1)*n*(2*n-1)/6;
  for(let k=0;k<n;k++){const y=values[index-n+1+k];if(!finite(y))return null;sy+=y;syy+=y*y;sxy+=k*y;}
@@ -106,7 +114,8 @@ const definitions:readonly CatalogDefinition[]=[
    const range=pair(hh,ll,(a,b)=>a-b),rel=c.map((value,i)=>{const a=hh[i],b=ll[i];return finite(value)&&finite(a)&&finite(b)?value-(a+b)/2:null;});
    const ee=(values:readonly (number|null)[])=>tk.ema(tk.ema(values,d),d),num2=ee(rel),den=ee(range);
    const smi=pair(num2,den,(a,b)=>b===0?null:zero(200*a/b));return {smi,ema:tk.ema(smi,num('lengthEMA'))};},
-  warmup:value=>value('lengthK')+2*value('lengthD')+value('lengthEMA'),work:(count,value)=>count*(value('lengthK')*2+24)},
+  // The window is full at index K - 1 and each SMA-seeded EMA adds its length - 1, so the signal starts at index K + 2D + E - 4.
+  warmup:value=>value('lengthK')+2*value('lengthD')+value('lengthEMA')-3,work:(count,value)=>count*(value('lengthK')*2+24)},
  {id:'rci',name:'Rank correlation index',acronym:'RCI',overlay:false,sourceSeries:true,
   inputs:[{key:'length',title:'RCI length',defval:12,...LENGTH_2,max:1000},SOURCE,{key:'maType',title:'Smoothing type',type:'string',defval:'None',options:SMOOTHING_TYPES},{key:'maLength',title:'Smoothing length',defval:14,...LENGTH},{key:'bbMult',title:'BB StdDev',type:'float',defval:2,min:0.5,max:50,step:0.5}],
   plots:[{id:'rci',label:'RCI',color:C.cyan,width:1},{id:'ma',label:'Smoothing',color:C.amber,width:1},{id:'bbUpper',label:'Upper Bollinger band',color:C.up,width:1},{id:'bbLower',label:'Lower Bollinger band',color:C.up,width:1}],
@@ -146,9 +155,9 @@ const definitions:readonly CatalogDefinition[]=[
  {id:'accelosc',name:'Accelerator oscillator',acronym:'AC',overlay:false,
   inputs:[],
   plots:[{id:'ac',label:'AC',kind:'histogram',color:C.up,width:1}],guides:[{id:'zero',value:0,color:C.guide}],
-  pointPalette:{plot:'ac',colors:[C.up,C.down],labels:['Rising','Falling'],state:values=>{const v=values('ac');return v.map((value,i)=>{if(value===null)return null;const prior=v[i-1];return prior===null||prior===undefined||value>=prior?0:1;});}},
+  pointPalette:{plot:'ac',colors:[C.up,C.down],labels:['Rising','Falling'],state:values=>williamsBarStates(values('ac'))},
   provenance:[{url:LIST,facts:'"Accelerator Oscillator" is a common built-in drawn as one histogram plot.'},{url:'lv-defined:bill-williams-trading-chaos-1995',facts:'Bill Williams: AO = SMA(median price, 5) - SMA(median price, 34); AC = AO - SMA(AO, 5); a bar higher than the prior one is rising, lower is falling.'}],
-  unknownDefaults:['No inputs are recorded for the reference; OpenCandle keeps the author lengths 5, 34 and 5 fixed (OpenCandle-defined). An equal bar keeps the rising color (OpenCandle-defined).',COLORS_LV],
+  unknownDefaults:['No inputs are recorded for the reference; OpenCandle keeps the author lengths 5, 34 and 5 fixed (OpenCandle-defined). An equal bar keeps the prior bar\'s color and the first bar after a gap is falling, the same rule as the Awesome oscillator (OpenCandle-defined; Williams defines only higher and lower bars).',COLORS_LV],
   policies:['Median price = (high + low) / 2.'],
   calculate({bars,tk}){const hl2=bars.map(bar=>finite(bar.high)&&finite(bar.low)?(bar.high+bar.low)/2:null),ao=pair(tk.sma(hl2,5),tk.sma(hl2,34),(a,b)=>a-b);return {ac:pair(ao,tk.sma(ao,5),(a,b)=>zero(a-b))};},
   warmup:()=>38,work:count=>count*48},

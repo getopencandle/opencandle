@@ -24,6 +24,12 @@ export type {DrawingCoordinateDraft,DrawingCoordinatePatch,DrawingEditorAnchor,D
 
 export interface DrawingCoordinate {barNumber:number;timeSeconds:number;price:number}
 export function assertDrawingRecordUnchanged(expected:string,current:string):void{if(expected!==current)throw new Error('This drawing changed while settings were open. Close and reopen before Apply.');}
+/** The label a level row shows: the model's display form when it has one (the Gann fan writes its default angle labels as
+ *  1x2), else the stored label. Display only; what is stored is unchanged. */
+function levelLabel(drawing:Drawing,level:{ratio:number;label?:string}):string{
+ const show=(drawing as {lvLevelLabel?:unknown}).lvLevelLabel;
+ return typeof show==='function'?String(show.call(drawing,level.ratio,level.label)):level.label??'';
+}
 function pathValue(target:unknown,path:string):unknown {return path.split('.').reduce((value:any,key)=>value?.[key],target);}
 const statsPrefix='props.lvTrendlineStats.';
 export const TRENDLINE_STATS_EDITOR_FIELDS:readonly SettingsField[]=Object.freeze([
@@ -251,7 +257,7 @@ export function drawingFields(drawing:Drawing,canonical?:SerializedDrawing,own?:
 export interface DrawingEditorOptions {readonly priceScaleLog?:boolean;readonly consumers?:DrawingFieldConsumerSet}
 export function drawingEditor(record:SerializedDrawing,bars:readonly Bar[],context?:DrawingCoordinateContext,options?:DrawingEditorOptions){
   measureWorkspaceJSON({record});validateRetainedFibLevels(record);const drawing=deserializeDrawing(record);if(!drawing)throw new Error(`No property editor for drawing type ${record.type}`);
-  validateRetainedFibLevels(record);const scaleLog=options?.priceScaleLog===true;const fields=drawingFields(drawing,record,options?.consumers).filter(field=>scaleLog||field.path!==fibLayoutPrefix+'logScale'),levels=drawing.editableLevels()?.map((level,index)=>({...level,label:level.label??'',labelPresent:Array.isArray(record.props?.levels)&&Object.hasOwn(record.props!.levels[index],'label')}))??null;
+  validateRetainedFibLevels(record);const scaleLog=options?.priceScaleLog===true;const fields=drawingFields(drawing,record,options?.consumers).filter(field=>scaleLog||field.path!==fibLayoutPrefix+'logScale'),levels=drawing.editableLevels()?.map((level,index)=>({...level,label:levelLabel(drawing,level),labelPresent:Array.isArray(record.props?.levels)&&Object.hasOwn(record.props!.levels[index],'label')}))??null;
   const values=Object.fromEntries(fields.map(field=>[field.path,editorValue(drawing,field.path,record)]));for(const [index,level]of (levels??[]).entries())for(const key of ['ratio','color','enabled','label'] as const)values[`levels.${index}.${key}`]=level[key];
   const annotation=record.type==='trendline'?readTrendlineAnnotation(record.text):undefined;
   const stats=record.type==='trendline'?readTrendlineStats(record.props):undefined;

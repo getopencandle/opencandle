@@ -184,6 +184,22 @@ describe('Auto fib range volume profile (SYNTHETIC)',()=>{
   const zz=calc('autofibvp',rows,{range:'Zig zag'});expect(zz.profiles!.length).toBeLessThanOrEqual(1);
   expect(indicatorAlertBlock('autofibvp',{rowsLayout:'Ticks Per Row'})).toMatch(/Ticks Per Row/);
  });
+ it('draws the Fibonacci levels of the same swing over the profile range (level 0 at the swing end), with Show Fibonacci levels',()=>{
+  const rows=waveBars(120),result=calc('autofibvp',rows,{range:'Short',shortLength:50}),swing=lookbackFibSwing(rows,70,119)!;
+  const span=swing.end.price-swing.start.price;
+  for(const [ratio,id] of [[0,'fibl0'],[0.236,'fibl236'],[0.382,'fibl382'],[0.5,'fibl5'],[0.618,'fibl618'],[0.786,'fibl786'],[1,'fibl1']] as const){
+   const values=plot(result,id);expect(values.slice(0,swing.start.index).every(v=>v===null),id).toBe(true);
+   expect(values[swing.start.index] as number,id).toBeCloseTo(swing.end.price-ratio*span,9);expect(values[119],id).toBe(values[swing.start.index]);
+  }
+  // The same levels as Auto fib retracement over the same lookback swing.
+  const auto=calc('autofib',rows,{swingMode:'Lookback window',lookback:50});
+  for(const id of ['l0','l382','l618','l1'])expect(plot(result,'fib'+id)[119],id).toBe(plot(auto,id)[119]);
+  expect(plot(result,'poc')[119]).toBe(result.profiles![0].pocPrice);// POC/VAH/VAL unchanged
+  const off=calc('autofibvp',rows,{range:'Short',shortLength:50,showFib:false});expect(plot(off,'fibl0').every(v=>v===null)).toBe(true);expect(plot(off,'poc')).toEqual(plot(result,'poc'));
+  const out=renderIndicatorPresentation(settings('autofibvp',{range:'Short',shortLength:50}),result,rows,{resolution:'1D'}),titles=(out.output.series??[]).filter(row=>row.visible).map(row=>row.title);
+  for(const title of ['Fib 0','Fib 0.618','Fib 1'])expect(titles,title).toContain(title);
+  expect(catalogDefinition('autofibvp')!.policies.join(' ')).toMatch(/level 0 at the swing end/);
+ });
 });
 
 describe('market structure readouts (SYNTHETIC)',()=>{

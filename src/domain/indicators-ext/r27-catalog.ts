@@ -15,14 +15,16 @@ function isIntradayChart(resolution:string|null|undefined):boolean{
  try{const spec=typeof resolution==='string'?parseInterval(resolution):null;return spec?.kind==='time'&&(spec.unit==='second'||spec.unit==='minute');}catch{return false;}
 }
 /** Average daily range on an intraday chart: each trading day's high - low from its intraday bars; at a bar, the simple
- *  average of the last `length` days completed before the bar's own day (null until that many days have completed). */
+ *  average of the last `length` days completed before the bar's own day (null until that many days have completed). The
+ *  first day of the loaded history never counts: loads usually start mid-day, so its range would be understated
+ *  (OpenCandle-defined; the first day is dropped even when it happens to be complete). */
 export function intradayAverageDailyRange(bars:readonly Bar[],length:number,calendar:'us-equity'|'utc'):NumericSeries{
- const out:(number|null)[]=Array(bars.length).fill(null),ranges:number[]=[];let key:string|null=null,high=-Infinity,low=Infinity,sum=0;
+ const out:(number|null)[]=Array(bars.length).fill(null),ranges:number[]=[];let key:string|null=null,opened=0,high=-Infinity,low=Infinity,sum=0;
  for(let i=0;i<bars.length;i++){
   const bar=bars[i],next=pivotPeriodKey(bar.time,'Daily',calendar);
   if(next!==key){
-   if(key!==null&&high>=low){ranges.push(high-low);sum+=high-low;if(ranges.length>length)sum-=ranges[ranges.length-1-length];}
-   key=next;high=-Infinity;low=Infinity;
+   if(key!==null&&opened>1&&high>=low){ranges.push(high-low);sum+=high-low;if(ranges.length>length)sum-=ranges[ranges.length-1-length];}
+   opened++;key=next;high=-Infinity;low=Infinity;
   }
   if(finite(bar.high)&&finite(bar.low)){high=Math.max(high,bar.high);low=Math.min(low,bar.low);}
   if(ranges.length>=length)out[i]=sum/length;
@@ -137,7 +139,7 @@ const RIBBON_COLORS=['#ffe082','#ffb74d','#fb8c00','#e65100'];
 
 // ---- Auto fib retracement ----
 export const AUTO_FIB_LEVELS=[[0,'l0','0'],[0.236,'l236','0.236'],[0.382,'l382','0.382'],[0.5,'l5','0.5'],[0.618,'l618','0.618'],[0.786,'l786','0.786'],[1,'l1','1']] as const;
-const FIB_COLORS=[GREY,RED,'#81c784',GREEN,TEAL,'#64b5f6',GREY];
+export const FIB_COLORS=[GREY,RED,'#81c784',GREEN,TEAL,'#64b5f6',GREY];
 /** Auto fib retracement swing sources: the zig zag leg (the original rule) or the extremes of a lookback window. */
 export const AUTO_FIB_SWING_MODES=['Zig zag','Lookback window'] as const;
 
@@ -200,7 +202,7 @@ const definitions:CatalogDefinition[]=[
  {id:'adr',name:'Average daily range',acronym:'ADR',overlay:false,inputs:[{key:'length',title:'Length',defval:14,...LENGTH}],plots:[{id:'adr',label:'ADR',color:BLUE,width:1}],
   provenance:[named('Average daily range'),{url:LV+'textbook-average-daily-range',facts:'Average daily range = simple moving average of high - low over n bars.'}],
   unknownDefaults:[UNKNOWN,'Length 14 is OpenCandle-defined.'],
-  policies:['On daily and longer charts ADR averages the bar ranges. On intraday charts it averages the high - low ranges of the last Length completed trading days (New York dates on US-equity charts, UTC dates otherwise), built from the loaded intraday bars; the value is constant through each day and the developing day never counts.'],
+  policies:['On daily and longer charts ADR averages the bar ranges. On intraday charts it averages the high - low ranges of the last Length completed trading days (New York dates on US-equity charts, UTC dates otherwise), built from the loaded intraday bars; the value is constant through each day and the developing day never counts. The first day of the loaded history is left out because it usually starts mid-day.'],
   calculate({bars,tk,num,chart}){
    const length=num('length');
    if(!isIntradayChart(chart?.resolution))return {adr:tk.sma(bars.map(bar=>finite(bar.high)&&finite(bar.low)?bar.high-bar.low:null),length)};
@@ -284,17 +286,19 @@ const definitions:CatalogDefinition[]=[
   calculate({source,tk,num}){const parts=[1,2,3,4].map(n=>tk.sma(rocOf(source,num('roc'+n)),num('sma'+n)));const kst=source.map((_,i)=>parts.every(part=>finite(part[i]))?zero(parts.reduce((sum,part,k)=>sum+(k+1)*(part[i] as number),0)):null);return {kst,signal:tk.sma(kst,num('signalLength'))};},
   warmup:value=>Math.max(...[1,2,3,4].map(n=>value('roc'+n)+value('sma'+n)))+value('signalLength')-1,work:count=>count*48},
  {id:'mass',name:'Mass index',acronym:'MI',overlay:false,inputs:[{key:'emaLength',title:'EMA length',defval:9,...LENGTH},{key:'sumLength',title:'Sum length',defval:25,...LENGTH}],
-  plots:[{id:'mass',label:'Mass index',color:BLUE,width:1}],
+  plots:[{id:'mass',label:'Mass index',color:BLUE,width:1}],guides:[{id:'upper',value:27,color:GREY},{id:'lower',value:26.5,color:GREY}],
   provenance:[{url:LV+'dorsey-mass-index-1992',facts:'Donald Dorsey: Mass index = sum over 25 of EMA(H - L, 9) / EMA(EMA(H - L, 9), 9).'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Lengths 9 and 25 are the author defaults.'],
-  policies:['EMAs use the SMA seed (StockCharts, TA-Lib). A zero double EMA is unavailable.'],
+  policies:['EMAs use the SMA seed (StockCharts, TA-Lib). A zero double EMA is unavailable.','The 27 and 26.5 lines are Dorsey\'s reversal bulge: a rise above 27 followed by a drop back below 26.5 warns of a trend reversal (ChartSchool, Mass Index). No bulge signal is computed.'],
   calculate({bars,tk,num}){const n=num('emaLength'),e1=tk.ema(bars.map(bar=>finite(bar.high)&&finite(bar.low)?bar.high-bar.low:null),n),ratio=pair(e1,tk.ema(e1,n),(a,b)=>b===0?null:a/b);return {mass:bars.map((_,i)=>windowSum(ratio,i,num('sumLength')))};},
   warmup:value=>2*(value('emaLength')-1)+value('sumLength'),work:(count,value)=>count*(value('sumLength')+8)},
  {id:'mcginley',name:'McGinley dynamic',acronym:'MD',overlay:true,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:14,...LENGTH},SOURCE],plots:[{id:'md',label:'McGinley dynamic',color:BLUE,width:1}],
   provenance:[{url:LV+'mcginley-dynamic-1997',facts:'John McGinley: MD = prior MD + (price - prior MD) / (N x (price / prior MD)^4).'}],
   unknownDefaults:[UNKNOWN,UNKNOWN_NAME,'Length 14 is OpenCandle-defined; no 0.6 constant is applied (the original form).'],
-  policies:['MD starts at the first finite value. A missing value is unavailable and keeps the state; a zero prior MD restarts from the next value.'],
-  calculate({source,num}){const n=num('length');let md:number|null=null;return {md:source.map(value=>{if(!finite(value))return null;if(md===null||md===0){md=value;return zero(md);}const next:number=md+(value-md)/(n*(value/md)**4);md=Number.isFinite(next)?next:value;return zero(md);})};},
+  policies:['MD starts at the first finite value. A missing value is unavailable and keeps the state; a zero prior MD restarts from the next value.','The step is capped so MD never passes price: MD = prior MD + (price - prior MD) x min(1, 1 / (N x (price / prior MD)^4)). Only a large one-bar move reaches the cap (at Length 14, a drop of about 48 % or more), where the literal formula overshoots below price or turns negative (OpenCandle-defined guard).'],
+  // Step factor capped at 1 (OpenCandle-defined): the literal 1 / (N x r^4) exceeds 1 after a large drop and sends MD past
+  // price, below zero at Length 14 for a drop of about 55 % (100, 100, 100, 40 gave -67.4 and stuck there).
+  calculate({source,num}){const n=num('length');let md:number|null=null;return {md:source.map(value=>{if(!finite(value))return null;if(md===null||md===0){md=value;return zero(md);}const next:number=md+(value-md)*Math.min(1,1/(n*(value/md)**4));md=Number.isFinite(next)?next:value;return zero(md);})};},
   warmup:()=>1,work:count=>count*8},
  {id:'netvol',name:'Net volume',acronym:'Net Vol',overlay:false,requiresVolume:true,inputs:[],plots:[{id:'netvol',label:'Net volume',color:BLUE,width:1}],guides:ZERO,
   provenance:[{url:LV+'textbook-net-volume',facts:'Net volume = up volume - down volume; here a bar\'s volume counts as up when its close rises versus the prior close and down when it falls.'}],
@@ -403,7 +407,7 @@ const definitions:CatalogDefinition[]=[
   policies:['A bar whose high equals its low is unavailable.'],
   calculate({bars}){return {bop:bars.map(bar=>[bar.open,bar.high,bar.low,bar.close].every(finite)&&bar.high!==bar.low?zero((bar.close-bar.open)/(bar.high-bar.low)):null)};},warmup:()=>1,work:count=>count*4},
  {id:'bbpower',name:'Bull bear power',acronym:'BBPower',overlay:false,inputs:[{key:'length',title:'Length',defval:13,...LENGTH}],
-  plots:[{id:'power',label:'BBPower',kind:'histogram',color:TEAL,width:1},{id:'bull',label:'Bull power',color:GREEN,width:1,visible:false},{id:'bear',label:'Bear power',color:RED,width:1,visible:false}],guides:ZERO,histogramPalette:true,histogramColors:{growing:TEAL,falling:'#ff5252'},
+  plots:[{id:'power',label:'Bull + bear power',kind:'histogram',color:TEAL,width:1},{id:'bull',label:'Bull power',color:GREEN,width:1,visible:false},{id:'bear',label:'Bear power',color:RED,width:1,visible:false}],guides:ZERO,histogramPalette:true,histogramColors:{growing:TEAL,falling:'#ff5252'},
   provenance:[named('Bull bear power'),{url:LV+'elder-ray-come-into-my-trading-room-2002',facts:'Alexander Elder (Elder-ray): bull power = high - EMA(close, 13); bear power = low - EMA(close, 13).'}],
   unknownDefaults:[UNKNOWN,'Length 13 is the author default. The histogram of bull power + bear power, with both lines hidden by default, is OpenCandle-defined.'],
   policies:['The EMA uses the SMA seed (StockCharts, TA-Lib).'],

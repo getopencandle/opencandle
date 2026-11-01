@@ -120,6 +120,20 @@ describe(' oscillators (SYNTHETIC)',()=>{
   close(values('mass',[bar(0,10,12,8,10),bar(1,10,11,9,10),bar(2,10,12,8,10),bar(3,10,11,9,10)],{emaLength:2,sumLength:2}),[null,null,null,11/10+69/76]);
  });
  it('McGinley dynamic: MD + (P - MD) / (N x (P / MD)^4), seeded with the first value',()=>{close(values('mcginley',fromCloses([10,12,11]),{length:2}),[10,10.482253086419753,10.69572234770982]);});
+ it('McGinley dynamic: the step is capped at 1, so a large drop never sends MD past price or below zero',()=>{
+  // N 14, 100 100 100 40: 14 x 0.4^4 = 0.358 < 1, so the literal step 1 / 0.358 = 2.79 would overshoot to -67.4; capped, MD = 40.
+  // Then 41: step 1 / (14 x (41 / 40)^4) < 1 is uncapped.
+  const md=values('mcginley',fromCloses([100,100,100,40,41,42,43,44,45,46,47,48,49,50]),{length:14});
+  close(md.slice(0,5),[100,100,100,40,40+1/(14*(41/40)**4)]);
+  for(const value of md.slice(3))expect(value!).toBeGreaterThanOrEqual(40);
+  // 100 -> 50: 14 x 0.5^4 = 0.875, the literal formula gives 42.86 (below price); capped it lands on 50.
+  close(values('mcginley',fromCloses([100,50]),{length:14}),[100,50]);
+  // A rise is never capped at Length 14 (r > 1): 100 -> 150 moves 50 / (14 x 1.5^4).
+  close(values('mcginley',fromCloses([100,150]),{length:14}),[100,100+50/(14*1.5**4)]);
+ });
+ it('Mass index draws Dorsey reversal bulge guides at 27 and 26.5',()=>{
+  expect(catalogDefinition('mass')!.guides!.map(row=>row.value)).toEqual([27,26.5]);
+ });
  it('Price oscillator: EMA percent difference, signal, histogram',()=>{
   // 0.8.1 SMA seed: EMA2 of 10, 13 = -, 11.5 -> (13 - 11.5) / 11.5 x 100
   close(values('ppo',fromCloses([10,13]),{fastLength:1,slowLength:2,signalLength:1}),[null,150/11.5]);
@@ -152,6 +166,7 @@ describe(' oscillators (SYNTHETIC)',()=>{
   close(values('woodiescci',b,{cciLength:2,turboLength:3},'turbo'),[null,null,100]);
  });
  it('Bull bear power: high and low against the EMA, histogram = their sum',()=>{
+  expect(catalogDefinition('bbpower')!.plots.map(row=>row.label)).toEqual(['Bull + bear power','Bull power','Bear power']);
   close(values('bbpower',[bar(0,10,12,8,11)],{length:1},'power'),[-2]);
   close(values('bbpower',[bar(0,10,12,8,11)],{length:1},'bull'),[1]);
   close(values('bbpower',[bar(0,10,12,8,11)],{length:1},'bear'),[-3]);

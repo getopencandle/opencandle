@@ -104,7 +104,7 @@ export const AUTO_ELLIOTT_DEFINITION:CatalogDefinition={id:AUTO_ELLIOTT_ID,name:
  unknownDefaults:['Swing size initial Small, Show corrective waves initial on, the greedy counting order, the A-B-C acceptance rule and colors are OpenCandle-defined.'],
  policies:[
   'OpenCandle-defined detection from confirmed swings only: a swing needs its full right side, so a label never sits on an unfinished swing. Only the newest 5000 bars are searched.',
-  'A drawn wave endpoint never moves. When price makes a more extreme pivot on the same side before a qualifying reversal, a new leg starts from the extreme between the two pivots; a swing that ends no drawn wave yet moves to the more extreme pivot.',
+  'Away from the left edge of the searched window, a drawn wave endpoint never moves. The 5000-bar window slides as new bars arrive, so waves near its left edge can drop out or be counted again differently. When price makes a more extreme pivot on the same side before a qualifying reversal, a new leg starts from the extreme between the two pivots; a swing that ends no drawn wave yet moves to the more extreme pivot.',
   'Auto Elliott waves is visual-only: no plot values, alerts or strategy signals.',
  ],
  calculate(ctx){

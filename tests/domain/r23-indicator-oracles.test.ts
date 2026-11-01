@@ -1,7 +1,8 @@
 import {describe,expect,it} from 'vitest';
 import {calculateIndicator} from '../../src/domain/indicators';
 import {catalogDefinition} from '../../src/domain/indicator-catalog';
-import {R23_INDICATOR_IDS,pivotAutoTimeframe,pivotCalendar,pivotPeriodKey,sourcePivotCalendar} from '../../src/domain/indicators-ext/r23-catalog';
+import {R23_INDICATOR_IDS,autoPeriodsPerYear,pivotAutoTimeframe,pivotCalendar,pivotPeriodKey,sourcePivotCalendar} from '../../src/domain/indicators-ext/r23-catalog';
+import {indicatorDefaults,indicatorLegacyDefaults} from '../../src/chart/indicator-settings';
 import type {IndicatorCalculationOptions} from '../../src/domain/indicators';
 
 // numerical oracles. SYNTHETIC bars only. Every expected value was computed by hand from the cited
@@ -70,6 +71,24 @@ describe('volatility (synthetic)',()=>{
   near(series('hv',C,{length:2,periodsPerYear:4},'hv').slice(2),[200*sd2(r[0],r[1]),200*sd2(r[1],r[2]),200*sd2(r[2],r[3])]);
   const gap=C.map((bar,i)=>i===2?{...bar,close:NaN}:bar);expect(series('hv',gap,{length:2,periodsPerYear:1},'hv')).toEqual([null,null,null,null,null]);// returns 2 and 3 are unavailable
  });
+ it('Historical volatility Auto annualisation follows the interval and market; saved instances keep their number',()=>{
+  const day=[{time:Date.UTC(2024,0,8)/1000},{time:Date.UTC(2024,0,9)/1000}];// Monday, Tuesday: no weekend bar
+  expect(autoPeriodsPerYear(day,'1D','us-equity')).toBe(252);expect(autoPeriodsPerYear(day,'1W','us-equity')).toBe(52);expect(autoPeriodsPerYear(day,'1M','us-equity')).toBe(12);
+  expect(autoPeriodsPerYear(day,'5','us-equity')).toBe(252*78);expect(autoPeriodsPerYear(day,'60','us-equity')).toBe(252*7);// 390 / 60 = 6.5: the last hour bar is short
+  expect(autoPeriodsPerYear(day,'2D','us-equity')).toBe(126);
+  expect(autoPeriodsPerYear(day,'1D','utc')).toBe(365);expect(autoPeriodsPerYear(day,'60','utc')).toBe(365*24);expect(autoPeriodsPerYear(day,'5','utc')).toBe(365*288);expect(autoPeriodsPerYear(day,'1W','utc')).toBeCloseTo(365/7,12);
+  // No resolution: bar spacing (daily bars, inferred US equity) and a 24/7 feed inferred from a weekend bar.
+  expect(autoPeriodsPerYear(day,null,null)).toBe(252);expect(autoPeriodsPerYear([{time:Date.UTC(2024,0,6)/1000},{time:Date.UTC(2024,0,7)/1000}],null,null)).toBe(365);
+  // New instances default to Auto; a saved instance (no annualization key) keeps its stored Periods per year.
+  expect(indicatorDefaults.hv.annualization).toBe('Auto');expect(Object.hasOwn(indicatorLegacyDefaults.hv,'annualization')).toBe(false);
+  const r=[Math.log(12/10),Math.log(11/12),Math.log(13/11),Math.log(16/13)],sd2=(a:number,b:number)=>Math.abs(a-b)/Math.SQRT2;
+  near(series('hv',C,{length:2,periodsPerYear:252},'hv').slice(2),r.slice(1).map((value,i)=>100*sd2(r[i],value)*Math.sqrt(252)));// saved: stored 252
+  const weekly=run('hv',C,{length:2,annualization:'Auto',periodsPerYear:252},{resolution:'1W',calendar:'us-equity'}).series[0].values;
+  near(weekly.slice(2),r.slice(1).map((value,i)=>100*sd2(r[i],value)*Math.sqrt(52)));
+  const crypto=run('hv',C,{length:2,annualization:'Auto'},{resolution:'60',calendar:'utc'}).series[0].values;
+  near(crypto.slice(2),r.slice(1).map((value,i)=>100*sd2(r[i],value)*Math.sqrt(365*24)));
+  near(run('hv',C,{length:2,annualization:'Manual',periodsPerYear:4},{resolution:'1W',calendar:'utc'}).series[0].values.slice(2),r.slice(1).map((value,i)=>200*sd2(r[i],value)));
+ });
  it('Linear regression channel over the latest Count bars',()=>{
   const sd=Math.sqrt(1/18);// closes 11,13,16: line 65/6 + 2.5k, residuals 1/6,-2/6,1/6
   near(series('lrc',C,{length:3,upperDeviation:2,lowerDeviation:1,source:'close'},'basis'),[null,null,65/6,40/3,95/6]);
@@ -115,10 +134,12 @@ describe('Pivot points standard (synthetic, help 43000521824 formulas)',()=>{
   near(levels('Traditional',three,{pivotsBack:1}).p,[null,null,null,null,40/3]);
   near(levels('Traditional',three,{pivotsBack:2}).p,[null,null,34/3,34/3,40/3]);
  });
- it('Auto timeframe: 1D up to 15 minutes, 1W below 1 day, 1M from 1 day; Monday weeks',()=>{
+ it('Auto timeframe: 1D up to 15 minutes, 1W below 1 day, 1M from 1 day, 1Y from 1 week; Monday weeks',()=>{
   const spaced=(step:number)=>[{time:0},{time:step}];
   expect(pivotAutoTimeframe(spaced(900))).toBe('Daily');expect(pivotAutoTimeframe(spaced(3600))).toBe('Weekly');
   expect(pivotAutoTimeframe(spaced(86400))).toBe('Monthly');expect(pivotAutoTimeframe(spaced(82800))).toBe('Monthly');// DST-shortened daily bar
+  // ChartSchool: weekly and monthly charts use the prior year's data. Spacing of 6 days or more counts as weekly.
+  expect(pivotAutoTimeframe(spaced(5*86400))).toBe('Monthly');expect(pivotAutoTimeframe(spaced(6*86400))).toBe('Yearly');expect(pivotAutoTimeframe(spaced(7*86400))).toBe('Yearly');expect(pivotAutoTimeframe(spaced(28*86400))).toBe('Yearly');
   const sunday=Date.UTC(2024,0,7)/1000,monday=Date.UTC(2024,0,8)/1000,nextSunday=Date.UTC(2024,0,14,23)/1000;
   expect(pivotPeriodKey(sunday,'Weekly')).not.toBe(pivotPeriodKey(monday,'Weekly'));expect(pivotPeriodKey(monday,'Weekly')).toBe(pivotPeriodKey(nextSunday,'Weekly'));
   expect(pivotPeriodKey(Date.UTC(2024,2,31)/1000,'Quarterly')).not.toBe(pivotPeriodKey(Date.UTC(2024,3,1)/1000,'Quarterly'));
@@ -192,6 +213,14 @@ describe('Pivot points on US equities: New York trading dates and the regular se
   expect(auto({})).toEqual(Array(6).fill(null));// smallest spacing 30 minutes -> 1W
   expect(pivotAutoTimeframe([{time:0},{time:300}],'1D')).toBe('Monthly');expect(pivotAutoTimeframe([{time:0},{time:86400}],'15')).toBe('Daily');
   expect(pivotAutoTimeframe([{time:0},{time:86400}],'100T')).toBe('Monthly');// tick interval: spacing fallback
+  expect(pivotAutoTimeframe([{time:0},{time:86400}],'1W')).toBe('Yearly');expect(pivotAutoTimeframe([{time:0},{time:86400}],'1M')).toBe('Yearly');expect(pivotAutoTimeframe([{time:0},{time:86400}],'3M')).toBe('Yearly');
+  expect(pivotAutoTimeframe([{time:0},{time:86400}],'5D')).toBe('Monthly');// 1D up to below 1W stays Monthly
+ });
+ it('Auto on a weekly chart uses the prior calendar year',()=>{
+  // SYNTHETIC weekly bars (UTC calendar): 2023 has H20 L5 C12; every 2024 bar carries P = (20 + 5 + 12) / 3.
+  const t2023=Date.UTC(2023,10,6)/1000,t2024=Date.UTC(2024,0,8)/1000,w=7*86400;
+  const weekly=[bar(t2023,15,20,10,15),bar(t2023+w,15,15,5,12),bar(t2024,28,30,25,28),bar(t2024+w,29,31,26,29)];
+  near(run('pivots',weekly,{type:'Traditional',timeframe:'Auto',pivotsBack:15},{resolution:'1W',calendar:'utc'}).series[0].values,[null,null,37/3,37/3]);
  });
  it('daily bars land on their trading date whether stamped at New York or UTC midnight; weeks start on Monday in New York',()=>{
   const nyMidnight=Date.UTC(2026,2,2,5)/1000,utcMidnight=Date.UTC(2026,2,2)/1000;

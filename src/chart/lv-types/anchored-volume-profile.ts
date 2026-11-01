@@ -94,7 +94,7 @@ function spanBars(proj:Projector,anchor:number):readonly RawBar[]|null{
 /** Slice approximations (labelled divergences from the reference, rules.slice_approximations style). */
 export const ANCHORED_VOLUME_PROFILE_APPROXIMATIONS=Object.freeze([Object.freeze({
  id:'row-volume-distribution',
- note:"Row binning is the inherited native fixed-range computation: each row touched by a bar's open, high, low or close receives that bar's full volume (no split by price range or lower-timeframe data). No reference fact describes how the reference distributes a bar's volume across rows, so row volumes, POC and value area are an approximation.",
+ note:"Row binning is the inherited fixed-range computation (drawing-fixes/volume-fixes.ts): each bar's volume is spread over the rows from its low to its high in proportion to each row's overlap with that range, the standard volume-at-price approximation without lower-timeframe or tick data. No reference fact describes how the reference distributes a bar's volume across rows, so row volumes, POC and value area are an approximation.",
 })]);
 
 function defineAnchoredVolumeProfile():DrawingTypeMeta{

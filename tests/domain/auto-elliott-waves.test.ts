@@ -48,3 +48,6 @@ it('puts each wave label above a peak and below a trough',()=>{
  expect(published.markers.map((m:any)=>m.text+':'+m.position).join(' ')).toBe('1:above 2:below 3:above 4:below 5:above A:below B:above C:below');
  for(const m of published.markers){const bar=bars[m.index];expect(m.position==='above'?bar.high>=bars[m.index-1].high:bar.low<=bars[m.index-1].low).toBe(true);}
 });
+it('the policy warns that waves near the left edge of the 5000-bar window can change',()=>{
+ expect(AUTO_ELLIOTT_DEFINITION.policies.join(' ')).toMatch(/left edge of the searched window.*5000-bar window slides/);
+});

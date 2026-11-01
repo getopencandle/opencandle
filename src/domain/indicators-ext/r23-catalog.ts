@@ -60,14 +60,16 @@ function resolutionSeconds(resolution:string|null|undefined):number|null{
 }
 /**
  * Auto rule: 1D for resolutions up to and including 15 minutes, 1W above 15 minutes and below 1 day,
- * 1M from 1 day. The chart resolution decides when the calculation receives one; otherwise LV falls back to the smallest
- * positive bar spacing, where 20 hours or more counts as daily so DST-shortened daily bars stay daily.
+ * 1M from 1 day up to (not including) 1 week, and 1Y for weekly and monthly charts (ChartSchool Pivot Points: "Pivot
+ * Points for weekly and monthly charts use the prior year's data"). The chart resolution decides when the calculation
+ * receives one; otherwise LV falls back to the smallest positive bar spacing, where 20 hours or more counts as daily so
+ * DST-shortened daily bars stay daily, and 6 days or more counts as weekly.
  */
 export function pivotAutoTimeframe(bars:readonly {time:number}[],resolution?:string|null):PivotTimeframe{
  const declared=resolutionSeconds(resolution);
- if(declared!==null)return declared<=900?'Daily':declared<DAY?'Weekly':'Monthly';
+ if(declared!==null)return declared<=900?'Daily':declared<DAY?'Weekly':declared<7*DAY?'Monthly':'Yearly';
  const spacing=barSpacing(bars);if(!Number.isFinite(spacing))return 'Monthly';
- return spacing<=900?'Daily':spacing<72000?'Weekly':'Monthly';
+ return spacing<=900?'Daily':spacing<72000?'Weekly':spacing<6*DAY?'Monthly':'Yearly';
 }
 /** True when the bars are daily or longer (declared resolution, else a spacing of 20 hours or more). */
 export function dailyOrLonger(bars:readonly {time:number}[],resolution?:string|null):boolean{const declared=resolutionSeconds(resolution);return declared!==null?declared>=DAY:barSpacing(bars)>=72000;}
@@ -89,6 +91,32 @@ export function sourcePivotCalendar(assetClass:string|undefined,timezone:string|
  if(assetClass==='crypto')return 'utc';
  return ['stock','etf','index'].includes(assetClass??'')&&timezone==='America/New_York'?'us-equity':undefined;
 }
+/**
+ * Auto periods per year for annualised volatility. Hull annualises by sqrt(periods per year) with 252 trading days; the
+ * mapping per interval is OpenCandle-defined. US equities: 252 per day, 52 per week, 12 per month, and intraday 252 x the
+ * regular-session bars of a day (390 minutes / interval, rounded up because the last bar of the session may be short).
+ * UTC (24/7) feeds: 365 per day, 365 / 7 per week, 12 per month, and intraday 365 x the bars of a 1440-minute day.
+ * Multiples divide (2D = 126 on US equities). The calendar is the pivot calendar (declared, else inferred from the bars);
+ * without a time resolution the smallest bar spacing decides (20 hours or more = daily, 6 days or more = weekly, 25 days
+ * or more = monthly; a single bar counts as daily).
+ */
+export function autoPeriodsPerYear(bars:readonly {time:number}[],resolution?:string|null,declared?:PivotCalendar|null):number{
+ const us=pivotCalendar(bars,resolution,declared)==='us-equity',perDay=us?252:365,perWeek=us?52:365/7,dayBars=(seconds:number)=>Math.ceil((us?23400:DAY)/seconds);
+ let spec:ReturnType<typeof parseInterval>|null=null;
+ try{if(typeof resolution==='string'){const parsed=parseInterval(resolution);if(parsed.kind==='time')spec=parsed;}}catch{spec=null;}
+ if(spec){
+  if(spec.unit==='day')return perDay/spec.multiplier;if(spec.unit==='week')return perWeek/spec.multiplier;if(spec.unit==='month')return 12/spec.multiplier;
+  if(spec.seconds!==null&&spec.seconds>0)return perDay*dayBars(spec.seconds);
+ }
+ const spacing=barSpacing(bars);if(!Number.isFinite(spacing))return perDay;
+ return spacing>=25*DAY?12:spacing>=6*DAY?perWeek:spacing>=72000?perDay:perDay*dayBars(spacing);
+}
+/** The Annualization input of the volatility kinds: Auto (autoPeriodsPerYear) for new instances; a saved instance without
+ *  the key computes Manual with its stored number (legacyDefval). */
+export const ANNUALIZATION_INPUT:CatalogInput={key:'annualization',title:'Annualization',type:'string',defval:'Auto',options:['Auto','Manual'],legacyOmit:true,legacyDefval:'Manual'};
+export const ANNUALIZATION_POLICY='Annualization Auto (the default for new instances) uses 252 periods a year on daily US equity charts, 52 on weekly and 12 on monthly, and 252 x the regular-session bars of a day intraday (252 x 78 on 5-minute bars); 24/7 feeds such as crypto use 365 a day and 365 x the bars of a 24-hour day intraday. Choose Manual to set the periods per year yourself; instances saved before Auto keep their stored number.';
+/** Periods per year a volatility kind annualises with: Auto, or the stored number under `key`. */
+export function annualPeriods(ctx:CatalogContext,key:string):number{return ctx.str('annualization')==='Auto'?autoPeriodsPerYear(ctx.bars,ctx.chart?.resolution??null,ctx.chart?.calendar):ctx.num(key);}
 /** Period key. UTC: UTC calendar days, Monday weeks, months, quarters, years. US equity: the same over New York trading dates. */
 export function pivotPeriodKey(time:number,timeframe:PivotTimeframe,calendar:PivotCalendar='utc',daily=false):string|null{
  if(!Number.isFinite(time))return null;let y:number,m:number,d:number,weekday:number;
@@ -192,7 +220,7 @@ const definitions:CatalogDefinition[]=[
   plots:PIVOT_LEVELS.map(level=>({id:level,label:level.toUpperCase(),color:level==='p'?ORANGE:level.startsWith('r')?RED:GREEN,width:1,...(/[345]$/.test(level)?{visible:false}:{})})),
   provenance:[{url:HELP+'pivot-points-standard',facts:'Types Traditional, Fibonacci, Woodie, Classic, DM, Camarilla with the published P/R1-R5/S1-S5 formulas from the prior period high, low, close (and open: DM prior open, Woodie current open); only Traditional and Camarilla define R5/S5, Fibonacci stops at R3/S3, Woodie and Classic at R4/S4, DM at R1/S1; Auto timeframe = 1D up to 15 minutes, 1W above 15 minutes and below 1 day, 1M from 1 day; Number of pivots back default 15.'}],
   unknownDefaults:[UNKNOWN,'Type Traditional and Pivots timeframe Auto are OpenCandle-defined defaults (the article does not state them); Number of pivots back 15 is quoted from the article. Use daily-based values, labels and per-level toggles are not implemented.'],
-  policies:['US equities (declared by the chart, or inferred when no bar falls on a New York weekend or outside 04:00-20:00 New York): periods are New York trading dates, Monday weeks, months, quarters and years, and on intraday bars only regular-session bars (09:30 to the close, 13:00 on early-close days) set a period\'s open, high, low and close; a daily pivot therefore uses the prior regular session. Daily-or-longer bars count whole. Other feeds (crypto): UTC calendar periods, every bar.','The prior period is the nearest earlier one with a complete open, high, low and close; each period aggregates finite prices only.','Auto uses the chart\'s declared interval; without one it infers the interval from the smallest positive bar spacing (20 hours or more counts as daily).','Each level is a horizontal segment per period: the stroke that would join two periods is transparent. Values exist on every bar of the period for the data window and alerts.','Only the latest Number of pivots back periods (including the current one) carry values.'],
+  policies:['US equities (declared by the chart, or inferred when no bar falls on a New York weekend or outside 04:00-20:00 New York): periods are New York trading dates, Monday weeks, months, quarters and years, and on intraday bars only regular-session bars (09:30 to the close, 13:00 on early-close days) set a period\'s open, high, low and close; a daily pivot therefore uses the prior regular session. Daily-or-longer bars count whole. Other feeds (crypto): UTC calendar periods, every bar.','The prior period is the nearest earlier one with a complete open, high, low and close; each period aggregates finite prices only.','Auto picks the pivot period from the chart interval: daily pivots up to 15-minute charts, weekly below daily, monthly on daily charts, and yearly on weekly and monthly charts (ChartSchool). It uses the chart\'s declared interval; without one it infers the interval from the smallest positive bar spacing (20 hours or more counts as daily, 6 days or more as weekly).','Each level is a horizontal segment per period: the stroke that would join two periods is transparent. Values exist on every bar of the period for the data window and alerts.','Only the latest Number of pivots back periods (including the current one) carry values.'],
   segmented:true,legendNames:true,calculate:pivotPoints,warmup:()=>2,work:count=>count*64},
  {id:'vwma',name:'Volume weighted moving average',acronym:'VWMA',overlay:true,requiresVolume:true,sourceSeries:true,inputs:[{key:'length',title:'Length',defval:20,...LENGTH},SOURCE],plots:[{id:'vwma',label:'VWMA',color:BLUE,width:1}],
   provenance:[{url:LV+'textbook-vwma',facts:'VWMA = sum(source x volume) / sum(volume) over Length (Buff Dormeier, Investing with Volume Analysis, 2011).'}],unknownDefaults:[UNKNOWN],
@@ -200,12 +228,12 @@ const definitions:CatalogDefinition[]=[
   calculate({bars,source,num}){const n=num('length'),weighted=source.map((value,i)=>finite(value)&&finite(bars[i].volume)?value*bars[i].volume:null),volume=bars.map(bar=>bar.volume);
    return {vwma:bars.map((_,i)=>{const a=windowSum(weighted,i,n),b=windowSum(volume,i,n);return a===null||b===null||b===0?null:a/b;})};},
   warmup:value=>value('length'),work:(count,value)=>count*value('length')*2},
- {id:'hv',name:'Historical volatility',acronym:'HV',overlay:false,inputs:[{key:'length',title:'Length',defval:10,...LENGTH_2},{key:'periodsPerYear',title:'Periods per year',defval:252,type:'int',min:1,max:1000000,step:1}],plots:[{id:'hv',label:'HV',color:BLUE,width:1}],
+ {id:'hv',name:'Historical volatility',acronym:'HV',overlay:false,inputs:[{key:'length',title:'Length',defval:10,...LENGTH_2},ANNUALIZATION_INPUT,{key:'periodsPerYear',title:'Periods per year',defval:252,type:'int',min:1,max:1000000,step:1}],plots:[{id:'hv',label:'HV',color:BLUE,width:1}],
   provenance:[{url:LV+'hull-options-futures-derivatives',facts:'John C. Hull: volatility estimate = sample standard deviation of log returns ln(close / prior close) over n periods, annualized by the square root of the number of periods per year (252 trading days).'}],
-  unknownDefaults:[UNKNOWN,'Periods per year 252 is the textbook trading-day count; the reference annualization is unverified.'],
-  policies:['HV = 100 x sample standard deviation (n - 1) of ln(close / prior close) over Length x sqrt(Periods per year). A missing or nonpositive close makes its return unavailable.'],
-  // Sample (n - 1) deviation and 252 per Hull; 24/7 markets set Periods per year (365) themselves, so saved instances never move.
-  calculate({bars,num}){const n=num('length'),factor=Math.sqrt(num('periodsPerYear')),c=closes(bars),r=c.map((value,i)=>i&&finite(value)&&finite(c[i-1])&&value>0&&c[i-1]>0?Math.log(value/c[i-1]):null);
+  unknownDefaults:[UNKNOWN,'Periods per year 252 is the textbook trading-day count; the Auto mapping per interval and market is OpenCandle-defined.'],
+  policies:['HV = 100 x sample standard deviation (n - 1) of ln(close / prior close) over Length x sqrt(periods per year). A missing or nonpositive close makes its return unavailable.',ANNUALIZATION_POLICY],
+  // Sample (n - 1) deviation per Hull; Auto annualises per interval and market, a saved instance keeps its stored number.
+  calculate(ctx){const {bars,num}=ctx,n=num('length'),factor=Math.sqrt(annualPeriods(ctx,'periodsPerYear')),c=closes(bars),r=c.map((value,i)=>i&&finite(value)&&finite(c[i-1])&&value>0&&c[i-1]>0?Math.log(value/c[i-1]):null);
    return {hv:r.map((_,i)=>{const m=windowMoments(r,i,n);return m===null?null:zero(100*Math.sqrt(m.ss/(n-1))*factor);})};},
   warmup:value=>value('length')+1,work:(count,value)=>count*value('length')*2},
  {id:'uo',name:'Ultimate oscillator',acronym:'UO',overlay:false,inputs:[{key:'fast',title:'Fast length',defval:7,...LENGTH},{key:'middle',title:'Middle length',defval:14,...LENGTH},{key:'slow',title:'Slow length',defval:28,...LENGTH}],plots:[{id:'uo',label:'UO',color:RED,width:1}],

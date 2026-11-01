@@ -98,7 +98,9 @@ describe(' flag, pennant and cup and handle entries (SYNTHETIC)',()=>{
   const row:IndicatorInstanceSettings={id:'p1',kind,inputs:{...indicatorDefaults[kind]} as never,plots:{},offset:0,visible:true,presentation:defaultIndicatorPresentation(kind)};
   const {output,diagnostics}=renderIndicatorPresentation(row,calculateIndicator(kind,bars,row.inputs),bars,{resolution:'1D'});
   expect(diagnostics).toEqual([]);
-  expect(output.labels!.map(label=>[label.text,label.x,label.yloc])).toEqual([['Bullish flag',bars[at[5]].time*1000,'belowbar']]);
+  // New instances require the breakout: the first close above the upper flag line (bar at[5]+4) is reported on the bar
+  // the last pivot is confirmed, at[5]+5, where the dot sits.
+  expect(output.labels!.map(label=>[label.text,label.x,label.yloc])).toEqual([['Bullish flag',bars[at[5]].time*1000,'belowbar'],['',bars[at[5]+5].time*1000,'belowbar']]);
   // Pole p0-h1, then the upper (h1-h2) and lower (l1-l2) flag lines continued to the confirmation bar.
   expect(output.lines!.map(line=>[line.x1/1000,line.y1,line.x2/1000,line.y2])).toEqual([[bars[at[1]].time,99.5,bars[at[2]].time,130.5],[bars[at[2]].time,130.5,bars[at[5]+5].time,126.875],[bars[at[3]].time,121.5,bars[at[5]+5].time,118.875]]);
   const source=captureIndicatorAlertSource(row,'bullish','standard','snap-1'),key=technicalSourceKey(source),confirm=at[5]+5;
@@ -110,5 +112,54 @@ describe(' flag, pennant and cup and handle entries (SYNTHETIC)',()=>{
   const view=selectorView(source,{item:'built-ins',tab:'patterns',query:''});
   expect(view.entries.filter(row=>row.section==='Chart patterns').map(row=>row.label)).toEqual(['All chart patterns','Bearish flag chart pattern','Bullish flag chart pattern','Cup and handle chart pattern','Inverted cup and handle chart pattern','Double bottom chart pattern','Double top chart pattern','Head and shoulders chart pattern','Inverted head and shoulders chart pattern','Bearish pennant chart pattern','Bullish pennant chart pattern','Rectangle chart pattern','Triangle chart pattern','Triple bottom chart pattern','Triple top chart pattern','Falling wedge chart pattern','Rising wedge chart pattern']);
   expect(selectorView(source,{item:'built-ins',tab:'patterns',query:'pennant'}).entries.map(row=>row.id)).toEqual(['chpbearpennant','chpbullpennant']);
+ });
+});
+
+describe('flags, pennants and cups wait for the breakout close (SYNTHETIC)',()=>{
+ const ON={breakout:true};
+ const sig=(kind:string,bars:readonly Bar[],plot:string,inputs:Record<string,unknown>)=>ones(run(kind,bars,inputs).series.find(row=>row.id===plot)!.values);
+ /** Every prefix reports exactly the full run's signals up to its own last bar (no look-ahead). */
+ const causal=(kind:string,bars:readonly Bar[],plot:string)=>{const at=(rows:readonly Bar[])=>ones(calculateIndicator(kind,rows,ON).series.find(row=>row.id===plot)!.values),full=at(bars);
+  for(let end=1;end<=bars.length;end++)expect(at(bars.slice(0,end)),kind+' prefix '+end).toEqual(full.filter(i=>i<end));};
+ /** One more 8-bar leg from the last close to `to`. */
+ const extend=(bars:readonly Bar[],to:number)=>{const closes=bars.map(row=>row.close),from=closes.at(-1)!;for(let s=1;s<=LEG;s++)closes.push(from+(to-from)*s/LEG);return toBars(closes);};
+ it('every chart entry offers Require breakout confirmation: on for new instances, off for saved ones',()=>{
+  for(const kind of CHART_PATTERN_INDICATOR_IDS){
+   expect(catalogDefinition(kind)!.inputs.find(row=>row.key==='breakout'),kind).toMatchObject({type:'bool',defval:true,legacyOmit:true,legacyDefval:false});
+   expect(indicatorDefaults[kind as IndicatorId],kind).toMatchObject({breakout:true});
+  }
+  expect(catalogDefinition('chpall')!.inputs.find(row=>row.key==='breakout')!.title).toBe('Require breakout confirmation (every pattern)');
+ });
+ it('a failed bullish pennant that falls toward 52 without closing above its upper line is not reported',()=>{
+  // Pole 49.5 to 70.5, pennant highs 70.5, 68.5 and lows 63.5, 65.5; the rise to 66.4 stays under the falling upper line,
+  // then a close under the rising lower line voids it.
+  const {bars,at}=path([60,50,70,64,68,66,66.4,52]);
+  expect(sig('chpbullpennant',bars,'bullish',{})).toEqual([at[5]+5]);// a saved instance (no key): the old unconfirmed report
+  expect(sig('chpbullpennant',bars,'bullish',ON)).toEqual([]);
+  expect(sig('chpall',bars,'bullish',ON)).toEqual([]);
+ });
+ it('a flag that closes through its other line first is void (bullish and bearish)',()=>{
+  expect(sig('chpbullflag',path([110,100,130,122,128,120,124,105]).bars,'bullish',ON)).toEqual([]);
+  expect(sig('chpbullflag',path([110,100,130,122,128,120,124,105]).bars,'bullish',{})).toHaveLength(1);
+  expect(sig('chpbearflag',path([90,100,70,78,72,80,76,95]).bars,'bearish',ON)).toEqual([]);
+ });
+ it('a cup that closes below its handle low before clearing the rim is void (and the inverted mirror)',()=>{
+  const cup=extend(cupPath(100,120,100,120.3,114,116).bars,105),inverted=extend(cupPath(120,100,120,99.7,106,104).bars,115);
+  expect(sig('chpcuphandle',cup,'bullish',{})).toHaveLength(1);
+  expect(sig('chpcuphandle',cup,'bullish',ON)).toEqual([]);
+  expect(sig('chpinvcuphandle',inverted,'bearish',ON)).toEqual([]);
+ });
+ it.each(CASES.map(row=>[...row] as const))('%s (%s) still fires with breakout confirmation, with no look-ahead',(kind,plot,{bars,at},last)=>{
+  // Each textbook case breaks out by the bar its last pivot is confirmed, so the signal stays on that bar.
+  const result=run(kind,bars,ON);
+  expect(ones(result.series.find(row=>row.id===plot)!.values)).toEqual([at[last]+5]);
+  causal(kind,bars,plot);
+ });
+ it('the marker tooltip gives the signal date and a dot marks the signal bar',()=>{
+  const {bars,at}=path(BULL_FLAG),result=run('chpbullflag',bars,ON);
+  expect(result.marks!.markers).toEqual([
+   {index:at[5],plot:'bullish',text:'Bullish flag',tooltip:'Bullish flag\nKnown on 2024-01-23'},
+   {index:at[5]+5,plot:'bullish',text:'',tooltip:'Bullish flag: confirmed by a breakout close on 2024-01-23',position:'below',shape:'circle'},
+  ]);
  });
 });

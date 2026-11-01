@@ -81,7 +81,7 @@ These are used to build and test OpenCandle. Electron is the only one shipped in
 | @types/node | 24.10.1 | MIT |
 | @types/react | 19.2.14 | MIT |
 | @types/react-dom | 19.2.3 | MIT |
-| electron | 44.7.2 | MIT |
+| electron | 44.9.1 | MIT |
 | playwright | 1.64.0 | Apache-2.0 |
 | typescript | 7.0.2 | Apache-2.0 |
 | vite | 8.3.4 | MIT |

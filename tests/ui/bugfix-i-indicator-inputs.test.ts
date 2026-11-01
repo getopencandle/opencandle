@@ -105,7 +105,7 @@ it('GH-G1-2: the acronym column is bounded and clips instead of running into the
  expect(acronymRule).toMatch(/flex:none/);expect(acronymRule).toContain('overflow:hidden');expect(acronymRule).toContain('white-space:nowrap');expect(acronymRule).toContain('text-overflow:ellipsis');
  expect(nameRule).toMatch(/flex:1;min-width:0/);expect(nameRule).toContain('overflow:hidden');expect(nameRule).toContain('text-overflow:ellipsis');
  // The column shows the friendly short title ("Stoch RSI"), not the upper-cased id.
- for(const [kind,name,short] of [['supertrend','Supertrend','Supertrend'],['stochrsi','Stochastic RSI','Stoch RSI']] as const){
+ for(const [kind,name,short] of [['rci','Rank correlation index','RCI'],['stochrsi','Stochastic RSI','Stoch RSI']] as const){
   const add=find(tree,node=>node.type==='button'&&String(node.props['aria-label']).startsWith('Add ')&&findAll(node,item=>item.type==='strong'&&text(item)===short).length>0);
   const acronym=find(add,node=>node.type==='strong'),label=find(add,node=>node.type==='span');
   expect(width(short.toUpperCase()),kind).toBeLessThanOrEqual(cap);
@@ -113,6 +113,11 @@ it('GH-G1-2: the acronym column is bounded and clips instead of running into the
   expect(acronym.props.title).toBe(short);
   expect(label.props.className).toBe('indicator-catalog-name');
   expect(text(label).length,name).toBeGreaterThan(0);
+ }
+ // A short title that only repeats the name (Supertrend, MACD) is not shown twice.
+ for(const name of ['Supertrend','MACD']){
+  const add=find(tree,node=>node.type==='button'&&node.props['aria-label']==='Add '+name);
+  expect(findAll(add,node=>node.type==='strong').length,name).toBe(0);
  }
  const widths=new Set(findAll(tree,node=>node.type==='strong'&&node.props.className==='indicator-catalog-acronym').map(node=>node.props.style));
  expect(widths.size,'no per-row inline widths: every row shares the one CSS column rule').toBe(1);

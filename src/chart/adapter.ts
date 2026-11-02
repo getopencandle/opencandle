@@ -923,7 +923,7 @@ export function createChartProbe(container: HTMLElement, bars: readonly Bar[], s
       deferredStarts=keptView&&typeof deferNativeStarts==='function'?deferNativeStarts(chart,keptView.renderer):null;
       // holdManualScales: a same-subscription reload keeps the user's manual price scales.
       const heldScales=reloadPlan?.kind==='reload'&&typeof holdManualScales==='function'?holdManualScales():null;
-      try{await chart.setMarket({data:fed});}finally{deferredStarts?.stop();}heldScales?.restore();if(typeof derivedDrawings!=='undefined')derivedDrawings.fed(fedAxis,fedDerived,next,currentBarInterval());publishDerivedPayload(next,{kind:'commit',ticket:publication});reprojectDrawings();
+      try{await chart.setMarket({data:fed});}finally{deferredStarts?.stop();}heldScales?.restore();if(typeof derivedDrawings!=='undefined')derivedDrawings.fed(fedAxis,fedDerived,next,currentBarInterval());publishDerivedPayload(next,{kind:'commit',ticket:publication});
       // A same-subscription reload (a history correction or a derived chart type) keeps the view.
       // A reload that keeps the newest bar (a history page landed, or a correction) puts the exact viewport
       // back: bar spacing and right offset are counted from the newest bar, so neither the view nor the spacing moves. The
@@ -937,6 +937,10 @@ export function createChartProbe(container: HTMLElement, bars: readonly Bar[], s
       else if(fedDerived?fedDerivedKey!==previousDerivedKey:previousDerivedKey!==null&&fedDerivedKey===null)try{const renderer=rendererHolder.current as unknown as {resetView?:unknown}|null,reset=renderer?.resetView;if(typeof reset==='function')Reflect.apply(reset,renderer,[]);}catch{/* the default view stays */}
       else if(carry!==null)try{spacingCarry.finish(rendererHolder.current as unknown as Parameters<typeof spacingCarry.finish>[0],carry);}catch{/* the kept spacing stays */}
       /* typeof: extracted-block harnesses run applyMarketInput without the history-room zoom helpers. */if(!keptView&&typeof settleViewportBounds==='function')settleViewportBounds(reloadPlan?.kind!=='reload');
+      // Drawings are re-projected only once the view above is final. The renderer paints the drawing layer at once on a re-projection,
+      // with the viewport of that moment, and the rest of the chart on the next frame: re-projected before the restore, a history page
+      // painted every drawing (a Fib retracement most visibly) for one frame where the reload's default view puts it, then back.
+      reprojectDrawings();
     }finally{if(deferredStarts)await deferredStarts.run();marketUpdating=false;publishDerivedPayload(next,{kind:'release',ticket:publication});}notifyMarketApplied();};
   const marketQueue=createMarketQueue({read:()=>({bars:currentBars,source:currentSource}),write:writeMarketInput,apply:applyMarketInput,disposed:()=>disposed,validate:next=>{if(!next.length)return {code:'MARKET_INPUT_EMPTY',feature:'market input',severity:'unavailable',message:EMPTY_MARKET_MESSAGE};try{indicators.assertCapacity(next.length);}catch(error){return {code:'INDICATOR_CAPACITY',feature:'indicator collection',severity:'unavailable',message:error instanceof Error?error.message:String(error)};}if(requestedStyle!=='volumecandles')return null;const volume=requireVolume(next,requestedStyle);return volume.ok?null:volume.diagnostic;}});
   let lastCrosshair:ReturnType<typeof normalizedCrosshair>|null=null;

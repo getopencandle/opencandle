@@ -1,5 +1,6 @@
 import type {IndicatorId} from '../domain/indicators';
-import {indicatorInputSchema,indicatorPlotIds,indicatorDefaults,indicatorActivePlotIds,LV_INDICATOR_PALETTE} from '../chart/indicator-settings';
+import type {InputValue} from '@luxalgo/vela';
+import {indicatorInputSchema,indicatorPlotIds,indicatorDefaults,indicatorAbsentDefaults,indicatorAbsentValue,indicatorActivePlotIds,LV_INDICATOR_PALETTE} from '../chart/indicator-settings';
 import {defaultPlotStyle,type IndicatorInstanceView} from '../chart/indicator-port';
 import type {IndicatorDefault} from './indicator-library';
 import {parseIndicatorSource} from '../domain/indicator-source';
@@ -61,7 +62,7 @@ const summaryValue=(value:unknown)=>typeof value==='number'?(Number.isFinite(val
 /** Compact label such as "SMA 9 close". Duplicate labels get an ordinal suffix in chart order. */
 export function indicatorInstanceLabels(instances:readonly Pick<IndicatorInstanceView,'id'|'kind'|'inputs'>[]):Map<string,string>{
  const base=instances.map(row=>{
-  const parts=indicatorInputSchema(row.kind).filter(field=>field.type!=='bool'&&!/^(smoothing|band|kernelVersion|timezone|divergence)/.test(field.key)).slice(0,3).map(field=>{const value=Object.hasOwn(row.inputs,field.key)?row.inputs[field.key]:field.defval,ref=field.key==='source'?parseIndicatorSource(value):null;if(!ref)return summaryValue(value);const target=instances.find(item=>item.id===ref.instance);return target?indicatorAcronyms[target.kind]+':'+ref.plot:'missing source';}).filter(Boolean);
+  const parts=indicatorInputSchema(row.kind).filter(field=>field.type!=='bool'&&!/^(smoothing|band|kernelVersion|timezone|divergence)/.test(field.key)).slice(0,3).map(field=>{const value=Object.hasOwn(row.inputs,field.key)?row.inputs[field.key]:indicatorAbsentValue(row.kind,field.key,field.defval as InputValue),ref=field.key==='source'?parseIndicatorSource(value):null;if(!ref)return summaryValue(value);const target=instances.find(item=>item.id===ref.instance);return target?indicatorAcronyms[target.kind]+':'+ref.plot:'missing source';}).filter(Boolean);
   return [indicatorAcronyms[row.kind],...parts].join(' ');
  });
  const totals=new Map<string,number>(),seen=new Map<string,number>(),labels=new Map<string,string>();
@@ -85,7 +86,7 @@ const seededLag=averageLag;
 export function indicatorWarmupBars(kind:IndicatorId,inputs:Record<string,unknown>):number{
  const definition=catalogDefinition(kind);
  // Retired catalog inputs (e.g. AO Fast/Slow) keep their recorded defaults when absent.
- const value=(key:string)=>finiteNumber(Object.hasOwn(inputs,key)?inputs[key]:indicatorDefaults[kind][key]??definition?.retiredInputs?.find(row=>row.key===key)?.defval,1);if(definition)return definition.warmup(key=>value(key),key=>String(Object.hasOwn(inputs,key)?inputs[key]:indicatorDefaults[kind][key]??''));
+ const value=(key:string)=>finiteNumber(Object.hasOwn(inputs,key)?inputs[key]:indicatorAbsentDefaults[kind][key]??definition?.retiredInputs?.find(row=>row.key===key)?.defval,1);if(definition)return definition.warmup(key=>value(key),key=>String(Object.hasOwn(inputs,key)?inputs[key]:indicatorAbsentDefaults[kind][key]??''));
  let last=0;// zero-based index of the first bar where every base plot can be finite
  switch(kind){
   case 'sma':last=value('length')-1;break;
@@ -123,9 +124,10 @@ export function indicatorDataStatus(row:Pick<IndicatorInstanceView,'diagnostics'
 /** Draft equivalent of the live instance, used for reload and unapplied-change detection. */
 export function indicatorRowDraft(row:IndicatorInstanceView):IndicatorDefault{return {inputs:structuredClone(row.inputs),offset:row.offset,visible:row.visible,plots:Object.fromEntries(indicatorPlotIds[row.kind].map((id,i)=>[id,structuredClone(row.plots[id]??defaultPlotStyle(row.kind,id,i))])),...(row.presentation!==undefined?{presentation:structuredClone(row.presentation)}:{})};}
 const stable=(value:unknown):unknown=>Array.isArray(value)?value.map(stable):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,stable((value as Record<string,unknown>)[key])])):Number.isNaN(value)?'NaN':value;
-/** Inputs that only make an omitted legacy default explicit (VWAP bands, smoothing) are not counted as changes. */
+/** Inputs that only make an omitted default explicit (VWAP bands, smoothing) are not counted as changes. An omitted
+ *  legacyOmit input is compared at the value the saved instance really runs with, so ticking a new option on is a change. */
 export function indicatorDraftDirty(draft:IndicatorDefault,row:IndicatorInstanceView):boolean{
- const live=indicatorRowDraft(row),defaults=indicatorDefaults[row.kind],inputs={...draft.inputs};
+ const live=indicatorRowDraft(row),defaults=indicatorAbsentDefaults[row.kind],inputs={...draft.inputs};
  for(const key of Object.keys(inputs))if(!Object.hasOwn(live.inputs,key)&&Object.hasOwn(defaults,key)&&inputs[key]===defaults[key])delete inputs[key];
  return JSON.stringify(stable({...draft,inputs}))!==JSON.stringify(stable(live));
 }

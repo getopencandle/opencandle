@@ -42,7 +42,7 @@ it('PRE-R7-1: a newly typed CCI Length 5000 is not saved as a default; the refus
 it('PRE-R7-1: Save as default from an instance restored with a pre-fix value copies that value (restored legacy, not new input)',()=>{
  const ui=restored([snap('cci-long','cci',{length:5000,source:'close'})]);ui.open('cci-long');
  ui.sClick('Save as default');
- expect(ui.library.defaults.cci?.inputs).toEqual({length:5000,source:'close'});
+ expect(ui.library.defaults.cci?.inputs).toEqual({length:5000,source:'close',maType:'None'});
 });
 
 it('PRE-R7-3: an unchanged restored value above the fact bound does not block a style-only Apply, and its state is shown',()=>{

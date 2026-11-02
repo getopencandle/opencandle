@@ -107,6 +107,26 @@ export const indicatorLegacyInputKeys:Record<IndicatorId,readonly string[]>=Obje
 /** Catalog inputs whose new-instance default differs from the saved-instance base (legacyOmit / legacyDefval). */
 const CATALOG_NEW_DEFAULTS:Record<string,Record<string,InputValue>>=Object.fromEntries(CATALOG_INDICATORS.map(definition=>[definition.id,Object.fromEntries(definition.inputs.filter(input=>input.legacyOmit||input.legacyDefval!==undefined).map(input=>[input.key,input.defval as InputValue]))]));
 export const indicatorDefaults:Record<IndicatorId,Record<string,InputValue>>=Object.fromEntries(INDICATOR_KINDS.map(kind=>[kind,{...indicatorLegacyDefaults[kind],...CATALOG_NEW_DEFAULTS[kind],...(kind==='obv'?{source:'close'}:{}),...(SMOOTHING_INDICATORS.includes(kind)?{smoothingType:'None',smoothingLength:14,smoothingMultiplier:2}:{}),...(kind==='stochastic'?{smoothK:1}:{}),...(kind==='vwap'?{...VWAP_BAND_DEFAULTS,timezone:VWAP_EXCHANGE_ZONE}:{})}])) as Record<IndicatorId,Record<string,InputValue>>;
+/** The value a saved instance really runs with for an input it holds no key for: the old default (legacyDefval) of a
+ *  legacyOmit input, else the plain default. A new instance carries every key, so this only matters for saved ones. */
+export function indicatorAbsentValue(kind:IndicatorId,key:string,fallback:InputValue):InputValue{
+ const field=catalogDefinition(kind)?.inputs.find(input=>input.key===key);
+ return field?.legacyOmit&&field.legacyDefval!==undefined?field.legacyDefval:fallback;
+}
+/** indicatorDefaults, with each absent-key value an instance without the key runs with (see indicatorAbsentValue). */
+export const indicatorAbsentDefaults:Record<IndicatorId,Record<string,InputValue>>=Object.fromEntries(INDICATOR_KINDS.map(kind=>[kind,Object.fromEntries(Object.entries(indicatorDefaults[kind]).map(([key,value])=>[key,indicatorAbsentValue(kind,key,value)]))])) as Record<IndicatorId,Record<string,InputValue>>;
+/** The inputs with each absent catalog input whose meaning differs between saved and new instances (legacyOmit with a
+ *  legacyDefval) written out at the value the instance runs with. Other absent inputs equal today's default and stay absent;
+ *  a key whose retired predecessor is still stored also stays absent (the kept legacy pair must not be shadowed). */
+export function indicatorEffectiveInputs(kind:IndicatorId,inputs:IndicatorInputs):IndicatorInputs{
+ const definition=catalogDefinition(kind);if(!definition)return {...inputs};
+ const next:Record<string,unknown>={...inputs};
+ for(const field of definition.inputs){
+  if(!field.legacyOmit||field.legacyDefval===undefined||Object.hasOwn(next,field.key)||definition.retiredInputs?.some(row=>row.replacedBy===field.key&&Object.hasOwn(next,row.key)))continue;
+  next[field.key]=indicatorAbsentValue(kind,field.key,field.defval as InputValue);
+ }
+ return next as IndicatorInputs;
+}
 export const indicatorPlotIds:Record<IndicatorId,readonly string[]>={volume:['volume','ma'],sma:['sma','smooth','smoothUpper','smoothLower'],ema:['ema','smooth','smoothUpper','smoothLower'],rsi:['rsi','smooth','smoothUpper','smoothLower','divergenceBullish','divergenceBearish','divergenceHiddenBullish','divergenceHiddenBearish'],macd:['macd','signal','histogram'],bb:['basis','upper','lower'],vwap:['vwap','upper1','lower1','upper2','lower2','upper3','lower3'],stochastic:['k','d'],atr:['atr'],obv:['obv','smooth','smoothUpper','smoothLower'],...Object.fromEntries(CATALOG_INDICATORS.map(definition=>[definition.id,definition.plots.map(plot=>plot.id)]))} as unknown as Record<IndicatorId,readonly string[]>;
 export {indicatorActivePlotIds};
 const titles:Record<string,string>={length:'Length',source:'Source',smoothingType:'Smoothing type',divergence:'Calculate divergence',smoothingLength:'Smoothing length',smoothingMultiplier:'BB standard deviations',smoothK:'K smoothing',smoothD:'D length',fast:'Fast length',slow:'Slow length',signal:'Signal length',oscillatorType:'Oscillator MA type',signalType:'Signal MA type',basisType:'Basis MA type',multiplier:'Standard deviations',anchor:'Anchor period',timezone:'Calendar anchor time zone',smoothing:'Smoothing',bandMode:'Band calculation mode',band1Enabled:'Band 1 enabled',band1Multiplier:'Band 1 percentage multiplier',band2Enabled:'Band 2 enabled',band2Multiplier:'Band 2 percentage multiplier',band3Enabled:'Band 3 enabled',band3Multiplier:'Band 3 percentage multiplier'};

@@ -1,6 +1,6 @@
 import type {BarDataset} from '../domain/types';
 import type {MultiChartCellState} from './MultiChartGrid';
-import {indicatorDefaults} from '../chart/indicator-settings';
+import {indicatorAbsentDefaults} from '../chart/indicator-settings';
 import {sourceContextForDataset,sameChartSourceBasis} from '../chart/source-context';
 import {supportsHistoricalFrame} from '../chart/historical-frame';
 
@@ -11,7 +11,7 @@ function baseShape(cell:MultiChartCellState){return JSON.stringify([cell.session
 /** Study owners (built indicators and scripts). Their calculation changes rebuild the saved frame's owner list, but in the
  * reference an added, removed or edited study never resets the main pane's manual price range. */
 function studyShape(cell:MultiChartCellState){return JSON.stringify([
- cell.indicators.map(row=>[row.id,row.kind,fields({...indicatorDefaults[row.kind],...row.inputs}),row.offset,row.paneId,Object.keys(row.plots).sort().map(id=>[id,row.plots[id].kind])]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),
+ cell.indicators.map(row=>[row.id,row.kind,fields({...indicatorAbsentDefaults[row.kind],...row.inputs}),row.offset,row.paneId,Object.keys(row.plots).sort().map(id=>[id,row.plots[id].kind])]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),
  plots(cell.scriptBindings)]);}
 function comparisonShape(cell:MultiChartCellState){return JSON.stringify([cell.comparisons.map(row=>[row.id,row.datasetId,row.mode,row.baseline]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))),
 ]);}

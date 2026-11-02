@@ -3,7 +3,8 @@ import type {ChartDiagnostic} from './contracts';
 import {acquireIndicatorDisplayPort,type IndicatorDisplayOwner} from './indicator-display-source';
 import {acquireScriptPriceScaleSource,type ScriptPriceScaleFrame,type ScriptPriceScaleOwner,type ScriptPriceScaleEndpoint} from './script-presentation-proof';
 import {latestPricePresentation,realLastPrice} from './appearance-price';
-import {INDICATOR_MAX_INSTANCES,indicatorInputSchema} from './indicator-settings';
+import {INDICATOR_MAX_INSTANCES,indicatorInputSchema,indicatorAbsentValue} from './indicator-settings';
+import type {InputValue} from '@luxalgo/vela';
 import type {IndicatorId} from '../domain/indicators';
 import {parseIndicatorSource} from '../domain/indicator-source';
 import {formatIndicatorNumber,isIndicatorPrecision,type IndicatorPrecision} from './indicator-number-format';
@@ -371,7 +372,7 @@ export function indicatorLegendArguments(kind:IndicatorId,inputs:Record<string,u
  let picked=shown.filter(field=>field.key!=='source').slice(0,3);const source=shown.find(field=>field.key==='source');
  if(source){const at=shown.indexOf(source);picked=at===0?[...picked,source]:[...picked.filter(field=>shown.indexOf(field)<at),source,...picked.filter(field=>shown.indexOf(field)>at)];}
  return picked.map(field=>{
-  const value=Object.hasOwn(inputs,field.key)?inputs[field.key]:field.defval,ref=field.key==='source'?parseIndicatorSource(value):null;
+  const value=Object.hasOwn(inputs,field.key)?inputs[field.key]:indicatorAbsentValue(kind,field.key,field.defval as InputValue),ref=field.key==='source'?parseIndicatorSource(value):null;
   if(!ref)return legendValue(value);
   return sourceLabel(ref.instance,ref.plot)??'missing source';
  }).filter(Boolean);

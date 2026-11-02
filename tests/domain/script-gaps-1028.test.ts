@@ -80,11 +80,16 @@ describe('SCRIPT-GAPS-1028 calendar and sessions',()=>{
  const oracle=(t:number,tz:string)=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric',weekday:'short'}).formatToParts(new Date(t*1000)).map(p=>[p.type,p.value]));
   return [Number(parts.year),Number(parts.month),Number(parts.day),['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday)+1,Number(parts.hour),Number(parts.minute),Number(parts.second)];};
  it('ctx.calendar matches the Intl time-zone database in every supported named zone',async()=>{
-  const result=await run(`({ onBar(ctx) { if (ctx.index > 0) return; const zones = ${JSON.stringify(zones)}, times = ${JSON.stringify(samples)}; ctx.state.rows = []; for (const z of zones) for (const t of times) { const c = ctx.calendar(t, z); ctx.state.rows.push([c.year, c.month, c.dayofmonth, c.dayofweek, c.hour, c.minute, c.second]); } } })`,flat(1));
-  expect(result.ok,result.error?.message).toBe(true);
-  const rows=result.value.state.state.rows as number[][];let k=0;
-  for(const z of zones)for(const t of samples){expect(rows[k++],`${z} ${t}`).toEqual(oracle(t,z));}
- });
+  // One script run per zone: a script run has a fixed 1-second compute budget, and all zones in one run (about 7,600
+  // calendar calls) sit right at that budget, so the run was interrupted or not depending on machine speed and load.
+  for(const z of zones){
+   const result=await run(`({ onBar(ctx) { if (ctx.index > 0) return; const times = ${JSON.stringify(samples)}; ctx.state.rows = []; for (const t of times) { const c = ctx.calendar(t, ${JSON.stringify(z)}); ctx.state.rows.push([c.year, c.month, c.dayofmonth, c.dayofweek, c.hour, c.minute, c.second]); } } })`,flat(1));
+   expect(result.ok,`${z}: ${result.error?.message}`).toBe(true);
+   const rows=result.value.state.state.rows as number[][];
+   expect(rows,z).toHaveLength(samples.length);
+   samples.forEach((t,k)=>expect(rows[k],`${z} ${t}`).toEqual(oracle(t,z)));
+  }
+ },20_000);
  it('ctx.calendar defaults to the bar time in UTC and accepts fixed offsets',async()=>{
   // 2024-01-01T00:00:00Z is a Monday.
   const result=await run(`({ onBar(ctx) { ctx.state.a = ctx.calendar(); ctx.state.b = ctx.calendar(ctx.bar.time, 'UTC-05:30'); ctx.state.c = ctx.calendar(ctx.bar.time, '+0900'); } })`,flat(1,1_704_067_200));

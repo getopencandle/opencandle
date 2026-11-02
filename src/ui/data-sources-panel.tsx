@@ -27,6 +27,8 @@ export interface DataSourcesPanelProps {
  saved?:SavedInfoSectionProps;
  /** Opens the Import window for the user's own bar files. Absent: the button is not shown. */
  onImportData?:()=>void;
+ /** The daily SEC company data refresh (liveData.secDaily; on unless false). Absent: the checkbox is not shown. */
+ sec?:{daily:boolean;onDailyChange:(enabled:boolean)=>void};
 }
 /** User-facing names for the source list. The keyless test stub is a developer source and is not listed;
  * the registry (and its internal names) is unchanged. Example data keeps its access badge. */
@@ -92,7 +94,7 @@ export function DataNeedsTable({inputs}:{inputs:DataNeedInputs}){
   </li>;})}
  </ul>;
 }
-export function DataSourcesPanel({live,storage,cache,fred,saved,onImportData}:DataSourcesPanelProps){
+export function DataSourcesPanel({live,storage,cache,fred,saved,onImportData,sec}:DataSourcesPanelProps){
  const [alpacaKey,setAlpacaKey]=useState<AlpacaKeyStatus|null>(null),[stream,setStream]=useState<AlpacaStatus|null>(null),[imports,setImports]=useState(0);
  const desktop=!!live.bridge;
  const inputs:DataNeedInputs={alpacaKey,alpacaStream:stream,coinbaseEnabled:live.coinbaseEnabled,fredEnabled:fred?.enabled!==false,desktop};
@@ -118,7 +120,8 @@ export function DataSourcesPanel({live,storage,cache,fred,saved,onImportData}:Da
   {fred&&<section id={SECTION_IDS.fred} aria-label="Economic data and rates (FRED)" className="lv-ds-wrap"><FredCacheSection {...fred}/></section>}
   <section aria-label="Company fundamentals and SEC filings">
    <h3>Company fundamentals and filings (SEC)</h3>
-   <p className="lv-live-note">Nothing to set up: no account or key. Open Fundamentals or SEC filings for a company and OpenCandle downloads its public reports from the SEC's EDGAR service, only when you ask. The SEC sees your IP address and the company you looked up.</p>
+   <p className="lv-live-note">Nothing to set up: no account or key. Open Fundamentals or SEC filings for a company and OpenCandle downloads its public reports from the SEC's EDGAR service, when you ask, and once a day for a company whose chart is on screen. Nothing is sent to the SEC at startup, and every request carries the SEC contact you typed in Fundamentals. The SEC sees your IP address and the company you looked up.</p>
+   {sec&&<label className="lv-live-check"><input type="checkbox" checked={sec.daily} onChange={event=>sec.onDailyChange(event.target.checked)}/> Refresh SEC company data daily</label>}
   </section>
   <section id={SECTION_IDS['own-files']} aria-label="Use your own data">
    <h3>Use your own data</h3>

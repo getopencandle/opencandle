@@ -35,7 +35,7 @@ export function chartSourceCsv(input:ChartInputSnapshot,executionIdentity:string
   const parts=[values+','+metadata];
   for(let index=0;index<plots.length;index++){
    const points=plots[index].points;let at=positions[index];while(at<points.length&&points[at].time<time)at++;positions[index]=at;
-   const value=at<points.length&&points[at].time===time?points[at].value:null,cell=','+(value===null?'':String(value));
+   const value=at<points.length&&points[at].time===time?points[at].value:null,cell=','+(value===null?'':typeof value==='string'?textCell(value):String(value));
    bytes+=chartCsvBytes(cell);if(bytes>LIMIT)throw new Error('Source CSV exceeds the 20 MiB UTF-8 export limit. Choose a smaller supplied range or fewer loaded plots.');parts.push(cell);
   }
   rows.push(parts.join('')+'\r\n');

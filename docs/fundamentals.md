@@ -1,6 +1,6 @@
 # Reported fundamentals
 
-The Company fundamentals dialog reads SEC companyfacts JSON through an optional public request or local file/paste. It works with a user-supplied CIK and does not connect to an account. The request sends the CIK, declared application User-Agent and ordinary network connection metadata to data.sec.gov. No request runs on launch. Saved data stays inside the local workspace and is included in export/reset.
+The Company fundamentals dialog reads SEC companyfacts JSON through a public request or a local file or paste. Symbols are linked to companies in three ways: your own link in the dialog, the SEC ticker file (fetched automatically, at most once every 7 days, or imported by you), or a CIK you type. The same data feeds the Fundamental and P/E bands chart indicators.
 
 GME and SPY CIK suggestions come from SEC filing indexes, not ticker inference: [GameStop, CIK1326380](https://www.sec.gov/Archives/edgar/data/1326380/000132638026000013/0001326380-26-000013-index.htm) and [SPDR S&P500 ETF Trust, CIK884394](https://www.sec.gov/Archives/edgar/data/884394/000119312524149097/0001193125-24-149097-index.htm), checked2026-10-14. A filing entity can lack companyfacts coverage. Any positive CIK of up to ten digits can be requested. The selected company is identified independently of the chart ticker and prices.
 
@@ -11,6 +11,22 @@ The filing cutoff is inclusive at calendar-day precision. A filed date does not 
 Duration filters are explicit OpenCandle rules:60–120 days,300–400 days, other durations, instant, or all. They are not claims of the issuer's exact fiscal quarter/year classification. Supplied fiscal labels remain separate columns. The table displays up to2,000 rows; export includes every selected result with source kind, URL and retrieval time. Formula-like string cells are escaped for spreadsheet import.
 
 The parser bounds concepts and observations, rejects invalid dates, nonfinite values and integers that JavaScript cannot represent exactly. Local import is capped at20MiB. The desktop provider has its own32MiB decoded-response limit. Workspace storage has a separate32MiB cap; an oversized save reports an error and preserves the prior saved document.
+
+## Network rule, SEC contact and what is stored
+
+- **Nothing is requested at startup.** Restored charts and the all-indicators spreadsheet export read saved copies only. Symbols that have no company (crypto, forex, futures, options, bonds, commodities, indexes, demo charts, ETFs and funds) send nothing.
+- **When a request goes out.** The first request happens when you add a Fundamental or P/E bands indicator, or choose Refresh company data in the legend menu. After that, company facts and the filing list are refreshed at most once per company per New York day, and only while a chart carrying the indicator is on screen. Refresh company data is limited to once a minute per company.
+- **Daily refresh setting.** Settings, Data sources has Refresh SEC company data daily (on by default). Turning it off stops the daily refresh; your own Refresh company data choice still works.
+- **SEC contact.** SEC asks automated readers to identify themselves. Enter your name and email in the SEC contact field in Fundamentals. It is sent only to SEC, as the User-Agent of each request, and is stored on this PC only. Until you add it, no SEC request is sent and charts say so.
+- **What SEC sees.** The company number, your contact text and your IP address. No account, key or cookie is involved.
+- **Where data is stored.** Downloaded company facts, filing lists and the ticker file are cached in the SEC cache folder of your profile (`sec-cache`), which workspace reset clears. Documents you import or save in the Fundamentals dialog stay in the workspace and its export. Your SEC contact is kept in the profile, not in the workspace.
+
+## On the chart
+
+- **Point in time.** A value appears on a bar only after SEC accepted the filing that carried it. Without an acceptance time it appears from the next session after the filing date. Values step forward and are never filled in backwards.
+- **Data window.** A Fundamental or P/E bands study lists Period end, Filed, Form, Method, Retrieved and, where a bar is empty, a Note saying why (for example that EPS is not positive so P/E is not meaningful). Method reads Reported, Year to date less prior period, Full year less 9 months, Sum of last 4 quarters or Calculated by OpenCandle.
+- **Chart data export (CSV).** Each Fundamental study adds the text columns period_end, filed, form, accession and method next to its plotted values. Bars with no filing are empty.
+- **Earnings badges.** With Events, Earnings on, each reported quarter in your saved SEC filings gets an E badge on the day the result was announced (the first 8-K with Item 2.02 filed after the quarter ended and no later than the 10-Q or 10-K), else on the 10-Q or 10-K date. It replaces a calendar entry for the same quarter. The tooltip lists the quarter, diluted EPS, revenue with year-over-year change, the date and form, and a click opens the filing on sec.gov. Badges read saved copies only and never trigger a request.
 
 ## Offline synthetic companyfacts
 

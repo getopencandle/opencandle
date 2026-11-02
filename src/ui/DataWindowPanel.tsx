@@ -43,13 +43,15 @@ function resultFor(chart:DataWindowChart|null,view:IndicatorInstanceView):Indica
  let value:IndicatorResult|null=null;try{value=chart?chart.indicators.values(view.id):null;}catch{value=null;}
  // A view read before its first calculation finished has no values yet; caching that null left the
  // indicator section empty (RSI header, no rows) until the view changed. Only a real result is kept.
- if(value&&value.series?.length)results.set(view,value);return value;
+ // Company filings arrive after the first calculation, so a fundamentals result is read fresh each time.
+ if(value&&value.series?.length&&!value.fundamentals)results.set(view,value);return value;
 }
 export function dataWindowIndicators(chart:DataWindowChart|null,views:readonly IndicatorInstanceView[]):DataWindowIndicatorInput[]{
  return views.map(view=>{
   const result=resultFor(chart,view),labels=new Map(view.series.map(row=>[row.id,row.label]));
   const plots=(result?.series??[]).map((plot,ordinal)=>{const style=view.plots?.[plot.id]??defaultPlotStyle(view.kind,plot.id,ordinal);return {id:plot.id,label:plot.label||labels.get(plot.id)||plot.id,color:style.color,dataWindow:style.dataWindow!==false,values:plot.values};});
-  return {id:view.id,kind:view.kind,visible:view.visible,offset:view.offset??0,precision:view.presentation?.precision??'auto',plots};
+  const fundamentals=result?.fundamentals;
+  return {id:view.id,kind:view.kind,visible:view.visible,offset:view.offset??0,precision:view.presentation?.precision??'auto',plots,...(fundamentals?{fundamentals:{fundamentalStamps:fundamentals.fundamentalStamps,gapNotes:fundamentals.gapNotes}}:{})};
  });
 }
 type ComparisonRow=ReturnType<ChartController['comparisons']['list']>[number];

@@ -8,6 +8,7 @@ import {indicatorAcronyms,indicatorNames} from './indicator-dialog-model';
 import {catalogDefinition} from '../domain/indicator-catalog';
 import {chartTimeZone,formatChartDateTime,type ChartClockHours} from './chart-time-text';
 import {DEFAULT_TIME_SCALE_SETTINGS,formatTimeScaleDate} from '../chart/time-axis-format';
+import {PIT_METHOD_LABELS,type PitStamps} from '../fundamentals/pit-types';
 
 // Pure model for the Data window panel: rows, labels and formatted values at one bar.
 // No chart access here.
@@ -20,7 +21,9 @@ export const DATA_WINDOW_LAYOUT=Object.freeze({itemPitch:26,itemTitleHeight:18,s
 
 export interface DataWindowSeriesInput {symbol:string;exchange:string;interval:string;description:string;tickSize:number}
 export interface DataWindowPlotInput {id:string;label:string;color:string;dataWindow:boolean;values:readonly (number|null)[]}
-export interface DataWindowIndicatorInput {id:string;kind:IndicatorId;visible:boolean;offset:number;precision:IndicatorPrecision;plots:readonly DataWindowPlotInput[]}
+/** The filing behind each bar's value, for the fundamentals kinds (IndicatorResult.fundamentals). */
+export interface DataWindowFundamentalsInput {fundamentalStamps:PitStamps;gapNotes:readonly (string|null)[]}
+export interface DataWindowIndicatorInput {id:string;kind:IndicatorId;visible:boolean;offset:number;precision:IndicatorPrecision;plots:readonly DataWindowPlotInput[];/** Present for the company fundamentals kinds only. */fundamentals?:DataWindowFundamentalsInput}
 /** A compare symbol (chart.comparisons) with its own bars, matched to the chart bar by exact time. */
 export interface DataWindowComparisonInput {id:string;symbol:string;exchange:string;interval:string;description:string;tickSize:number;color:string;visible:boolean;bars:readonly Bar[]}
 /** One script (indicator or strategy) plot; `value` is the chart's own formatted readout text, or null. */
@@ -195,7 +198,8 @@ export function buildDataWindow(input:DataWindowInput):DataWindowView{
  // Each indicator in legend order; one row per plot.
  for(const study of input.indicators){
   const key=studySection(study.id),isHidden=hidden.has(key);
-  const rows=isHidden?[]:study.plots.filter(plot=>plot.dataWindow).map(plot=>({key:plot.id,label:plot.label,value:indicatorPlotTextAt(plot.values,index,{...study,plot:plot.id},series.tickSize),color:plot.color}));
+  const rows:DataWindowRow[]=isHidden?[]:study.plots.filter(plot=>plot.dataWindow).map(plot=>({key:plot.id,label:plot.label,value:indicatorPlotTextAt(plot.values,index,{...study,plot:plot.id},series.tickSize),color:plot.color}));
+  if(!isHidden&&study.fundamentals)rows.push(...fundamentalsRows(study.fundamentals,index-(Number.isSafeInteger(study.offset)?study.offset:0)));
   sections.push({key,kind:'study',id:study.id,title:indicatorAcronyms[study.kind]??study.kind,tooltip:indicatorNames[study.kind]??study.kind,visible:study.visible,hidden:isHidden,rows});
  }
  // Script indicators and strategies: one row per plot shown in the data window, as built-in indicators.
@@ -205,6 +209,23 @@ export function buildDataWindow(input:DataWindowInput):DataWindowView{
   sections.push({key,kind:'script',id:script.id,title:script.title,tooltip:script.title,visible:script.visible,hidden:isHidden,rows});
  }
  return {index,hovered,date,sections};
+}
+
+/** The filing text rows of a company fundamentals study at one bar: Period end, Filed, Form, Method, Retrieved, and a Note
+ * row only where the bar is empty (or the filing carries a remark). Missing values show the empty glyph. */
+export function fundamentalsRows(input:DataWindowFundamentalsInput,bar:number):DataWindowRow[]{
+ const stamps=input.fundamentalStamps,at=bar>=0&&bar<stamps.index.length?stamps.index[bar]:-1,stamp=at>=0?stamps.table[at]:undefined;
+ const text=(value:string|null|undefined)=>value?value:DATA_WINDOW_EMPTY;
+ const rows:DataWindowRow[]=[
+  {key:'fund-end',label:'Period end',value:text(stamp?.end)},
+  {key:'fund-filed',label:'Filed',value:text(stamp?.filed)},
+  {key:'fund-form',label:'Form',value:text(stamp?.form)},
+  {key:'fund-method',label:'Method',value:stamp?PIT_METHOD_LABELS[stamp.method]??DATA_WINDOW_EMPTY:DATA_WINDOW_EMPTY},
+  {key:'fund-retrieved',label:'Retrieved',value:text(stamp?.retrievedAt?.slice(0,10))},
+ ];
+ const gap=bar>=0&&bar<input.gapNotes.length?input.gapNotes[bar]:null,note=gap||stamp?.note||null;
+ if(note)rows.push({key:'fund-note',label:'Note',value:note});
+ return rows;
 }
 
 const compareIndex=new WeakMap<readonly Bar[],Map<number,number>>();

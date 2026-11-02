@@ -20,6 +20,8 @@ export interface CalendarChartMarkersProps {
   timeToX: (seconds: number) => number | null;
   /** Opens the calendar on one entry. Without it the badges are hover-only. */
   onOpen?: (entry: { documentId: string; eventId: string }) => void;
+  /** Opens an SEC filing on sec.gov (a badge made from saved filings). Without it those badges are hover-only. */
+  onOpenFiling?: (filing: { cik: string; accession: string }) => void;
   now?: number;
 }
 interface Geometry { projection: ChartEventProjection; xs: Float64Array; spacing: number | null }
@@ -58,7 +60,7 @@ export function CalendarChartMarkers(props: CalendarChartMarkersProps) {
   const [minute, setMinute] = useState(() => Math.floor(Date.now() / 60000));
   useEffect(() => { if (!ticking) return; const timer = setInterval(() => setMinute(Math.floor(Date.now() / 60000)), 60000); return () => clearInterval(timer); }, [ticking]);
   const now = props.now ?? (ticking ? Math.max(minute * 60, Math.floor(Date.now() / 1000)) : undefined);
-  const markers = useMemo(() => calendarChartMarkers(documents, symbol, bars, settings, now), [documents, symbol, bars, settings.earnings, settings.dividends, settings.splits, settings.ipos, settings.economic, settings.economicFutureOnly, settings.timezone, (settings.skipDocumentIds ?? []).join('|'), props.now, ticking ? minute : 0]);
+  const markers = useMemo(() => calendarChartMarkers(documents, symbol, bars, settings, now), [documents, symbol, bars, settings.earnings, settings.dividends, settings.splits, settings.ipos, settings.economic, settings.economicFutureOnly, settings.timezone, settings.secEarnings, (settings.skipDocumentIds ?? []).join('|'), props.now, ticking ? minute : 0]);
   const [geometry, setGeometry] = useState<Geometry | null>(null), [hover, setHover] = useState<string | null>(null);
   const latest = useRef({ props, markers }); latest.current = { props, markers };
   const offsets = useMemo(() => calendarMarkerOffsets(markers, CHART_EVENT_STYLE.size), [markers]);
@@ -85,18 +87,19 @@ export function CalendarChartMarkers(props: CalendarChartMarkersProps) {
   const lanes = useMemo(() => calendarMarkerLanes(shown, size), [shown, size]), laneOf = new Map(shown.map((row, index) => [row.marker.key, lanes[index] ?? 0]));
   if (!symbol || !markers.length) return null;
   const top = projection ? projection.height - size - CALENDAR_MARKER_ROW_GAP : 0, hovered = shown.find(row => row.marker.key === hover) ?? null;
-  const open = (marker: CalendarChartMarker) => { const entry = marker.entries[0]; if (entry && props.onOpen) props.onOpen({ documentId: entry.documentId, eventId: entry.eventId }); };
+  const actionable = (marker: CalendarChartMarker) => marker.entries[0]?.filing ? !!props.onOpenFiling : !!props.onOpen;
+  const open = (marker: CalendarChartMarker) => { const entry = marker.entries[0]; if (!entry) return; if (entry.filing) { if (props.onOpenFiling) props.onOpenFiling(entry.filing); } else if (props.onOpen) props.onOpen({ documentId: entry.documentId, eventId: entry.eventId }); };
   return (
     <div className="lv-calendar-chart-markers" {...(shown.length ? { role: 'group', 'aria-label': markers.some(row => row.synthetic) ? 'Calendar entries, some SYNTHETIC' : 'Calendar entries' } : { 'aria-hidden': true })}
       data-lv-calendar-markers={shown.length} data-lv-calendar-markers-total={markers.length} data-lv-calendar-markers-compressed={compressed ? 'true' : undefined}
       title={shown.length ? undefined : compressed ? `The calendar entries of ${symbol} are hidden while the bars are this compressed. Zoom in to see them.` : `The calendar entries of ${symbol} are outside the visible range.`}
       style={projection ? { position: 'fixed', left: projection.left, top: projection.top, width: projection.width, height: projection.height, pointerEvents: 'none', zIndex: CHART_EVENTS_Z_INDEX, overflow: 'hidden' } : { position: 'fixed', left: 0, top: 0, width: 0, height: 0, pointerEvents: 'none', overflow: 'hidden' }}>
       {shown.map(({ marker, x }) => (
-        <span key={marker.key} role={props.onOpen ? 'button' : 'img'} tabIndex={props.onOpen ? 0 : undefined} aria-label={marker.label} data-lv-calendar-marker={marker.kind} data-bar-time={marker.barTime}
+        <span key={marker.key} role={actionable(marker) ? 'button' : 'img'} tabIndex={actionable(marker) ? 0 : undefined} aria-label={marker.label} data-lv-calendar-marker={marker.kind} data-bar-time={marker.barTime}
           onPointerEnter={() => setHover(marker.key)} onPointerLeave={() => setHover(current => current === marker.key ? null : current)}
           onClick={() => open(marker)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(marker); } }}
           data-lv-calendar-marker-future={marker.future ? 'true' : undefined} data-lv-calendar-marker-lane={laneOf.get(marker.key) || undefined}
-          style={{ position: 'absolute', left: x - size / 2, top: top - (laneOf.get(marker.key) ?? 0) * (size + 2), width: size, height: size, boxSizing: 'border-box', borderRadius: marker.kind === 'economic' ? '3px 3px 3px 0' : 3, border: `1px solid ${marker.color}`, background: 'var(--lv-legend-bg)', color: marker.color, font: marker.kind === 'economic' && marker.letter.length > 1 ? `600 8px/${size - 2}px system-ui,sans-serif` : `600 10px/${size - 2}px system-ui,sans-serif`, textAlign: 'center', pointerEvents: 'auto', cursor: props.onOpen ? 'pointer' : 'default', userSelect: 'none' }}>
+          style={{ position: 'absolute', left: x - size / 2, top: top - (laneOf.get(marker.key) ?? 0) * (size + 2), width: size, height: size, boxSizing: 'border-box', borderRadius: marker.kind === 'economic' ? '3px 3px 3px 0' : 3, border: `1px solid ${marker.color}`, background: 'var(--lv-legend-bg)', color: marker.color, font: marker.kind === 'economic' && marker.letter.length > 1 ? `600 8px/${size - 2}px system-ui,sans-serif` : `600 10px/${size - 2}px system-ui,sans-serif`, textAlign: 'center', pointerEvents: 'auto', cursor: actionable(marker) ? 'pointer' : 'default', userSelect: 'none' }}>
           {marker.letter}
         </span>
       ))}
@@ -104,7 +107,7 @@ export function CalendarChartMarkers(props: CalendarChartMarkersProps) {
         <div role="tooltip" className="lv-calendar-marker-tooltip" data-lv-calendar-marker-tooltip={hovered.marker.kind}
           style={{ position: 'absolute', left: Math.max(4, Math.min(hovered.x - 110, projection.width - 224)), bottom: size + CALENDAR_MARKER_ROW_GAP + 6 + (laneOf.get(hovered.marker.key) ?? 0) * (size + 2), width: 220, boxSizing: 'border-box', padding: '6px 8px', borderRadius: 4, background: 'var(--lv-bg-tooltip)', border: `1px solid ${hovered.marker.color}`, color: 'var(--lv-text-primary)', font: '12px/17px system-ui,sans-serif', pointerEvents: 'none' }}>
           {hovered.marker.lines.map((line, index) => line ? <div key={index} style={index === 0 || hovered.marker.lines[index - 1] === '' ? { fontWeight: 600, color: hovered.marker.color } : undefined}>{line}</div> : <hr key={index} style={{ border: 0, borderTop: '1px solid var(--lv-border)', margin: '4px 0' }} />)}
-          {props.onOpen && <div style={{ color: 'var(--lv-text-secondary)', marginTop: 4 }}>Click to open in the calendar.</div>}
+          {actionable(hovered.marker) && <div style={{ color: 'var(--lv-text-secondary)', marginTop: 4 }}>{hovered.marker.hint ?? 'Click to open in the calendar.'}</div>}
         </div>
       )}
     </div>

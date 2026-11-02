@@ -11,8 +11,10 @@ import {parseIndicatorSource} from '../domain/indicator-source';
 import {indicatorActivePlotIds} from '../domain/indicators';
 import {scriptOutputs} from '../ui/script-outputs';
 import {providerTermsApply} from '../domain/provider-capabilities';
+import {PIT_METHOD_LABELS} from '../fundamentals/pit-types';
 
-export interface ChartCsvPoint {readonly time:number;readonly value:number|null}
+/** A number, or text for the filing provenance columns of a company fundamentals study. */
+export interface ChartCsvPoint {readonly time:number;readonly value:number|string|null}
 export interface ChartCsvColumn {readonly label:string;readonly points:readonly ChartCsvPoint[]}
 export interface ChartCsvInventory {readonly indicators:readonly string[];readonly comparisons:readonly string[];readonly scripts:readonly string[]}
 export const CHART_CSV_POINT_LIMIT=INDICATOR_OUTPUT_LIMIT;
@@ -46,7 +48,7 @@ interface NumericProof {rows:readonly unknown[];field:string;points:readonly Cha
 function copyPoints(rows:readonly unknown[],field:string,milliseconds:boolean,optional=false):readonly ChartCsvPoint[]{
  let previous=-Infinity;return Object.freeze(rows.map(row=>{
   const time=own(row,'time')/(milliseconds?1000:1),raw=own(row,field,optional),value=raw===undefined&&optional||typeof raw==='number'&&Number.isNaN(raw)&&optional?null:raw;
-  if(!Number.isFinite(time)||time<TIME_MIN||time>TIME_MAX||time<=previous||value!==null&&(typeof value!=='number'||!Number.isFinite(value)))throw Error('Chart CSV plot samples require increasing real timestamps and finite values or gaps.');
+  if(!Number.isFinite(time)||time<TIME_MIN||time>TIME_MAX||time<=previous||value!==null&&(typeof value==='string'?value.length>256:typeof value!=='number'||!Number.isFinite(value)))throw Error('Chart CSV plot samples require increasing real timestamps and finite values or gaps.');
   previous=time;return Object.freeze({time,value});
  }));
 }
@@ -98,6 +100,21 @@ function usesExtraHistory(id:string,settings:ReadonlyMap<string,object>):boolean
   const inputs=own(value,'inputs',true),ref=inputs&&typeof inputs==='object'?parseIndicatorSource(own(inputs,'source',true)):null;current=ref?ref.instance:null;
  }
  return false;
+}
+
+const PROVENANCE_FIELDS=['period_end','filed','form','accession','method'] as const;
+/** The filing behind each bar of a company fundamentals study, as text columns (empty where a bar has no filing). Read from the
+ *  study's own current result; the bars are the source rows the export is already aligned to. */
+function fundamentalsColumns(chart:ChartController,id:string,label:string,times:readonly number[]):{columns:readonly {label:string;points:readonly ChartCsvPoint[]}[];result:unknown}|null{
+ let result:any;try{result=chart.indicators.values(id);}catch{return null;}
+ const output=result?.fundamentals,stamps=output?.fundamentalStamps;
+ if(!stamps||!Array.isArray(stamps.table)||!stamps.index||stamps.index.length!==times.length)return null;
+ const text=(stamp:any,field:typeof PROVENANCE_FIELDS[number]):string|null=>{
+  if(!stamp)return null;
+  const value=field==='period_end'?stamp.end:field==='method'?PIT_METHOD_LABELS[stamp.method as keyof typeof PIT_METHOD_LABELS]:stamp[field];
+  return typeof value==='string'&&value?value:null;
+ };
+ return{result:output,columns:PROVENANCE_FIELDS.map(field=>({label:label+' '+field,points:Object.freeze(times.map((time,bar)=>{const at=stamps.index[bar];return Object.freeze({time,value:text(at>=0?stamps.table[at]:null,field)});}))}))};
 }
 /** Capture only current, accepted port models. Caller ownership and native frame guards are one export proof. */
 export function captureChartCsvColumns(chart:ChartController|null,input:ChartInputSnapshot,execution:string,inventory:ChartCsvInventory,assertOwner:()=>void):{columns:readonly ChartCsvColumn[];assertCurrent():void;omitted?:readonly string[];personalUse?:readonly string[]}{
@@ -158,6 +175,14 @@ export function captureChartCsvColumns(chart:ChartController|null,input:ChartInp
     if(rows.some(row=>own(row,'volume',true)!==undefined))append(title+' volume',rows,'volume',true);
    }else if(kind==='markers'){continue;}
    else{const rows=dense(own(item,'points'),CHART_CSV_POINT_LIMIT);checks.push(()=>{if(own(item,'points')!==rows)throw stale();});append(title,rows,'value');}
+  }
+  if(category===0&&!hidden){
+   const times=Array.from({length:sourceRows.length},(_,index)=>chartCsvSourceRow(sourceRows,index)[0]),extra=fundamentalsColumns(chart,listed.id,label,times);
+   if(extra){
+    samples+=times.length*extra.columns.length;if(samples>CHART_CSV_POINT_LIMIT||columns.length+extra.columns.length>CHART_CSV_COLUMN_LIMIT)throw Error('Chart CSV numerical output exceeds its bounded capture capacity.');
+    for(const column of extra.columns){let header=column.label,ordinal=1;while(labels.has(header))header=column.label+' ('+(++ordinal)+')';labels.add(header);columns.push(Object.freeze({label:header,points:column.points}));}
+    const key=(output:any)=>{try{return JSON.stringify([output.fundamentalStamps.table,Array.from(output.fundamentalStamps.index)]);}catch{return '';}},kept=key(extra.result);checks.push(()=>{let now:any;try{now=chart.indicators.values(listed.id)?.fundamentals;}catch{now=undefined;}if(key(now)!==kept)throw stale();});
+   }
   }
  }
  const assertCurrent=()=>{

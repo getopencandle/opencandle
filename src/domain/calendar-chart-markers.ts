@@ -6,6 +6,7 @@
 import { queryCalendar, createCalendarState, SYNTHETIC_CALENDAR_DEMO_ID, type CalendarDocument, type CalendarKind, type CalendarRow, type CalendarValueView } from './calendar';
 import { eventBarTime } from './chart-events';
 import { AUTO_DIVIDEND_DOCUMENT_ID } from './calendar-sources';
+import { secEarningsLines, type SecEarningsEvent } from './sec-earnings-markers';
 
 // Economic entries of the same local documents, a flag
 // badge at the event time (bar of the release, or the future area right of the last bar), not tied to the chart symbol (calendar
@@ -20,7 +21,9 @@ export interface CalendarMarkerSettings { earnings: boolean; dividends: boolean;
   /** Document ids whose events the chart already marks another way (the Alpaca corporate-action badges). */
   skipDocumentIds?: readonly string[];
   /** IANA zone of the chart clock. Tooltip times read in it; placement keeps the New York date. Absent means New York. */
-  timezone?: string; }
+  timezone?: string;
+  /** Reported quarters from saved SEC filings. Each replaces the calendar earnings entry with the same id. */
+  secEarnings?: readonly SecEarningsEvent[]; }
 export const CALENDAR_MARKER_STYLE: Readonly<Record<CalendarMarkerKind, { letter: string; color: string; label: string }>> = Object.freeze({
   earnings: { letter: 'E', color: 'var(--lv-accent)', label: 'Earnings' },
   dividend: { letter: 'D', color: 'var(--lv-positive-text)', label: 'Dividend' },
@@ -30,10 +33,14 @@ export const CALENDAR_MARKER_STYLE: Readonly<Record<CalendarMarkerKind, { letter
 });
 /** Economic flag color by importance: high, medium, then low or not supplied. */
 export const ECONOMIC_IMPORTANCE_COLOR: Readonly<Record<'high' | 'medium' | 'low', string>> = Object.freeze({ high: 'var(--lv-negative-text)', medium: 'var(--lv-notice-text)', low: 'var(--lv-text-secondary)' });
-export interface CalendarMarkerEntry { documentId: string; eventId: string; kind: CalendarMarkerKind; date: string; synthetic: boolean; lines: string[]; country?: string | null; importance?: 'low' | 'medium' | 'high' | null; }
+export interface CalendarMarkerEntry { documentId: string; eventId: string; kind: CalendarMarkerKind; date: string; synthetic: boolean; lines: string[]; country?: string | null; importance?: 'low' | 'medium' | 'high' | null;
+  /** Set on a badge made from an SEC filing: the click opens that filing on sec.gov. */
+  filing?: { cik: string; accession: string }; }
 export interface CalendarChartMarker { key: string; kind: CalendarMarkerKind; barTime: number; letter: string; color: string; entries: CalendarMarkerEntry[]; lines: string[]; label: string; synthetic: boolean;
   /** Economic flags placed right of the last loaded bar (an upcoming release). */
-  future?: boolean; }
+  future?: boolean;
+  /** What a click does when it is not the calendar entry. */
+  hint?: string; }
 
 /** True when a calendar symbol names the chart symbol: exact (case-insensitive), or the part after an exchange prefix. */
 export function calendarSymbolMatches(calendarSymbol: string | null, chartSymbol: string): boolean {
@@ -92,19 +99,23 @@ export function economicEventAhead(event: Pick<CalendarRow['event'], 'time' | 'd
 
 /** Markers for one chart symbol on the loaded bars: one per kind and bar, ordered by time then earnings, dividend, split, IPO, economic. Cancelled events are left out. */
 export function calendarChartMarkers(documents: readonly CalendarDocument[], symbol: string | null, bars: readonly { time: number }[], settings: CalendarMarkerSettings, now = Math.floor(Date.now() / 1000)): CalendarChartMarker[] {
-  if (!symbol || !documents.length || !bars.length) return [];
+  if (!symbol || !bars.length) return [];
+  const secMarkers = settings.earnings ? secEarningsMarkers(settings.secEarnings ?? [], bars) : [];
+  if (!documents.length) return secMarkers;
   const wanted: Record<CalendarMarkerKind, boolean> = { earnings: settings.earnings, dividend: settings.dividends, split: settings.splits, ipo: settings.ipos, economic: settings.economic === true };
-  if (!Object.values(wanted).some(Boolean)) return [];
+  if (!Object.values(wanted).some(Boolean)) return secMarkers;
   const skip = new Set(settings.skipDocumentIds ?? []), used = documents.filter(document => !skip.has(document.id) && document.events.some(event => event.kind === 'economic' ? wanted.economic : calendarSymbolMatches(event.symbol, symbol)));
-  if (!used.length) return [];
+  if (!used.length) return secMarkers;
   let rows: CalendarRow[];
-  try { rows = queryCalendar(used, { ...createCalendarState().query, kind: 'all', period: 'all', timezone: 'America/New_York' }, now).rows; } catch { return []; }
+  try { rows = queryCalendar(used, { ...createCalendarState().query, kind: 'all', period: 'all', timezone: 'America/New_York' }, now).rows; } catch { return secMarkers; }
   // Root: tooltip text follows the chart's time zone, so a flag reads the same clock as the time axis.
   let shownRows: Map<string, CalendarRow> | null = null;
   if (settings.timezone && settings.timezone !== 'America/New_York') { try { shownRows = new Map(queryCalendar(used, { ...createCalendarState().query, kind: 'all', period: 'all', timezone: settings.timezone }, now).rows.map(row => [row.key, row])); } catch { shownRows = null; } }
+  const secIds = new Set(secMarkers.map(marker => marker.entries[0].eventId));
   const order: CalendarMarkerKind[] = ['earnings', 'dividend', 'split', 'ipo', 'economic'], groups = new Map<string, { kind: CalendarMarkerKind; barTime: number; future: boolean; entries: CalendarMarkerEntry[] }>();
   for (const row of rows) {
     const kind = row.event.kind; if (!wanted[kind]) continue;
+    if (kind === 'earnings' && secIds.has(row.event.id)) continue;
     let barTime: number | null, future = false;
     if (kind === 'economic') {
       // The LV demo document is dated around the demo bars (all in the past), so Future events only would hide every
@@ -116,7 +127,7 @@ export function calendarChartMarkers(documents: readonly CalendarDocument[], sym
     const date = calendarMarkerDate(row), key = `${kind}:${barTime}`, entry: CalendarMarkerEntry = { documentId: row.documentId, eventId: row.event.id, kind, date, synthetic: row.provenance.fixture, lines: calendarMarkerLines(shownRows?.get(row.key) ?? row), ...(kind === 'economic' ? { country: row.event.country, importance: row.event.importance } : {}) };
     const group = groups.get(key); if (group) group.entries.push(entry); else groups.set(key, { kind, barTime, future, entries: [entry] });
   }
-  return [...groups.entries()].sort((a, b) => a[1].barTime - b[1].barTime || order.indexOf(a[1].kind) - order.indexOf(b[1].kind)).map(([key, group]) => {
+  const calendarMarkers = [...groups.entries()].sort((a, b) => a[1].barTime - b[1].barTime || order.indexOf(a[1].kind) - order.indexOf(b[1].kind)).map(([key, group]) => {
     const style = CALENDAR_MARKER_STYLE[group.kind], lines = group.entries.flatMap((entry, index) => [...(index ? [''] : []), ...entry.lines]);
     let letter = style.letter, color = style.color;
     if (group.kind === 'economic') {
@@ -127,6 +138,19 @@ export function calendarChartMarkers(documents: readonly CalendarDocument[], sym
     }
     return { key, kind: group.kind, barTime: group.barTime, letter, color, entries: group.entries, lines, label: `${lines.filter(Boolean).join('. ')}. Opens the calendar entry.`, synthetic: group.entries.some(entry => entry.synthetic), ...(group.future ? { future: true } : {}) };
   });
+  return [...secMarkers, ...calendarMarkers].sort((a, b) => a.barTime - b.barTime);
+}
+/** One earnings badge per reported quarter of the saved SEC filings, placed on the bar of its date. Clicking opens the filing. */
+export function secEarningsMarkers(events: readonly SecEarningsEvent[], bars: readonly { time: number }[]): CalendarChartMarker[] {
+  const style = CALENDAR_MARKER_STYLE.earnings, out: CalendarChartMarker[] = [];
+  for (const event of events) {
+    const barTime = eventBarTime(event.date, bars); if (barTime === null) continue;
+    const lines = secEarningsLines(event);
+    out.push({ key: 'sec:' + event.id, kind: 'earnings', barTime, letter: style.letter, color: style.color, lines, hint: 'Click to open on sec.gov.', synthetic: false,
+      label: `${lines.join('. ')}. Opens the filing on sec.gov.`,
+      entries: [{ documentId: 'sec-filings:' + event.cik, eventId: event.id, kind: 'earnings', date: event.date, synthetic: false, lines, filing: { cik: event.cik, accession: event.accession } }] });
+  }
+  return out;
 }
 /** Horizontal offset so markers of different kinds on one bar sit side by side. */
 export function calendarMarkerOffset(markers: readonly CalendarChartMarker[], index: number, size = 16): number {
@@ -134,7 +158,7 @@ export function calendarMarkerOffset(markers: readonly CalendarChartMarker[], in
   return shared.length < 2 ? 0 : (shared.indexOf(marker) - (shared.length - 1) / 2) * (size + 2);
 }
 /** The settings the chart passes: earnings follow Chart settings > Events > Earnings; economic entries follow Events > Economic events (and its Future events only); IPO badges have no settings row and are always shown; calendar dividends and splits follow their rows but skip the Alpaca auto-fill document when the chart already shows Alpaca corporate actions. */
-export function calendarMarkerSettings(events: { earnings: { visible: boolean }; dividends: boolean; splits: boolean; economic?: { visible: boolean; futureOnly: boolean } }, chartHasCorporateActions: boolean, timezone?: string): CalendarMarkerSettings {
-  return { ...(timezone ? { timezone } : {}), earnings: events.earnings.visible, dividends: events.dividends, splits: events.splits, ipos: true, economic: events.economic?.visible === true, economicFutureOnly: events.economic?.futureOnly === true, skipDocumentIds: chartHasCorporateActions ? [AUTO_DIVIDEND_DOCUMENT_ID] : [] };
+export function calendarMarkerSettings(events: { earnings: { visible: boolean }; dividends: boolean; splits: boolean; economic?: { visible: boolean; futureOnly: boolean } }, chartHasCorporateActions: boolean, timezone?: string, secEarnings?: readonly SecEarningsEvent[]): CalendarMarkerSettings {
+  return { ...(timezone ? { timezone } : {}), ...(secEarnings?.length ? { secEarnings } : {}), earnings: events.earnings.visible, dividends: events.dividends, splits: events.splits, ipos: true, economic: events.economic?.visible === true, economicFutureOnly: events.economic?.futureOnly === true, skipDocumentIds: chartHasCorporateActions ? [AUTO_DIVIDEND_DOCUMENT_ID] : [] };
 }
 

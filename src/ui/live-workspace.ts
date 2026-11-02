@@ -17,18 +17,18 @@ import {SYMBOL_MATH_PROVIDER_ID,isSymbolMathDatasetId,symbolMathPlaceholder} fro
 
 /** Persisted live-data choices. The Alpaca key is never part of a workspace. */
 /** AlpacaPlan is stored only when 'paid'; absent means the Free plan (the default). */
-export interface LiveDataChoices {coinbase:boolean;alpacaSymbols:string[];alpacaPlan?:'paid';/** False turns FRED downloads off (saved copies only). Absent means on. */fred?:false}
+export interface LiveDataChoices {coinbase:boolean;alpacaSymbols:string[];alpacaPlan?:'paid';/** False turns FRED downloads off (saved copies only). Absent means on. */fred?:false;/** False turns the daily SEC company data refresh off. Absent means on. */secDaily?:false}
 export function liveDataOf(workspace:{liveData?:unknown}):LiveDataChoices{
  const value=workspace.liveData;if(!value||typeof value!=='object')return{coinbase:false,alpacaSymbols:[]};
- const row=value as {coinbase?:unknown;alpacaSymbols?:unknown;alpacaPlan?:unknown;fred?:unknown};
- return{...(row.fred===false?{fred:false as const}:{}),...(row.alpacaPlan==='paid'?{alpacaPlan:'paid' as const}:{}),coinbase:row.coinbase===true,alpacaSymbols:Array.isArray(row.alpacaSymbols)?row.alpacaSymbols.filter((item):item is string=>typeof item==='string'&&ALPACA_SYMBOL.test(item)).slice(0,ALPACA_MAX_SYMBOLS):[]};
+ const row=value as {coinbase?:unknown;alpacaSymbols?:unknown;alpacaPlan?:unknown;fred?:unknown;secDaily?:unknown};
+ return{...(row.fred===false?{fred:false as const}:{}),...(row.secDaily===false?{secDaily:false as const}:{}),...(row.alpacaPlan==='paid'?{alpacaPlan:'paid' as const}:{}),coinbase:row.coinbase===true,alpacaSymbols:Array.isArray(row.alpacaSymbols)?row.alpacaSymbols.filter((item):item is string=>typeof item==='string'&&ALPACA_SYMBOL.test(item)).slice(0,ALPACA_MAX_SYMBOLS):[]};
 }
 /** Strict form for restore: a present value must be exact. */
 export function restoreLiveData(value:unknown):LiveDataChoices{
  if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid live data settings.');
  const row=value as Record<string,unknown>;
- if(Object.keys(row).some(key=>key!=='coinbase'&&key!=='alpacaSymbols'&&key!=='alpacaPlan'&&key!=='fred')||(row.fred!==undefined&&row.fred!==false)||(row.alpacaPlan!==undefined&&row.alpacaPlan!=='free'&&row.alpacaPlan!=='paid')||typeof row.coinbase!=='boolean'||!Array.isArray(row.alpacaSymbols)||row.alpacaSymbols.length>ALPACA_MAX_SYMBOLS||row.alpacaSymbols.some(item=>typeof item!=='string'||!ALPACA_SYMBOL.test(item)))throw new Error('Invalid live data settings.');
- return{...(row.fred===false?{fred:false as const}:{}),coinbase:row.coinbase,alpacaSymbols:[...new Set(row.alpacaSymbols as string[])],...(row.alpacaPlan==='paid'?{alpacaPlan:'paid' as const}:{})};
+ if(Object.keys(row).some(key=>key!=='coinbase'&&key!=='alpacaSymbols'&&key!=='alpacaPlan'&&key!=='fred'&&key!=='secDaily')||(row.fred!==undefined&&row.fred!==false)||(row.secDaily!==undefined&&row.secDaily!==false)||(row.alpacaPlan!==undefined&&row.alpacaPlan!=='free'&&row.alpacaPlan!=='paid')||typeof row.coinbase!=='boolean'||!Array.isArray(row.alpacaSymbols)||row.alpacaSymbols.length>ALPACA_MAX_SYMBOLS||row.alpacaSymbols.some(item=>typeof item!=='string'||!ALPACA_SYMBOL.test(item)))throw new Error('Invalid live data settings.');
+ return{...(row.fred===false?{fred:false as const}:{}),...(row.secDaily===false?{secDaily:false as const}:{}),coinbase:row.coinbase,alpacaSymbols:[...new Set(row.alpacaSymbols as string[])],...(row.alpacaPlan==='paid'?{alpacaPlan:'paid' as const}:{})};
 }
 
 /** `drop` limits the move to the live feeds it names (a source being turned off); without it every live feed moves. */

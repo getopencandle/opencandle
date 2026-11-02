@@ -36,7 +36,7 @@ export function withIndicatorTickPrecision<T>(ctx:CanvasRenderingContext2D,coord
  });
  function text(this:unknown,label:string,x:number,y:number,...remaining:unknown[]){
   assert();if(this!==context)throw Error('Indicator tick text receiver changed.');const match=pending;pending=null;
-  if(match&&match.ordinal===ordinal&&x===match.axis.x&&y===match.y){
+  if(match&&match.ordinal===ordinal&&x===match.axis.x&&y===match.y&&!(match.axis.label&&label==='')){/* a tick a hook blanked stays blank */
    match.axis.assertCurrent();const transformed=match.axis.transform(match.price);assert();match.axis.assertCurrent();
    if(match.axis.label)label=match.axis.label(transformed);else{label=formatIndicatorNumber(transformed,match.axis.precision);label=(match.axis.signed&&!label.startsWith('-')?'+':'')+label+match.axis.suffix;}assert();match.axis.assertCurrent();
    if(!Number.isFinite(match.axis.maxWidth)||match.axis.maxWidth<=0)throw Error('Indicator tick column width is unavailable.');remaining=[match.axis.maxWidth];

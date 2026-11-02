@@ -9,6 +9,8 @@ export interface IndicatorDisplayOwner {
  compact?:boolean;
  /** Price-scale label text for a value on a scale spanning [low, high] (financials panes: one compact unit per visible range). */
  axisLabel?:(value:number,low:number,high:number)=>string;
+ /** Value-tag text: the full value as the legend reads it ("5.03T", "39.57x"), never rounded to the tick precision. */
+ valueLabel?:(value:number)=>string;
 }
 interface Registration {chart:object;read:()=>readonly IndicatorDisplayOwner[];active:boolean}
 const registrations=new WeakMap<object,Registration>();

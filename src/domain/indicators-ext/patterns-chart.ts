@@ -28,10 +28,10 @@ export const CHART_PATTERNS:readonly ChartPatternInfo[]=Object.freeze([
  {id:'triplebottom',name:'Triple bottom',direction:'bullish',rule:'Three lows within tolerance of each other, both highs between them above the highest low by more than tolerance.'},
  {id:'headshoulders',name:'Head and shoulders',direction:'bearish',rule:'Five pivots high, low, high, low, high: the middle high (head) above both outer highs (shoulders) by more than tolerance, the shoulders equal within tolerance, both lows below the lower shoulder.'},
  {id:'invheadshoulders',name:'Inverted head and shoulders',direction:'bullish',rule:'The mirror of Head and shoulders on lows.'},
- {id:'triangle',name:'Triangle',direction:'neutral',rule:'Last two highs and last two lows: highs not rising and lows not falling (a move within tolerance is flat), not both flat, and the second high-low width narrower than the first.'},
+ {id:'triangle',name:'Triangle',direction:'neutral',rule:'Last two highs and last two lows: highs not rising and lows not falling (a move within tolerance is flat), not both flat, and the gap between the two trend lines, read at one bar, narrower at the last pivot bar than at the first and still open.'},
  {id:'rectangle',name:'Rectangle',direction:'neutral',rule:'Last two highs equal within tolerance and last two lows equal within tolerance, the lows below the highs by more than tolerance.'},
- {id:'risingwedge',name:'Rising wedge',direction:'bearish',rule:'Last two highs and lows both rising by more than tolerance, lows rising faster (the width narrows).'},
- {id:'fallingwedge',name:'Falling wedge',direction:'bullish',rule:'Last two highs and lows both falling by more than tolerance, highs falling faster (the width narrows).'},
+ {id:'risingwedge',name:'Rising wedge',direction:'bearish',rule:'Last two highs and lows both rising by more than tolerance, the gap between the two trend lines, read at one bar, narrower at the last pivot bar than at the first and still open (the width narrows).'},
+ {id:'fallingwedge',name:'Falling wedge',direction:'bullish',rule:'Last two highs and lows both falling by more than tolerance, the gap between the two trend lines, read at one bar, narrower at the last pivot bar than at the first and still open (the width narrows).'},
  // Flags and pennants: five pivots, the pole (low then high for bullish) and a two-high, two-low consolidation.
  {id:'bullflag',name:'Bullish flag',direction:'bullish',rule:'Five pivots low, high, low, high, low: the pole (first low to first high) rises by more than 3 x tolerance; both later lows stay above the pole midpoint; the flag highs and lows are each flat or falling (neither rises by more than tolerance) and the second high-low width is at least half the first (parallel, not converging).'},
  {id:'bearflag',name:'Bearish flag',direction:'bearish',rule:'The mirror of Bullish flag: a falling pole (high to low) of more than 3 x tolerance, both later highs below the pole midpoint, the flag highs and lows each flat or rising, the second width at least half the first.'},
@@ -75,6 +75,8 @@ export function zigzagPivots(bars:readonly Bar[],length:number):Pivot[]{
 
 const equal=(a:number,b:number,tol:number)=>Math.abs(a-b)<=tol*Math.max(Math.abs(a),Math.abs(b));
 const segment=(a:Pivot,b:Pivot)=>({from:{index:a.index,price:a.price},to:{index:b.index,price:b.price}});
+/** The flat line at pivot a's price, from a to bar `at` (the level a breakout rule tests, drawn exactly). */
+const flatLine=(a:Pivot,at:number)=>({from:{index:a.index,price:a.price},to:{index:at,price:a.price}});
 /** The line through a and b, continued to bar `at`. */
 const extended=(a:Pivot,b:Pivot,at:number)=>{const slope=b.index===a.index?0:(b.price-a.price)/(b.index-a.index);return {from:{index:a.index,price:a.price},to:{index:at,price:b.price+slope*(at-b.index)}};};
 
@@ -86,15 +88,39 @@ function roundShare(bars:readonly Bar[],a:number,c:number,bottom:number,depth:nu
  return near/(c-a+1);
 }
 
-function test(id:ChartPatternId,p:readonly Pivot[],tol:number,at:number,bars:readonly Bar[]):ChartPatternHit|null{
+/** Textbook size rules (opt-in, daily and longer bars only; see TEXTBOOK_RULES). Sources: Bulkowski, "Encyclopedia of Chart Patterns" (double top and
+ *  bottom pages: valley "at least 10%, but allow exceptions"; his own tests used a two-week minimum between the tops; risewedge.html: "3 weeks is
+ *  the minimum duration"; the glossary's trend start) and ChartSchool ("Double Top Reversal": "at least 10%"; "Rectangle" and "Symmetrical
+ *  Triangle": under three weeks is a flag or pennant). */
+export const TEXTBOOK_RULES=Object.freeze({/** Double top or bottom: the valley (rise) between the two extremes, as a share of the first. */doubleDepth:0.10,/** Double top or bottom: bars from the first to the last extreme (two weeks of trading days). */doubleBars:10,/** Triangle, rectangle and wedges: bars from the first to the last pivot (three weeks of trading days). */spanBars:15});
+const TEXTBOOK_EPS=1e-9;
+/** True when the bars are daily or longer: the median spacing of the bar times is at least 20 hours. Read from the bars themselves. */
+export function chartBarsAreDaily(bars:readonly Bar[]):boolean{
+ const gaps:number[]=[];for(let k=1;k<bars.length;k++){const gap=bars[k].time-bars[k-1].time;if(Number.isFinite(gap)&&gap>0)gaps.push(gap);}
+ if(!gaps.length)return false;gaps.sort((a,b)=>a-b);const mid=gaps.length>>1;
+ return (gaps.length%2?gaps[mid]:(gaps[mid-1]+gaps[mid])/2)>=72000;
+}
+/** The trend into a pattern (Bulkowski's glossary: price came from beyond the pattern's far side). Going back from the bar before `first`, the first
+ *  bar that trades outside [low, high] decides: below the low means price rose into the pattern ('up'), above the high that it fell into it
+ *  ('down'); one bar outside on both sides, or none in the loaded bars, is undecided (null). It reads only bars before `first`, so it never depends on
+ *  the bar a pattern is reported on. Known quirk: a retest of a slightly higher earlier peak can read as the opposite trend. */
+export function priorTrend(bars:readonly Bar[],first:number,high:number,low:number):'up'|'down'|null{
+ for(let k=first-1;k>=0;k--){const below=bars[k].low<low,above=bars[k].high>high;if(below&&above)return null;if(below)return 'up';if(above)return 'down';}
+ return null;
+}
+
+function test(id:ChartPatternId,p:readonly Pivot[],tol:number,at:number,bars:readonly Bar[],textbook=false):ChartPatternHit|null{
  const n=p.length,info=chartPatternInfo(id);
  const hit=(pivots:readonly Pivot[],lines:ChartPatternHit['lines']):ChartPatternHit=>({id,direction:info.direction,name:info.name,confirmedAt:at,pivots,lines});
  const zigzag=(pivots:readonly Pivot[])=>pivots.slice(1).map((pivot,k)=>segment(pivots[k],pivot));
  const last=p[n-1];
+ /** Textbook: a reversal needs the trend it reverses (a top: up, a bottom: down) into its first pivot. */
+ const trended=(pivots:readonly Pivot[],top:boolean)=>priorTrend(bars,pivots[0].index,Math.max(...pivots.map(row=>row.price)),Math.min(...pivots.map(row=>row.price)))===(top?'up':'down');
  if(id==='doubletop'||id==='doublebottom'){
   if(n<3)return null;const [a,b,c]=p.slice(n-3);const top=id==='doubletop';if(c.kind!==(top?'high':'low'))return null;
   if(!equal(a.price,c.price,tol))return null;
   const ok=top?b.price<Math.min(a.price,c.price)*(1-tol):b.price>Math.max(a.price,c.price)*(1+tol);if(!ok)return null;
+  if(textbook&&(!((top?a.price-b.price:b.price-a.price)/a.price>=TEXTBOOK_RULES.doubleDepth-TEXTBOOK_EPS)||c.index-a.index<TEXTBOOK_RULES.doubleBars||!trended([a,b,c],top)))return null;
   return hit([a,b,c],[...zigzag([a,b,c]),{from:{index:b.index,price:b.price},to:{index:at,price:b.price}}]);
  }
  if(id==='tripletop'||id==='triplebottom'){
@@ -102,13 +128,17 @@ function test(id:ChartPatternId,p:readonly Pivot[],tol:number,at:number,bars:rea
   const peaks=[q[0],q[2],q[4]].map(row=>row.price),valleys=[q[1],q[3]].map(row=>row.price);
   const hi=Math.max(...peaks),lo=Math.min(...peaks);if(hi-lo>tol*Math.max(Math.abs(hi),Math.abs(lo)))return null;
   const ok=top?valleys.every(v=>v<lo*(1-tol)):valleys.every(v=>v>hi*(1+tol));if(!ok)return null;
-  return hit(q,[...zigzag(q),extended(q[1],q[3],at)]);
+  if(textbook&&!trended(q,top))return null;
+  // The breakout level is the flat lowest valley (top) or highest peak (bottom) of the two (ChartSchool, "Triple Top"), so that is the line drawn.
+  const key=top?(q[1].price<=q[3].price?q[1]:q[3]):(q[1].price>=q[3].price?q[1]:q[3]);
+  return hit(q,[...zigzag(q),flatLine(key,at)]);
  }
  if(id==='headshoulders'||id==='invheadshoulders'){
   if(n<5)return null;const q=p.slice(n-5),top=id==='headshoulders';if(last.kind!==(top?'high':'low'))return null;
   const [ls,t1,head,t2,rs]=q;if(!equal(ls.price,rs.price,tol))return null;
   if(top?!(head.price>Math.max(ls.price,rs.price)*(1+tol)):!(head.price<Math.min(ls.price,rs.price)*(1-tol)))return null;
   if(top?!(Math.max(t1.price,t2.price)<Math.min(ls.price,rs.price)):!(Math.min(t1.price,t2.price)>Math.max(ls.price,rs.price)))return null;
+  if(textbook&&!trended(q,top))return null;
   return hit(q,[...zigzag(q),extended(t1,t2,at)]);
  }
  if(id==='bullflag'||id==='bearflag'||id==='bullpennant'||id==='bearpennant'){
@@ -133,20 +163,26 @@ function test(id:ChartPatternId,p:readonly Pivot[],tol:number,at:number,bars:rea
   const mid=cup?b.price+depth/2:b.price-depth/2;if(cup?!(d.price>mid):!(d.price<mid))return null;
   if(d.index-c.index>(c.index-a.index)/2)return null;
   const share=roundShare(bars,a.index,c.index,b.price,depth,!cup);if(share===null||share<CUP_ROUND_SHARE)return null;
-  return hit(q,[...zigzag(q),extended(a,c,at)]);
+  // The breakout level is the flat higher rim (lower rim for the inverted cup), so that is the line drawn.
+  const rimPivot=cup?(a.price>=c.price?a:c):(a.price<=c.price?a:c);
+  return hit(q,[...zigzag(q),flatLine(rimPivot,at)]);
  }
  // Four-pivot shapes: the last two highs and the last two lows.
  if(n<4)return null;const q=p.slice(n-4),highs=q.filter(row=>row.kind==='high'),lows=q.filter(row=>row.kind==='low');
  if(highs.length!==2||lows.length!==2)return null;
  const [h1,h2]=highs,[l1,l2]=lows,dh=(h2.price-h1.price)/Math.abs(h1.price),dl=(l2.price-l1.price)/Math.abs(l1.price);
  if(!finite(dh)||!finite(dl))return null;
- const flatHigh=Math.abs(dh)<=tol,flatLow=Math.abs(dl)<=tol,narrower=h2.price-l2.price<h1.price-l1.price;
+ const flatHigh=Math.abs(dh)<=tol,flatLow=Math.abs(dl)<=tol;
+ // Converging (Bulkowski; ChartSchool, "Triangles" and "Wedges"): the two trend lines, measured at one common bar, are closer at the
+ // last pivot's bar than at the first pivot's bar, and still apart there. (Flat, rising and falling stay the pivot-to-pivot tests above.)
+ const upper=lineAt(h1,h2),lower=lineAt(l1,l2),f=q[0].index,end=q[3].index,gapStart=upper(f)-lower(f),gapEnd=upper(end)-lower(end),narrower=gapEnd<gapStart&&gapEnd>0;
  let ok=false;
  if(id==='rectangle')ok=flatHigh&&flatLow&&Math.max(l1.price,l2.price)<Math.min(h1.price,h2.price)*(1-tol);
  if(id==='triangle')ok=(dh<-tol||flatHigh)&&(dl>tol||flatLow)&&!(flatHigh&&flatLow)&&narrower;
- if(id==='risingwedge')ok=dh>tol&&dl>tol&&dl>dh&&narrower;
- if(id==='fallingwedge')ok=dh<-tol&&dl<-tol&&dh<dl&&narrower;
+ if(id==='risingwedge')ok=dh>tol&&dl>tol&&narrower;
+ if(id==='fallingwedge')ok=dh<-tol&&dl<-tol&&narrower;
  if(!ok)return null;
+ if(textbook&&q[3].index-q[0].index<TEXTBOOK_RULES.spanBars)return null;
  return hit(q,[extended(h1,h2,at),extended(l1,l2,at)]);
 }
 
@@ -155,10 +191,11 @@ function test(id:ChartPatternId,p:readonly Pivot[],tol:number,at:number,bars:rea
  *  "a break above resistance signals that the previous advance has resumed"). Without breakout confirmation every shape is
  *  reported unconfirmed, on the bar that confirms its last pivot. */
 export const BREAKOUT_PATTERNS:ReadonlySet<ChartPatternId>=new Set<ChartPatternId>(CHART_PATTERNS.map(row=>row.id));
-export interface ChartPatternOptions {/** Report patterns on their confirming breakout close instead of on the last pivot. Default false. */breakout?:boolean}
+export interface ChartPatternOptions {/** Report patterns on their confirming breakout close instead of on the last pivot. Default false. */breakout?:boolean;
+ /** Textbook size rules (double top and bottom depth and spacing, a prior trend for reversals, a minimum span for triangles, rectangles and wedges). Daily and longer bars only; default false. */textbook?:boolean}
 /** The breakout rule of a found pattern, as levels at bar k: a close above `up` (below `down`) breaks out upward
  *  (downward); a close above `voidUp` (below `voidDown`) first voids the pattern. `window` is the pattern's own span. */
-interface BreakoutRule {up?:(k:number)=>number;down?:(k:number)=>number;voidUp?:(k:number)=>number;voidDown?:(k:number)=>number;window:number}
+interface BreakoutRule {up?:(k:number)=>number;down?:(k:number)=>number;voidUp?:(k:number)=>number;voidDown?:(k:number)=>number;/** Four-pivot shapes with an apex: false once the two lines have met (upper(k)<=lower(k)); no breakout is accepted from there. */alive?:(k:number)=>boolean;window:number}
 const lineAt=(a:Pivot,b:Pivot)=>{const slope=b.index===a.index?0:(b.price-a.price)/(b.index-a.index);return (k:number)=>b.price+slope*(k-b.index);};
 function breakoutRule(hit:ChartPatternHit):BreakoutRule{
  const p=hit.pivots,top=hit.direction==='bearish',window=p[p.length-1].index-p[0].index;
@@ -192,38 +229,62 @@ function breakoutRule(hit:ChartPatternHit):BreakoutRule{
    const highs=p.filter(row=>row.kind==='high'),lows=p.filter(row=>row.kind==='low'),upper=lineAt(highs[0],highs[1]),lower=lineAt(lows[0],lows[1]);
    // ChartSchool, "Rising Wedge": confirmed only when the lower support line breaks; the falling wedge mirrors it. A close
    // through the other line first voids it (OpenCandle-defined).
-   if(hit.id==='risingwedge')return {down:lower,voidUp:upper,window};
-   if(hit.id==='fallingwedge')return {up:upper,voidDown:lower,window};
+   // Bulkowski and ChartSchool: a triangle or wedge breaks out before its apex (usually 1/2 to 3/4 of the way there); a close at or
+   // past the apex, where the lines have crossed, is not a pattern breakout. A rectangle has no apex.
+   const alive=hit.id==='rectangle'?undefined:(k:number)=>upper(k)>lower(k);
+   if(hit.id==='risingwedge')return {down:lower,voidUp:upper,alive,window};
+   if(hit.id==='fallingwedge')return {up:upper,voidDown:lower,alive,window};
    // Rectangle and triangle (ChartSchool: neutral until a breakout on a closing basis): the first close outside either line.
-   return {up:upper,down:lower,window};
+   return {up:upper,down:lower,alive,window};
   }
  }
 }
-/** The breakout of a found pattern, or null: the first bar after the last pivot whose close crosses a breakout level, within
- *  `window` bars (the pattern's own width, an OpenCandle choice) and before any close past a void level. Reported no
- *  earlier than the bar the pattern became known (`confirmedAt`). Reads only bars up to the bar it returns. */
-function breakoutBar(bars:readonly Bar[],hit:ChartPatternHit):{at:number;side:'up'|'down'}|null{
+/** What the bars after a found pattern did: the first bar whose close crosses a breakout level (`at`, with the side), or the bar
+ *  where it ended without one (`ended`: a close past a void level, or the apex of a triangle or wedge), or null if neither happened
+ *  within `window` bars (the pattern's own width, an OpenCandle choice). The breakout is reported no earlier than the bar the pattern
+ *  became known (`confirmedAt`) and only on a bar whose own close is beyond the level: a close beyond a line before that bar counts
+ *  only if the close on `confirmedAt` is still beyond it (a void close in between ends the pattern). Reads only bars up to the bar it returns. */
+type Scan={at:number;side:'up'|'down'}|{ended:number}|null;
+function scanBreakout(bars:readonly Bar[],hit:ChartPatternHit):Scan{
  const rule=breakoutRule(hit),last=hit.pivots[hit.pivots.length-1].index,end=Math.min(bars.length-1,last+rule.window);
  for(let k=last+1;k<=end;k++){
   const close=bars[k].close;if(!finite(close))continue;
-  if(rule.voidUp&&close>rule.voidUp(k)||rule.voidDown&&close<rule.voidDown(k))return null;
-  if(rule.up&&close>rule.up(k))return {at:Math.max(k,hit.confirmedAt),side:'up'};
-  if(rule.down&&close<rule.down(k))return {at:Math.max(k,hit.confirmedAt),side:'down'};
+  if(rule.alive&&!rule.alive(k))return {ended:k};
+  if(rule.voidUp&&close>rule.voidUp(k)||rule.voidDown&&close<rule.voidDown(k))return {ended:k};
+  if(k<hit.confirmedAt)continue;
+  if(rule.up&&close>rule.up(k))return {at:k,side:'up'};
+  if(rule.down&&close<rule.down(k))return {at:k,side:'down'};
  }
  return null;
 }
 /** Every hit of the chosen patterns, in reporting-bar order. tolerancePercent is a percent (2 = 2%). With
  *  options.breakout a pattern is reported on its breakout bar (confirmedAt, with the broken side) or not at all. */
 export function detectChartPatterns(bars:readonly Bar[],ids:readonly ChartPatternId[],pivotLength:number,tolerancePercent:number,options:ChartPatternOptions={}):ChartPatternHit[]{
- const tol=tolerancePercent/100,out:ChartPatternHit[]=[],seen:Pivot[]=[];
+ const tol=tolerancePercent/100,out:ChartPatternHit[]=[],seen:Pivot[]=[],textbook=!!options.textbook&&chartBarsAreDaily(bars);
+ // Earlier hits per pattern id, kept while their window lasts. The pivot window rolls one pivot at a time, so one range could be reported
+ // again by the next windows. OpenCandle choice (not a published rule): with breakout on, a hit is dropped when an earlier hit of its id
+ // was reported on the same bar and side and they share a pivot or bars, or when an earlier hit was reported on the same side (on or before this
+ // hit's bar) after this hit's last pivot, so this hit's shape stood while the earlier one was still open, and the two overlap: more than half of this
+ // hit's pivots are shared, or more than half of the shorter pivot span overlaps. An earlier hit that never fires blocks nothing. Without breakout, a hit is
+ // dropped when it shares a pivot with an earlier hit reported on the same bar. The earlier hit stays. Only bars up to the newer hit's own
+ // reporting bar decide (causal).
+ type Earlier={pivots:Set<number>;first:number;last:number;reported:number;at:number;side:string};
+ const earlier=new Map<ChartPatternId,Earlier[]>();
  for(const event of zigzagEvents(bars,pivotLength)){
   const pivot:Pivot={index:event.index,price:event.price,kind:event.kind};
   if(event.replaces)seen[seen.length-1]=pivot;else seen.push(pivot);
   for(const id of ids){
-   const found=test(id,seen,tol,event.confirmedAt,bars);if(!found)continue;
-   if(!options.breakout||!BREAKOUT_PATTERNS.has(id)){out.push(found);continue;}
-   const broke=breakoutBar(bars,found);if(broke===null)continue;
-   out.push({...test(id,found.pivots,tol,broke.at,bars)!,breakout:broke.side});
+   const found=test(id,seen,tol,event.confirmedAt,bars,textbook);if(!found)continue;
+   const confirming=!!options.breakout&&BREAKOUT_PATTERNS.has(id),first=found.pivots[0].index,last=found.pivots[found.pivots.length-1].index,c=event.confirmedAt;
+   const list=(earlier.get(id)??[]).filter(row=>confirming?row.last+(row.last-row.first)>=c:row.reported===c);earlier.set(id,list);
+   const shared=(row:Earlier)=>found.pivots.filter(pv=>row.pivots.has(pv.index)).length,common=(row:Earlier)=>Math.min(row.last,last)-Math.max(row.first,first);
+   const row:Earlier={pivots:new Set(found.pivots.map(pv=>pv.index)),first,last,reported:c,at:-1,side:''};
+   if(!confirming){if(list.some(old=>shared(old)>0))continue;list.push(row);out.push(found);continue;}
+   const broke=scanBreakout(bars,found);if(broke===null||!('at' in broke))continue;
+   const dup=list.some(old=>old.at>=0&&old.at<=broke.at&&old.side===broke.side&&(old.at===broke.at?shared(old)>0||common(old)>0:old.at>last&&(2*shared(old)>found.pivots.length||2*common(old)>Math.min(old.last-old.first,last-first))));
+   if(dup)continue;
+   row.at=broke.at;row.side=broke.side;list.push(row);
+   out.push({...test(id,found.pivots,tol,broke.at,bars,textbook)!,breakout:broke.side});
   }
  }
  // Breakouts can arrive after later pivots; a stable sort keeps the pivot order within one bar.

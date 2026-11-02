@@ -179,7 +179,11 @@ const CHART_INPUTS:readonly CatalogInput[]=[{key:'pivotLength',title:'Pivot leng
 /** Added in 0.8.1 for tops, bottoms and head and shoulders, later for every chart pattern: new instances wait for
  *  the breakout close; saved instances without the key keep the old last-pivot report. */
 const BREAKOUT_INPUT:CatalogInput={key:'breakout',title:'Require breakout confirmation',type:'bool',defval:true,legacyOmit:true,legacyDefval:false};
-const BREAKOUT_INPUTS:readonly CatalogInput[]=[...CHART_INPUTS,BREAKOUT_INPUT];
+/** Added after breakout confirmation, the same way: new instances apply the textbook size rules; saved instances without the key keep today's
+ *  tolerance-only detection. */
+const TEXTBOOK_INPUT:CatalogInput={key:'textbook',title:'Textbook size rules',type:'bool',defval:true,legacyOmit:true,legacyDefval:false};
+const BREAKOUT_INPUTS:readonly CatalogInput[]=[...CHART_INPUTS,BREAKOUT_INPUT,TEXTBOOK_INPUT];
+const TEXTBOOK_ONLY_INPUTS:readonly CatalogInput[]=[...CHART_INPUTS,TEXTBOOK_INPUT];
 /** The signal bar's date for a tooltip: the UTC date for a bar stamped at midnight UTC (daily and longer bars), else the
  *  UTC date and time, as the other chart marker tooltips write it. */
 export function patternKnownOn(time:number):string{
@@ -192,7 +196,7 @@ function chartOutput(ctx:CatalogContext,ids:readonly ChartPatternId[],plots:read
  // Signals come from every hit (alerts, legend and data window read them, and an earlier bar never changes as bars are
  // added); only the drawn markers and lines are bounded to the newest PATTERN_MARK_LIMIT.
  const breakout=ids.some(id=>BREAKOUT_PATTERNS.has(id))&&ctx.bool('breakout');
- const hits=detectChartPatterns(ctx.bars,ids,ctx.num('pivotLength'),ctx.num('tolerance'),{breakout});
+ const hits=detectChartPatterns(ctx.bars,ids,ctx.num('pivotLength'),ctx.num('tolerance'),{breakout,textbook:ctx.bool('textbook')});
  // The named marker stays on the pattern's last pivot (where the shape is); its tooltip says when the pattern became
  // known, and a small dot marks that signal bar, so history never reads as if the pattern was known on the pivot.
  type Group={index:number;plot:PatternDirectionPlot;names:string[];tips:string[]};
@@ -215,19 +219,31 @@ function chartOutput(ctx:CatalogContext,ids:readonly ChartPatternId[],plots:read
 }
 const CHART_POLICY='OpenCandle-defined detection from confirmed pivots (patterns-chart.ts): a pattern is reported on its breakout bar (with breakout confirmation) or on the bar that confirms its last pivot (without it), never earlier, and is not repainted. The named marker is drawn on that last pivot, its tooltip gives the date the pattern became known, and a small dot marks that signal bar. Tolerance is the percent within which two levels are equal.';
 const BREAKOUT_POLICY="Require breakout confirmation (on for new instances; off for instances saved before it existed): a pattern is reported only on the first close through its boundary (Edwards and Magee, Bulkowski), within as many bars after the last pivot as the pattern spans, and only when no earlier close voided it. Tops, bottoms and head and shoulders: a close through the valley, peak or neckline, void past the pattern's extreme. Flags and pennants: a close beyond the upper line (bullish) or lower line (bearish), void on a close past the other line or the pole midpoint. Rising wedge: a close below the lower line; falling wedge: above the upper line; void through the other line. Cup and handle: a close above the higher rim, void below the handle low; inverted cup mirrors it. Rectangle and triangle: the first close outside either line, and the tooltip names the side. The signal is on that breakout bar. Off: the shape is reported unconfirmed, on the bar that confirms its last pivot.";
+/** The textbook size rules, one sentence per rule family, so each entry explains only the rules that touch its patterns. */
+const TEXTBOOK_HEAD='Textbook size rules (on for new instances; off for instances saved before it existed; applied only on daily and longer bars, intraday bars are never changed):';
+const TEXTBOOK_PARTS={
+ double:' A double top needs the valley between its tops at least 10% below the first top (a double bottom: the rise between its bottoms at least 10% above the first bottom) and the two tops at least 10 bars apart (Bulkowski, "at least 10%, but allow exceptions", and his tests used a two-week minimum; ChartSchool, "Double Top Reversal", "at least 10%").',
+ trend:" A reversal pattern (double, triple, head and shoulders and their inverses) needs a prior trend: going back from the bar before its first pivot, the first bar that trades outside the pattern's price range must lie below it for a top and above it for a bottom, meaning price came from beyond the pattern's far side (Bulkowski glossary, ChartSchool). Only bars before the first pivot are read. Known quirk: a retest of a slightly higher earlier peak can read as the wrong trend.",
+ span:' A triangle, rectangle, rising wedge or falling wedge spans at least 15 bars from its first to its last pivot, three weeks of daily bars (Bulkowski, "3 weeks is the minimum duration"; ChartSchool: under three weeks is a flag or pennant).',
+ none:' This option does not change this pattern, which has no textbook size rule here.'} as const;
+const TEXTBOOK_PARTS_OF:Partial<Record<ChartPatternId,readonly (keyof typeof TEXTBOOK_PARTS)[]>>={doubletop:['double','trend'],doublebottom:['double','trend'],tripletop:['trend'],triplebottom:['trend'],headshoulders:['trend'],invheadshoulders:['trend'],triangle:['span'],rectangle:['span'],risingwedge:['span'],fallingwedge:['span']};
+export const textbookPolicy=(ids:readonly ChartPatternId[]):string=>{
+ const keys=(['double','trend','span'] as const).filter(key=>ids.some(id=>TEXTBOOK_PARTS_OF[id]?.includes(key)));
+ return TEXTBOOK_HEAD+(keys.length?keys.map(key=>TEXTBOOK_PARTS[key]).join(''):TEXTBOOK_PARTS.none)+(keys.length&&ids.some(id=>!TEXTBOOK_PARTS_OF[id])?' Flags, pennants and cups are unchanged.':'');
+};
 /** Common alternative names (search only; the fuller keyword content is a later task). */
 const CHART_KEYWORDS:Partial<Record<ChartPatternId,readonly string[]>>={doubletop:['M pattern'],doublebottom:['W pattern'],headshoulders:['H&S','reversal'],invheadshoulders:['inverse H&S','reversal']};
 function chartEntry([id,name,pattern,acronym]:readonly [string,string,ChartPatternId,string]):CatalogDefinition{
  const info=CHART_PATTERNS.find(row=>row.id===pattern)!,breakout=BREAKOUT_PATTERNS.has(pattern),keywords=CHART_KEYWORDS[pattern];
- return {id:id as never,name,acronym,overlay:true,pattern:'chart',...(keywords?{keywords}:{}),inputs:breakout?BREAKOUT_INPUTS:CHART_INPUTS,plots:[PLOTS[info.direction]],
+ return {id:id as never,name,acronym,overlay:true,pattern:'chart',...(keywords?{keywords}:{}),inputs:breakout?BREAKOUT_INPUTS:TEXTBOOK_ONLY_INPUTS,plots:[PLOTS[info.direction]],
   provenance:[{url:FACT,facts:`Entry "${name}" in the Chart patterns section.`},{url:LV+'chart-'+pattern,facts:info.rule}],
-  unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,...(breakout?[BREAKOUT_POLICY]:[]),`OpenCandle-defined rule: ${info.rule}`,PATTERN_MARKS_POLICY],
+  unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,...(breakout?[BREAKOUT_POLICY]:[]),textbookPolicy([pattern]),`OpenCandle-defined rule: ${info.rule}`,PATTERN_MARKS_POLICY],
   calculate(ctx){return chartOutput(ctx,[pattern],[info.direction]);},
   warmup:value=>2*value('pivotLength')+1,work:(count,value)=>count*(value('pivotLength')*4+40)};
 }
-const ALL_CHART:CatalogDefinition={id:'chpall' as never,name:'All chart patterns',acronym:'All CP',overlay:true,pattern:'chart',inputs:[...CHART_INPUTS,{...BREAKOUT_INPUT,title:'Require breakout confirmation (every pattern)'}],plots:[PLOTS.bullish,PLOTS.bearish,PLOTS.neutral],
+const ALL_CHART:CatalogDefinition={id:'chpall' as never,name:'All chart patterns',acronym:'All CP',overlay:true,pattern:'chart',inputs:[...CHART_INPUTS,{...BREAKOUT_INPUT,title:'Require breakout confirmation (every pattern)'},TEXTBOOK_INPUT],plots:[PLOTS.bullish,PLOTS.bearish,PLOTS.neutral],
  provenance:[{url:FACT,facts:'Entry "All chart patterns" in the Chart patterns section.'},{url:LV+'chart-all',facts:'Runs every OpenCandle chart pattern detector on one zigzag.'}],
- unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,BREAKOUT_POLICY,PATTERN_MARKS_POLICY],
+ unknownDefaults:[RULE_UNKNOWN],policies:[CAPTURED_POLICY,CHART_POLICY,BREAKOUT_POLICY,textbookPolicy(CHART_PATTERNS.map(row=>row.id)),PATTERN_MARKS_POLICY],
  calculate(ctx){return chartOutput(ctx,CHART_PATTERNS.map(row=>row.id),['bullish','bearish','neutral']);},
  warmup:value=>2*value('pivotLength')+1,work:(count,value)=>count*(value('pivotLength')*4+40*CHART_PATTERNS.length)};
 

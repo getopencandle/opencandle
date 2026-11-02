@@ -45,7 +45,8 @@ describe(' pattern markers on the chart (SYNTHETIC)',()=>{
  it('chart patterns add their boundary lines as bar-time segments',()=>{
   const turns=[100,120,110,120.3,105],closes=[turns[0]];for(let k=1;k<turns.length;k++)for(let s=1;s<=8;s++)closes.push(turns[k-1]+(turns[k]-turns[k-1])*s/8);
   const path=closes.map((close,i)=>({time:D0+i*86400,open:close,high:close+0.5,low:close-0.5,close,volume:1}));
-  const row=settings('chpdoubletop'),{output}=renderIndicatorPresentation(row,calculateIndicator(row.kind,path,row.inputs),path,{resolution:'1D'});
+  // Textbook size rules off: this synthetic double top's valley is 9.2% deep, under the 10% textbook depth, and the test is about the drawn lines.
+  const row=settings('chpdoubletop',{textbook:false}),{output}=renderIndicatorPresentation(row,calculateIndicator(row.kind,path,row.inputs),path,{resolution:'1D'});
   // The named marker stays on the last pivot (bar 24) and says when the pattern became known; a small dot marks that
   // signal bar (30, the breakout close).
   expect(output.labels!.map(label=>[label.text,label.x,label.yloc,label.style,label.tooltip])).toEqual([

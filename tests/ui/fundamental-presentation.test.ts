@@ -89,7 +89,10 @@ describe('SEC earnings badges',()=>{
  it('follows the earnings toggle through the shared settings builder',()=>{
   const events=secEarningsEvents(facts,'SYN',filings);
   const on=calendarMarkerSettings({earnings:{visible:true},dividends:false,splits:false},false,undefined,events);
-  expect(calendarChartMarkers([],'SYN',bars,on).length).toBe(events.length);
+  // One badge per event dated within the bars (the FY2024 fourth quarter is filed after the last bar).
+  const last=new Date(bars.at(-1)!.time*1000).toISOString().slice(0,10),shown=events.filter(row=>row.date<=last);
+  expect(shown.length).toBeGreaterThan(0);expect(shown.length).toBeLessThan(events.length);
+  expect(calendarChartMarkers([],'SYN',bars,on).length).toBe(shown.length);
   expect(calendarChartMarkers([],'SYN',bars,calendarMarkerSettings({earnings:{visible:false},dividends:false,splits:false},false,undefined,events))).toEqual([]);
  });
  it('reads submissions columns and loads from saved copies only',async()=>{
@@ -114,6 +117,39 @@ describe('daily SEC refresh setting',()=>{
   const storage={directory:'C:\\Users\\Someone\\data',onExport:vi.fn(),onReset:vi.fn(),onResetDone:vi.fn()};
   const render=(daily:boolean)=>renderToStaticMarkup(React.createElement(DataSourcesPanel,{live,storage,saved:{bridge:null,settings:{coinbase:false,alpacaSymbols:[]},onImport:vi.fn()},sec:{daily,onDailyChange:vi.fn()}}));
   expect(render(true)).toMatch(/Refresh SEC company data daily/);expect(render(true)).toMatch(/type="checkbox"[^>]*checked/);expect(render(false)).not.toMatch(/type="checkbox"[^>]*checked=""[^>]*\/> Refresh SEC/);
+ });
+});
+
+describe('SEC earnings badges for a fiscal fourth quarter',()=>{
+ // SYNTHETIC company: fiscal year 2023-10-01..2024-09-28. Q1-Q3 come from 10-Qs; Q4 exists only inside the 10-K.
+ const Q1={start:'2023-10-01',end:'2023-12-30'},Q2={start:'2023-12-31',end:'2024-03-30'},Q3={start:'2024-03-31',end:'2024-06-29'},M9={start:'2023-10-01',end:'2024-06-29'},FY={start:'2023-10-01',end:'2024-09-28'};
+ const qA={filed:'2024-02-02',form:'10-Q',accn:'0000008888-24-000001'},qB={filed:'2024-05-03',form:'10-Q',accn:'0000008888-24-000002'},qC={filed:'2024-08-02',form:'10-Q',accn:'0000008888-24-000003'},k={filed:'2024-11-01',form:'10-K',accn:'0000008888-24-000004'};
+ const raw={cik:8888,entityName:'Synthetic Fiscal Q4 Co (SYNTHETIC)',facts:{'us-gaap':{
+  RevenueFromContractWithCustomerExcludingAssessedTax:{units:{USD:[{...Q1,val:1200,...qA},{...Q2,val:900,...qB},{...Q3,val:850,...qC},{...M9,val:2950,...qC},{...FY,val:3900,...k}]}},
+  EarningsPerShareDiluted:{units:{'USD/shares':[{...Q1,val:2.1,...qA},{...Q2,val:1.5,...qB},{...Q3,val:1.4,...qC},{...M9,val:5,...qC},{...FY,val:6.1,...k}]}},
+ }}};
+ const facts=normalizeCompanyFacts(raw);
+ const announcements=[{accession:'0000008888-24-000010',form:'8-K',filed:'2024-08-01',items:'2.02,9.01'},{accession:'0000008888-24-000011',form:'8-K',filed:'2024-10-31',items:'2.02,9.01'}];
+ const periodic=[qA,qB,qC,k].map(row=>({accession:row.accn,form:row.form,filed:row.filed,items:null}));
+ it('adds the 10-K quarter, dated by the Item 2.02 8-K after the year end, valued full year less nine months',()=>{
+  const events=secEarningsEvents(facts,'syq',[...periodic,...announcements]);
+  expect(events.map(row=>row.end)).toEqual(['2023-12-30','2024-03-30','2024-06-29','2024-09-28']);
+  expect(new Set(events.map(row=>row.id)).size).toBe(events.length);
+  const q4=events.find(row=>row.end==='2024-09-28')!;
+  expect(q4).toMatchObject({id:`sec:${facts.cik}:SYQ:2024-09-28`,date:'2024-10-31',form:'8-K',accession:'0000008888-24-000011',eps:1.1,revenue:950,epsCurrency:'USD/shares'});
+  expect(events.find(row=>row.end==='2024-06-29')).toMatchObject({date:'2024-08-01',form:'8-K'});
+  expect(secEarningsLines(q4)).toContain('Date: 2024-10-31 (8-K)');
+ });
+ it('falls back to the 10-K filing date without an earnings 8-K',()=>{
+  const q4=secEarningsEvents(facts,'SYQ',periodic).find(row=>row.end==='2024-09-28')!;
+  expect(q4).toMatchObject({date:'2024-11-01',form:'10-K',accession:'0000008888-24-000004',eps:1.1,revenue:950});
+ });
+ it('leaves the values empty when no nine-month total was filed by the 10-K',()=>{
+  const late=normalizeCompanyFacts({...raw,facts:{'us-gaap':{
+   RevenueFromContractWithCustomerExcludingAssessedTax:{units:{USD:[{...Q1,val:1200,...qA},{...M9,val:2950,filed:'2024-12-01',form:'10-Q',accn:'0000008888-24-000020'},{...FY,val:3900,...k}]}},
+  }}});
+  const q4=secEarningsEvents(late,'SYQ',periodic).find(row=>row.end==='2024-09-28')!;
+  expect(q4).toMatchObject({date:'2024-11-01',form:'10-K',revenue:null,eps:null});
  });
 });
 

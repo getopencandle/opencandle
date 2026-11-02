@@ -1,8 +1,9 @@
 // Earnings badges from SEC filings already saved on this PC. One event per reported quarter: the day the company announced the
 // result (the first 8-K with Item 2.02 filed after the quarter ended and no later than the 10-Q or 10-K), else the day the
-// 10-Q or 10-K was filed. Nothing is requested here; the loader below reads saved copies only.
-import { normalizeCompanyFacts, dateDay, type CompanyFacts } from '../fundamentals/company-facts';
-import { buildStatement, statementCurrencies } from '../fundamentals/statements';
+// 10-Q or 10-K was filed. A fiscal fourth quarter, reported only in the 10-K, is included too. Nothing is requested here;
+// the loader below reads saved copies only.
+import { normalizeCompanyFacts, dateDay, queryFacts, type CompanyFacts } from '../fundamentals/company-facts';
+import { buildStatement, statementCurrencies, type StatementCell } from '../fundamentals/statements';
 
 /** One reported quarter and the filing the badge sits on. `id` matches the calendar auto-fill event id (sec:<cik>:<symbol>:<end>). */
 export interface SecEarningsEvent {
@@ -36,36 +37,74 @@ export function secFilingRows(data: unknown): SecFilingRow[] {
 const isPeriodic = (form: string) => form === '10-Q' || form === '10-K' || form === '10-Q/A' || form === '10-K/A';
 const hasEarningsItem = (items: string | null) => !!items && items.split(',').some(item => item.trim() === '2.02');
 
+/** Days from start to end, both included. */
+const spanDays = (start: string, end: string) => { const a = DAY(start), b = DAY(end); return a === null || b === null ? null : b - a + 1; };
+/**
+ * A fiscal fourth quarter is reported only inside the 10-K. Its value is the full year less the nine months to the third
+ * quarter: the same tag, unit and start date, the nine months as first filed and no later than the 10-K. Null when that
+ * nine-month value is missing or ambiguous.
+ */
+function fullYearLessNineMonths(facts: CompanyFacts, cell: StatementCell | undefined, cutoff: string): number | null {
+  if (!cell || cell.value === null || !cell.start || !cell.tag || !cell.unit) return null;
+  const concept = facts.concepts.find(row => row.id === cell.tag);
+  if (!concept || !concept.units.includes(cell.unit)) return null;
+  let rows;
+  try { rows = queryFacts(concept, { unit: cell.unit, period: 'all', asOf: cutoff, revisions: 'original' }).rows; } catch { return null; }
+  const nine = rows.filter(row => {
+    if (row.start !== cell.start || row.end >= cell.end || row.ambiguous) return false;
+    const days = spanDays(row.start!, row.end), rest = spanDays(row.end, cell.end);
+    return days !== null && days >= 240 && days <= 300 && rest !== null && rest - 1 >= 60 && rest - 1 <= 120;
+  });
+  const values = [...new Set(nine.map(row => row.value))];
+  return values.length === 1 ? Number((cell.value - values[0]).toFixed(6)) : null;
+}
+interface QuarterRow { end: string; eps: number | null; epsUnit: string | null; revenue: number | null; filed: string; accession: string; form: string }
+
 /**
  * Earnings events for one company. Quarters come from the as-reported income statement (EPS and revenue, first filing); the date
  * is the earliest 8-K with Item 2.02 filed after the quarter end and no later than the 10-Q or 10-K, else the periodic filing date.
+ * A fiscal fourth quarter (in the 10-K only) is the full year less nine months, dated the same way from the 10-K.
  */
 export function secEarningsEvents(facts: CompanyFacts, symbol: string, filings: readonly SecFilingRow[], max = 20): SecEarningsEvent[] {
   const upper = symbol.toUpperCase(), currency = statementCurrencies(facts, null)[0];
   if (!currency) return [];
-  const table = buildStatement(facts, { statement: 'income', basis: 'FQ', currency, asOf: null, revisions: 'original', columns: max });
-  const eps = table.rows.find(row => row.id === 'eps_diluted'), revenue = table.rows.find(row => row.id === 'revenue');
+  const options = { statement: 'income', currency, asOf: null, revisions: 'original', columns: max } as const;
+  const table = buildStatement(facts, { ...options, basis: 'FQ' }), annual = buildStatement(facts, { ...options, basis: 'FY' });
+  const line = (from: typeof table, id: string) => from.rows.find(row => row.id === id);
+  const eps = line(table, 'eps_diluted'), revenue = line(table, 'revenue'), annualEps = line(annual, 'eps_diluted'), annualRevenue = line(annual, 'revenue');
   const eightKs = filings.filter(row => row.form === '8-K' && hasEarningsItem(row.items)).sort((a, b) => a.filed.localeCompare(b.filed) || a.accession.localeCompare(b.accession));
   const byAccession = new Map(filings.map(row => [row.accession, row]));
-  const revenueAt = new Map<string, number>();
-  table.columns.forEach((end, index) => { const cell = revenue?.cells[index]; if (cell && cell.value !== null) revenueAt.set(end, cell.value); });
-  const events: SecEarningsEvent[] = [];
+  const filedSource = (...cells: (StatementCell | undefined)[]) => cells.find(cell => cell && cell.value !== null && cell.filed && cell.accession) ?? null;
+  const formOf = (cell: StatementCell) => cell.form ?? byAccession.get(cell.accession!)?.form ?? '';
+  const quarters: QuarterRow[] = [];
   table.columns.forEach((end, index) => {
-    const epsCell = eps?.cells[index], revCell = revenue?.cells[index];
-    const source = epsCell && epsCell.value !== null && epsCell.filed ? epsCell : revCell && revCell.value !== null && revCell.filed ? revCell : null;
-    if (!source || !source.filed || !source.accession) return; const sourceFiled = source.filed;
-    const periodic = byAccession.get(source.accession), form = source.form ?? periodic?.form ?? '';
+    const epsCell = eps?.cells[index], revCell = revenue?.cells[index], source = filedSource(epsCell, revCell);
+    if (!source) return; const form = formOf(source);
     if (form && !isPeriodic(form)) return;
-    const announced = eightKs.find(row => row.filed > end && row.filed <= sourceFiled);
-    const endDay = DAY(end);
+    quarters.push({ end, eps: epsCell && epsCell.value !== null ? epsCell.value : null, epsUnit: epsCell?.unit ?? null, revenue: revCell && revCell.value !== null ? revCell.value : null, filed: source.filed!, accession: source.accession!, form: form || '10-Q' });
+  });
+  // Fiscal fourth quarters, within the span of the reported quarters (a quarter reported on its own is never replaced).
+  const reported = new Set(table.columns), earliest = table.columns.length ? [...table.columns].sort()[0] : null;
+  annual.columns.forEach((end, index) => {
+    if (reported.has(end) || earliest !== null && end < earliest) return;
+    const epsCell = annualEps?.cells[index], revCell = annualRevenue?.cells[index], source = filedSource(epsCell, revCell);
+    if (!source) return; const form = formOf(source);
+    if (form && !isPeriodic(form)) return;
+    const q4Eps = fullYearLessNineMonths(facts, epsCell, source.filed!), q4Revenue = fullYearLessNineMonths(facts, revCell, source.filed!);
+    quarters.push({ end, eps: q4Eps, epsUnit: q4Eps === null ? null : epsCell?.unit ?? null, revenue: q4Revenue, filed: source.filed!, accession: source.accession!, form: form || '10-K' });
+  });
+  const revenueAt = new Map<string, number>();
+  for (const row of quarters) if (row.revenue !== null) revenueAt.set(row.end, row.revenue);
+  const events = quarters.map((row): SecEarningsEvent => {
+    const announced = eightKs.find(filing => filing.filed > row.end && filing.filed <= row.filed);
+    const endDay = DAY(row.end);
     let yoy: number | null = null;
-    if (endDay !== null && revCell && revCell.value !== null) for (const [other, value] of revenueAt) { const day = DAY(other); if (day !== null && Math.abs(endDay - day - 365) <= 15 && value > 0) { yoy = (revCell.value / value - 1) * 100; break; } }
-    events.push({
-      id: `sec:${facts.cik}:${upper}:${end}`, cik: facts.cik, symbol: upper, end,
-      date: announced ? announced.filed : sourceFiled, form: announced ? '8-K' : form || '10-Q', accession: announced ? announced.accession : source.accession,
-      eps: epsCell && epsCell.value !== null ? epsCell.value : null, epsCurrency: epsCell?.unit ?? null,
-      revenue: revCell && revCell.value !== null ? revCell.value : null, revenueYoyPercent: yoy, currency,
-    });
+    if (endDay !== null && row.revenue !== null) for (const [other, value] of revenueAt) { const day = DAY(other); if (day !== null && Math.abs(endDay - day - 365) <= 15 && value > 0) { yoy = (row.revenue / value - 1) * 100; break; } }
+    return {
+      id: `sec:${facts.cik}:${upper}:${row.end}`, cik: facts.cik, symbol: upper, end: row.end,
+      date: announced ? announced.filed : row.filed, form: announced ? '8-K' : row.form, accession: announced ? announced.accession : row.accession,
+      eps: row.eps, epsCurrency: row.epsUnit, revenue: row.revenue, revenueYoyPercent: yoy, currency,
+    };
   });
   return events.sort((a, b) => a.date.localeCompare(b.date));
 }

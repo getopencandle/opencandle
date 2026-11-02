@@ -11,6 +11,7 @@ import {formatIndicatorNumber,isIndicatorPrecision,type IndicatorPrecision} from
 import {withIndicatorTickPrecision,type IndicatorPrecisionAxis} from './indicator-precision-native';
 import {labelTextColor,publishReservedAxisRanges} from './axis-labels';
 import {installPatternLabelLayout,legendBoxesOver} from './indicator-pattern-layout';
+import {fundamentalLegendTitle,fundamentalsLegendArguments,isFundamentalsIndicator} from '../domain/indicators-ext/fundamentals-catalog';
 
 type Row=Record<string,any>;
 type Method=(this:any,...args:any[])=>any;
@@ -360,6 +361,9 @@ const legendValue=(value:unknown)=>typeof value==='number'?(Number.isFinite(valu
 export function indicatorLegendArguments(kind:IndicatorId,inputs:Record<string,unknown>,sourceLabel:(instance:string,plot:string)=>string|null=()=>null,chart?:{calendar:'us-equity'|'utc'|null}):string[]{
  // Opening range breakout: with the chart's session calendar known, the legend names the session the range really uses
  // (Exchange is 09:30-16:00 New York for US equities and 00:00-24:00 UTC otherwise) instead of the unused custom times.
+ // Fundamentals: the period and choices ("TTM", "Q YoY %", "FY latest filed"); P/E bands: "5y" or "15 20 25". The metric
+ // itself is the legend title (indicatorLegendTitle), so the row reads "P/E TTM 28.41".
+ if(isFundamentalsIndicator(kind))return fundamentalsLegendArguments(kind,inputs);
  if(kind==='orb'&&chart){
   const value=(key:string)=>{const field=indicatorInputSchema(kind).find(row=>row.key===key);return legendValue(Object.hasOwn(inputs,key)?inputs[key]:field?.defval);};
   const session=value('session'),duration=value('duration')+' min';
@@ -377,6 +381,8 @@ export function indicatorLegendArguments(kind:IndicatorId,inputs:Record<string,u
   return sourceLabel(ref.instance,ref.plot)??'missing source';
  }).filter(Boolean);
 }
+/** The legend title of an instance: its acronym, or for a `fundamental` the metric's short name ("P/E", "Revenue"). */
+export function indicatorLegendTitle(kind:IndicatorId,inputs:Record<string,unknown>,acronym:string):string{return kind==='fundamental'?fundamentalLegendTitle(inputs):acronym;}
 export interface IndicatorLegendReadout {title:string;arguments:string;text:string}
 /** Title and arguments joined for the legend row, each part gated by its own toggle. */
 export function indicatorLegendReadout(row:{acronym:string;arguments:readonly string[]},show:{titles:boolean;inputs:boolean}):IndicatorLegendReadout{

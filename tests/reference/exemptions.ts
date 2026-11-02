@@ -20,6 +20,8 @@ export const REPAINT_EXEMPT:Record<string,{delay:number|null;reason:RegExp;why:s
 export const HEADLESS_UNAVAILABLE:Record<string,string>={
  seasonality:'Requires the chart-owned original candle source service (refuses bare bars by design).',
  tradingsessions:'Intraday-only clock windows with observed boxes; covered on the intraday series in session-guardrails.',
+ fundamental:'Reads company filings through the chart service; bare bars give all-empty plots with a reason by design.',
+ pebands:'Reads company filings through the chart service; bare bars give all-empty plots with a reason by design.',
 };
 /** Intraday-only kinds: on a daily chart they refuse with a notice by design, so guardrail 2a runs them on the intraday series only. */
 export const INTRADAY_ONLY:Record<string,string>={

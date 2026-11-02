@@ -7,7 +7,8 @@ import {catalogDefinition} from '../domain/indicator-catalog';
 import {secondSymbolSeries} from '../domain/second-symbol';
 import {vwapEventDatesFor} from '../domain/vwap-event-anchors';
 import {sourcePivotCalendar} from '../domain/indicators-ext/r23-catalog';
-import {sourceAxisBasis,sourceExchangeTimeZone} from '../chart/adapter';
+import {sourceAxisBasis,sourceExchangeTimeZone,sourceFundamentalsFacts} from '../chart/adapter';
+import {fundamentalsLookup} from '../domain/fundamentals-source';
 import {profileFinerLookup,profileLowerTimeframe,profileSourceContext} from '../chart/vp-visible-range-ltf';
 import {indicatorHistoryLookup} from '../chart/indicator-history-lookup';
 import type {ChartInputSnapshot} from '../chart/input-visibility';
@@ -85,6 +86,8 @@ export function chartIndicatorOptions(input:ChartInputSnapshot,viewport:{from:nu
   if(definition&&(definition.profile||definition.viewport||definition.finerBars||definition.dailyHistory)){const isProfile=definition.profile===true,finerBars=isProfile?profileFinerLookup(profile.datasetId,resolution,loading,undefined,profile.requestSource,profile.profileSource):indicatorHistoryLookup(profile.datasetId,resolution,loading,undefined,profile.requestSource);
    Object.assign(out,{visibleRange:viewport,tickSize:profile.tickSize??null,lowerTimeframe:isProfile&&!profile.requestSource?profileLowerTimeframe(profile.instrument,resolution,undefined,profile.profileSource):null,...(finerBars?{finerBars}:{})});}
   if(definition?.secondSymbol)out.secondSeries=symbol=>{const series=secondSymbolSeries(symbol,resolution);if(series.state==='loading')loading();return series;};
+  // Company filings come from saved copies only: the export never sends an SEC request.
+  if(definition?.fundamentals){const lookup=fundamentalsLookup(sourceFundamentalsFacts(source));out.fundamentals={facts:lookup.facts,company:()=>{const state=lookup.company();if(state.state==='loading')loading();return state;}};}
   return out;
  };
 }

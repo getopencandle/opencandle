@@ -21,6 +21,8 @@ import {SIGNALS_INDICATORS,SIGNALS_INDICATOR_IDS,type SignalsIndicatorId} from '
 import {VWAP_SESSION_INDICATORS,VWAP_SESSION_INDICATOR_IDS,type VwapSessionIndicatorId} from './indicators-ext/vwap-session-catalog';
 import {STRUCTURE_INDICATORS,STRUCTURE_INDICATOR_IDS,type StructureIndicatorId} from './indicators-ext/structure-catalog';
 import type {SecondSeries} from './second-symbol';
+import {FUNDAMENTALS_INDICATORS,FUNDAMENTALS_INDICATOR_IDS,type FundamentalsIndicatorId,type FundamentalsOutput} from './indicators-ext/fundamentals-catalog';
+import type {FundamentalsLookup} from './fundamentals-source';
 import type {FinerBarsLookup,LowerTimeframeBars,VolumeProfile} from './volume-profile';
 
 /**
@@ -59,8 +61,8 @@ export {SIGNALS_INDICATOR_IDS};
 export {VWAP_SESSION_INDICATOR_IDS};
 /** Market structure built-ins (src/domain/indicators-ext/structure-catalog.ts): Support and resistance zones, Adaptive trend channel, Auto fib multi-scale, Auto fib range volume profile. */
 export {STRUCTURE_INDICATOR_IDS};
-export type CatalogIndicatorId=typeof CATALOG_INDICATOR_IDS[number]|R23IndicatorId|VpIndicatorId|R27IndicatorId|R28IndicatorId|R29IndicatorId|PatternIndicatorId|R40IndicatorId|R40VolumeIndicatorId|Ind1028IndicatorId|Ind1030IndicatorId|IndGapsIndicatorId|IndGaps2IndicatorId|IndGaps3IndicatorId|TradingSessionId|SeasonalityId|typeof AUTO_TRENDLINES_ID|typeof AUTO_ELLIOTT_ID|SignalsIndicatorId|VwapSessionIndicatorId|StructureIndicatorId;
-export const ALL_CATALOG_INDICATOR_IDS:readonly CatalogIndicatorId[]=Object.freeze([...CATALOG_INDICATOR_IDS,...R23_INDICATOR_IDS,...VP_INDICATOR_IDS,...R27_INDICATOR_IDS,...R28_INDICATOR_IDS,...R29_INDICATOR_IDS,...PATTERN_INDICATOR_IDS,...R40_INDICATOR_IDS,...R40_VOLUME_INDICATOR_IDS,...IND1028_INDICATOR_IDS,...IND1030_INDICATOR_IDS,...INDGAPS_INDICATOR_IDS,...INDGAPS2_INDICATOR_IDS,...INDGAPS3_INDICATOR_IDS,...TRADING_SESSION_IDS,...SEASONALITY_IDS,AUTO_TRENDLINES_ID,AUTO_ELLIOTT_ID,...SIGNALS_INDICATOR_IDS,...VWAP_SESSION_INDICATOR_IDS,...STRUCTURE_INDICATOR_IDS]);
+export type CatalogIndicatorId=typeof CATALOG_INDICATOR_IDS[number]|R23IndicatorId|VpIndicatorId|R27IndicatorId|R28IndicatorId|R29IndicatorId|PatternIndicatorId|R40IndicatorId|R40VolumeIndicatorId|Ind1028IndicatorId|Ind1030IndicatorId|IndGapsIndicatorId|IndGaps2IndicatorId|IndGaps3IndicatorId|TradingSessionId|SeasonalityId|typeof AUTO_TRENDLINES_ID|typeof AUTO_ELLIOTT_ID|SignalsIndicatorId|VwapSessionIndicatorId|StructureIndicatorId|FundamentalsIndicatorId;
+export const ALL_CATALOG_INDICATOR_IDS:readonly CatalogIndicatorId[]=Object.freeze([...CATALOG_INDICATOR_IDS,...R23_INDICATOR_IDS,...VP_INDICATOR_IDS,...R27_INDICATOR_IDS,...R28_INDICATOR_IDS,...R29_INDICATOR_IDS,...PATTERN_INDICATOR_IDS,...R40_INDICATOR_IDS,...R40_VOLUME_INDICATOR_IDS,...IND1028_INDICATOR_IDS,...IND1030_INDICATOR_IDS,...INDGAPS_INDICATOR_IDS,...INDGAPS2_INDICATOR_IDS,...INDGAPS3_INDICATOR_IDS,...TRADING_SESSION_IDS,...SEASONALITY_IDS,AUTO_TRENDLINES_ID,AUTO_ELLIOTT_ID,...SIGNALS_INDICATOR_IDS,...VWAP_SESSION_INDICATOR_IDS,...STRUCTURE_INDICATOR_IDS,...FUNDAMENTALS_INDICATOR_IDS]);
 /**
  * min/max absent = unbounded (fact "Number.MAX_VALUE"). storedMin/storedMax are the wider pre-INDFIX LV bounds that
  * saved workspaces, templates and alerts may still hold: stored state within them loads, edits use min/max.
@@ -74,6 +76,8 @@ export interface CatalogRetiredInput extends CatalogInput {replacedBy?:string}
 /** color/width: default plot style. */
 /** visible: default plot visibility (absent = shown). */
 export interface CatalogPlot {id:string;label:string;kind?:'line'|'histogram'|'cross';color?:string;width?:number;visible?:boolean;
+ /** Default line style (absent = solid) and price-scale label (absent = shown). */
+ lineStyle?:'solid'|'dashed'|'dotted';priceScale?:boolean;
  /** Fixed decimals of this plot's legend, data window and table text under automatic instance precision (a count or a
   *  ratio on a price overlay); absent = the kind's automatic rule. */
  precision?:number}
@@ -91,7 +95,9 @@ export interface CatalogChartContext {resolution:string|null;calendar:'us-equity
  /** Finer bars on demand for the profile kinds; absent = only `lowerTimeframe`. */
  finerBars?:FinerBarsLookup|null;
  /** The second series of a two-symbol kind (secondSymbol), at the interval being calculated; absent = none loaded. */
- secondSeries?:(symbol:string)=>SecondSeries}
+ secondSeries?:(symbol:string)=>SecondSeries;
+ /** Company filings of a fundamentals kind (src/domain/fundamentals-source.ts); absent or null = none on this caller. */
+ fundamentals?:FundamentalsLookup|null}
 export interface CatalogContext {bars:readonly Bar[];source:readonly (number|null)[];num(key:string):number;bool(key:string):boolean;str(key:string):string;has(key:string):boolean;tk:CatalogToolkit;chart?:CatalogChartContext;
  /** Profile kinds hand their histogram rows to the result (IndicatorResult.profiles) for the presentation. */
  profiles?(profiles:readonly VolumeProfile[]):void;
@@ -102,7 +108,9 @@ export interface CatalogContext {bars:readonly Bar[];source:readonly (number|nul
  /** Observed session geometry is visual-only; scalar series remain causal prefixes. */
  sessions?(value:readonly Readonly<TradingSessionRecord>[]):void;
  /** Chart-data studies publish loading and coverage notices without inventing values. */
- diagnostic?(message:string):void}
+ diagnostic?(message:string):void;
+ /** Fundamentals kinds hand their filing stamps, gap notes and reason to the result (IndicatorResult.fundamentals). */
+ fundamentals?(value:FundamentalsOutput):void}
 export interface CatalogDefinition {
  id:CatalogIndicatorId;name:string;acronym:string;overlay:boolean;requiresVolume?:boolean;
  /** The kind reads every timestamped row, including rows with missing volume, and decides availability itself (a
@@ -144,6 +152,8 @@ export interface CatalogDefinition {
  volumeDelta?:boolean;
  /** The kind reads a second symbol (its "symbol" input) through CatalogChartContext.secondSeries. */
  secondSymbol?:boolean;
+ /** The kind reads company filings through CatalogChartContext.fundamentals (fundamentals-catalog.ts). */
+ fundamentals?:boolean;
  /** The kind projects some plots past the last loaded bar (IndicatorResult.projection; chart display only). */
  projects?:boolean;
  /** A Patterns tab kind. Its plots are 0/1 signals drawn as labelled markers (IndicatorResult.marks), not lines.
@@ -372,6 +382,7 @@ export const CATALOG_INDICATORS:readonly CatalogDefinition[]=Object.freeze([
  ...SIGNALS_INDICATORS,
  ...VWAP_SESSION_INDICATORS,
  ...STRUCTURE_INDICATORS,
+ ...FUNDAMENTALS_INDICATORS,
 ] as CatalogDefinition[]);
 /** An id index over the frozen catalog (the first row of an id wins, as find() did). The indicator port's source assertion
  * calls this many times per calculation; the linear find cost about 4 ms per symbol switch with three indicators. */

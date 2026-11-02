@@ -1863,6 +1863,20 @@
    "cases": [],
    "timing": "2a-2f",
    "source": "Volume profile from the auto fib swing start and the Fibonacci levels of that swing (tests/domain/structure-indicators.test.ts)"
+  },
+  {
+   "id": "fundamental",
+   "status": "untested",
+   "cases": [],
+   "timing": "not headless",
+   "reason": "Reads SEC company filings through the chart service; bare bars give all-empty plots with a reason by design. Covered with synthetic filings in tests/ui/fundamental-indicator.test.ts."
+  },
+  {
+   "id": "pebands",
+   "status": "untested",
+   "cases": [],
+   "timing": "not headless",
+   "reason": "Reads SEC company filings through the chart service; bare bars give all-empty plots with a reason by design. Covered with synthetic filings in tests/ui/fundamental-indicator.test.ts."
   }
  ]
 }

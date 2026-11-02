@@ -68,7 +68,7 @@ describe('R36 catalog alert sources (SYNTHETIC)',()=>{
    expect(()=>captureIndicatorAlertSource(settings(kind),indicatorPlotIds[kind][0],'standard','snap')).toThrow(reason!);
   }
   // The three intrabar studies need a feed absent from background evaluation; Visible average needs chart bounds.
-  expect(ALL_CATALOG_INDICATOR_IDS.filter(kind=>indicatorAlertBlock(kind,{...indicatorDefaults[kind]}))).toEqual(['vrvp','svphd','updownvolume','volumedelta','cvd','visibleavg','tradingsessions','seasonality','autotrendlines','autoelliott']);// Visual-only, no alert operands.
+  expect(ALL_CATALOG_INDICATOR_IDS.filter(kind=>indicatorAlertBlock(kind,{...indicatorDefaults[kind]}))).toEqual(['vrvp','svphd','updownvolume','volumedelta','cvd','visibleavg','tradingsessions','seasonality','autotrendlines','autoelliott','fundamental','pebands']);// Visual-only, no alert operands; the fundamentals kinds read company filings alerts do not load.
  });
  it('the alert dialog lists catalog plots by their titles and disables the chart-only kinds',()=>{
   const bars=wave(80),data=dataset(bars);

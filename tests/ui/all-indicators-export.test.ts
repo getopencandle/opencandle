@@ -31,11 +31,12 @@ const column=(entries:IndicatorExportEntry[],id:string,line:string)=>entries.fin
 describe('all-indicators export',()=>{
  it('every built-in of the Indicators dialog list is either exported as columns or listed as not available',async()=>{
   const entries=await all();
-  expect(INDICATOR_KINDS).toHaveLength(223);
+  expect(INDICATOR_KINDS).toHaveLength(225);// +2 company fundamentals kinds (Company fundamental, P/E bands).
   expect(entries.map(entry=>entry.id).sort()).toEqual([...INDICATOR_KINDS].sort());
   for(const entry of entries)expect(entry.columns.length>0!==!!entry.unavailable).toBe(true);
   // Without a second-symbol loader, intrabar history or the chart's seasonality service these cannot run here.
-  for(const id of ['correlation','spread','ratio','updownvolume','seasonality','tradingsessions'])expect(entries.find(entry=>entry.id===id)!.unavailable).toBeTruthy();
+  // Company filings load on a chart only (saved copies); without the chart service the two fundamentals kinds are not available.
+  for(const id of ['correlation','spread','ratio','updownvolume','seasonality','tradingsessions','fundamental','pebands'])expect(entries.find(entry=>entry.id===id)!.unavailable).toBeTruthy();
   expect(entries.find(entry=>entry.id==='cdlhammer')!.columns.every(row=>row.sheet==='Patterns')).toBe(true);
   expect(entries.find(entry=>entry.id==='macd')!.columns.map(row=>row.header)).toEqual(['MACD - MACD','MACD - Signal','MACD - Histogram']);
  },60000);
@@ -69,7 +70,7 @@ describe('all-indicators export',()=>{
   const drawingRows=rows(files.get('xl/worksheets/sheet3.xml')!);expect(drawingRows[1][1]).toBe("'=note");expect(Number(drawingRows[1][3])).toBe(10);
   const key=files.get('xl/worksheets/sheet4.xml')!;
   expect(key).toContain('invented');expect((key.match(/Not available: /g)??[]).length).toBe(book.unavailable);
-  expect(book.indicators+book.unavailable).toBe(223);
+  expect(book.indicators+book.unavailable).toBe(225);
   const stored=unzip((await allIndicatorsWorkbook({bars:bars.slice(0,50),symbol:'GME',interval:'1D',exampleData:true,sourceName:'Example',exportedAt:new Date(0),entries:[],drawings:[]},{deflate:false})).bytes);
   expect(rows(stored.get('xl/worksheets/sheet3.xml')!)).toEqual([['Tool','Text']]);
   expect(allIndicatorsFileName('GME-SYNTHETIC')).toBe('GME-SYNTHETIC-all-indicators.xlsx');

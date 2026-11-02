@@ -25,6 +25,7 @@ export function indicatorAlertBlock(kind:string,inputs?:Readonly<Record<string,u
  if(definition?.tradingSessions)return 'Trading sessions is a chart-only visual study. Background alerts cannot capture or evaluate its session decorations.';
  if(kind==='autotrendlines')return 'Auto trendlines is a chart-only visual study. Its lines and pivots are not values, so it cannot be alerted on.';
  if(kind==='autoelliott')return 'Auto Elliott waves is a chart-only visual study. Its wave labels are not values, so it cannot be alerted on.';
+ if(definition?.fundamentals)return `${definition.name} reads company filings that background alerts do not load, so it cannot be alerted on.`;
  if(!definition)return null;// the original ten are checked by their own rules
  if(definition.dailyHistory&&isIntradayResolution(resolution))return `${definition.name} needs daily history on intraday charts. Background alerts do not receive that history, so it cannot be alerted on.`;
  if(definition.finerBars)return `${definition.name} needs lower-timeframe history that background alerts do not receive, so it cannot be alerted on.`;

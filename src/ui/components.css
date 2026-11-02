@@ -27,7 +27,7 @@ legend{color:var(--lv-text-primary);padding:0 6px}
 /* Inside a chart cell the plate is the cell template's pane colour (MultiChartGrid sets --lv-chart-background and
    data-chart-surface), and a light template gets dark legend text. Text values. */
 [data-chart-surface]{--lv-legend-bg:color-mix(in srgb,var(--lv-chart-background) 60%,transparent)}
-[data-chart-surface=light] :is(.indicator-legend,.lv-cell-series-heading),:is(.indicator-legend,.chart-heading)[data-chart-surface=light]{--lv-text-primary:#1f2430;--lv-text-secondary:#555c6b;--lv-text-tertiary:#4a5160;--lv-text-disabled:#9aa0ad;--lv-text-hint:#7a8090;--lv-hover:rgba(31,36,48,.08)}
+[data-chart-surface=light] :is(.indicator-legend,.lv-cell-series-heading),:is(.indicator-legend,.chart-heading)[data-chart-surface=light]{--lv-text-primary:#1f2430;--lv-text-secondary:#555c6b;--lv-text-tertiary:#4a5160;--lv-text-disabled:#9aa0ad;--lv-text-hint:#7a8090;--lv-hover:rgba(31,36,48,.08);--lv-status-unavailable-text:var(--lv-text-secondary);--lv-status-unavailable-opacity:1}
 .indicator-legend button{font-size:13px;padding:2px 4px;color:var(--lv-text-primary)}
 .drawing-edit-bar{position:absolute;top:88px;right:85px;z-index:8;display:flex;padding:4px;background:var(--lv-bg-raised);border:1px solid var(--lv-border);border-radius:var(--lv-radius-plate);box-shadow:var(--lv-shadow)}
 .drawing-edit-bar button{padding:5px 8px;font-size:13px}

@@ -51,7 +51,7 @@ export function dataWindowIndicators(chart:DataWindowChart|null,views:readonly I
   const result=resultFor(chart,view),labels=new Map(view.series.map(row=>[row.id,row.label]));
   const plots=(result?.series??[]).map((plot,ordinal)=>{const style=view.plots?.[plot.id]??defaultPlotStyle(view.kind,plot.id,ordinal);return {id:plot.id,label:plot.label||labels.get(plot.id)||plot.id,color:style.color,dataWindow:style.dataWindow!==false,values:plot.values};});
   const fundamentals=result?.fundamentals;
-  return {id:view.id,kind:view.kind,visible:view.visible,offset:view.offset??0,precision:view.presentation?.precision??'auto',plots,...(fundamentals?{fundamentals:{fundamentalStamps:fundamentals.fundamentalStamps,gapNotes:fundamentals.gapNotes}}:{})};
+  return {id:view.id,kind:view.kind,visible:view.visible,offset:view.offset??0,precision:view.presentation?.precision??'auto',plots,inputs:view.inputs,...(fundamentals?{fundamentals:{fundamentalStamps:fundamentals.fundamentalStamps,gapNotes:fundamentals.gapNotes}}:{})};
  });
 }
 type ComparisonRow=ReturnType<ChartController['comparisons']['list']>[number];

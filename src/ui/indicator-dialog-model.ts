@@ -5,6 +5,7 @@ import {defaultPlotStyle,type IndicatorInstanceView} from '../chart/indicator-po
 import type {IndicatorDefault} from './indicator-library';
 import {parseIndicatorSource} from '../domain/indicator-source';
 import {CATALOG_INDICATORS,catalogDefinition,catalogKeywords} from '../domain/indicator-catalog';
+import {fundamentalsInstanceTitle,isFundamentalsIndicator} from '../domain/indicators-ext/fundamentals-catalog';
 
 /** Pure helpers for the Indicators dialog. No chart mutation happens here. */
 export const indicatorNames:Record<IndicatorId,string>={volume:'Volume',sma:'Simple Moving Average',ema:'Exponential Moving Average',rsi:'Relative Strength Index',macd:'MACD',bb:'Bollinger Bands',vwap:'Volume Weighted Average Price',stochastic:'Stochastic Oscillator',atr:'Average True Range',obv:'On Balance Volume',...Object.fromEntries(CATALOG_INDICATORS.map(definition=>[definition.id,definition.name]))} as Record<IndicatorId,string>;
@@ -60,10 +61,15 @@ export function filterIndicatorCatalog(catalog:readonly IndicatorId[],tab:string
 
 const summaryValue=(value:unknown)=>typeof value==='number'?(Number.isFinite(value)?String(value):'?'):typeof value==='string'?value:'';
 /** Compact label such as "SMA 9 close". Duplicate labels get an ordinal suffix in chart order. */
+/** The short title an instance is shown by: its acronym, or for the company fundamentals kinds the legend title with
+ *  its arguments ("P/E TTM", "P/E bands 5y"), never the stored metric key. */
+export function indicatorInstanceTitle(kind:IndicatorId,inputs:Record<string,unknown>|undefined):string{
+ return isFundamentalsIndicator(kind)?fundamentalsInstanceTitle(kind,inputs??{}):indicatorAcronyms[kind]??kind;
+}
 export function indicatorInstanceLabels(instances:readonly Pick<IndicatorInstanceView,'id'|'kind'|'inputs'>[]):Map<string,string>{
  const base=instances.map(row=>{
   const parts=indicatorInputSchema(row.kind).filter(field=>field.type!=='bool'&&!/^(smoothing|band|kernelVersion|timezone|divergence)/.test(field.key)).slice(0,3).map(field=>{const value=Object.hasOwn(row.inputs,field.key)?row.inputs[field.key]:indicatorAbsentValue(row.kind,field.key,field.defval as InputValue),ref=field.key==='source'?parseIndicatorSource(value):null;if(!ref)return summaryValue(value);const target=instances.find(item=>item.id===ref.instance);return target?indicatorAcronyms[target.kind]+':'+ref.plot:'missing source';}).filter(Boolean);
-  return [indicatorAcronyms[row.kind],...parts].join(' ');
+  return isFundamentalsIndicator(row.kind)?fundamentalsInstanceTitle(row.kind,row.inputs):[indicatorAcronyms[row.kind],...parts].join(' ');
  });
  const totals=new Map<string,number>(),seen=new Map<string,number>(),labels=new Map<string,string>();
  for(const label of base)totals.set(label,(totals.get(label)??0)+1);

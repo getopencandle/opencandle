@@ -1,10 +1,13 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {STARTUP_QUIET_MS,createFundamentalsService,type SecCachedValue,type SecDataBridge,type SecEnvelope,type SecKind,type SecRefresh} from '../../src/fundamentals/fundamentals-service';
-import {FUNDAMENTALS_TEXT,fundamentalsCompany,fundamentalsLookup,setFundamentalsLoader,type FundamentalsChartFacts} from '../../src/domain/fundamentals-source';
+import {FUNDAMENTALS_TEXT,fundamentalsChartGate,fundamentalsCompany,fundamentalsLookup,setFundamentalsLoader,type FundamentalsChartFacts} from '../../src/domain/fundamentals-source';
+import {demoDataMode,setDemoDataMode} from '../../src/domain/demo-mode';
+import {indicatorInstanceLabels,indicatorInstanceTitle} from '../../src/ui/indicator-dialog-model';
+import {buildDataWindow,formatIndicatorValue} from '../../src/ui/data-window-model';
 import {calculateIndicator} from '../../src/domain/indicators';
 import {indicatorAlertBlock} from '../../src/domain/indicator-alertability';
 import {FUNDAMENTALS_PRESETS,FUNDAMENTALS_TABS,selectorCategoryOf,selectorView} from '../../src/domain/indicator-selector-catalog';
-import {fundamentalValueFormat} from '../../src/domain/indicators-ext/fundamentals-catalog';
+import {OFF_SCALE,fundamentalValueFormat} from '../../src/domain/indicators-ext/fundamentals-catalog';
 import {indicatorLegendArguments,indicatorLegendTitle} from '../../src/chart/indicator-display';
 import {legendMoreMenu} from '../../src/chart/legend-model';
 import {INDICATOR_KINDS} from '../../src/chart/indicator-settings';
@@ -171,7 +174,7 @@ describe('company fundamentals: chart surfaces',()=>{
   expect(indicatorLegendArguments('pebands',{mode:'own',lookback:5})).toEqual(['5y']);
   expect(indicatorLegendArguments('pebands',{mode:'multiples',multiple1:15,multiple2:20,multiple3:25})).toEqual(['15','20','25']);
   expect(fundamentalValueFormat('fundamental',{metric:'revenue'})).toEqual({suffix:'',compact:true});
-  expect(fundamentalValueFormat('fundamental',{metric:'pe'})).toEqual({suffix:'',compact:false});
+  expect(fundamentalValueFormat('fundamental',{metric:'pe'})).toEqual({suffix:'x',compact:false});
   expect(fundamentalValueFormat('fundamental',{metric:'gross_margin'}).suffix).toBe('%');
  });
  it('Refresh company data is in the More menu only where the host connects it',()=>{
@@ -253,5 +256,59 @@ describe('company fundamentals: restored charts and remembered companies',()=>{
   expect(plots.median).toMatchObject({lineStyle:'dotted',width:1,priceScale:true});
   for(const id of ['upper','lower','m1','m2','m3','graham'])expect(plots[id],id).toMatchObject({lineStyle:'dotted',width:1,priceScale:false});
   expect(defaultPlotStyle('sma','sma',0)).toMatchObject({lineStyle:'solid',priceScale:true});
+ });
+});
+
+describe('company fundamentals: names, units and the off-scale rule',()=>{
+ const demoBefore=demoDataMode();
+ afterEach(()=>{setFundamentalsLoader(null);setDemoDataMode(demoBefore);});
+ it('instances are named by the legend title everywhere, never by the stored keys',()=>{
+  const rows=[{id:'a',kind:'fundamental' as const,inputs:{metric:'pe',period:'ttm',display:'value',revisions:'first'}},{id:'b',kind:'pebands' as const,inputs:{mode:'own',lookback:5,bands:'percentile',multiple1:15}},{id:'c',kind:'fundamental' as const,inputs:{metric:'mcap',period:'ttm',display:'value',revisions:'first'}},{id:'d',kind:'fundamental' as const,inputs:{metric:'revenue',period:'quarterly',display:'yoy',revisions:'first'}}];
+  const labels=indicatorInstanceLabels(rows as never);
+  expect([...labels.values()]).toEqual(['P/E TTM','P/E bands 5y','Market cap','Revenue Q YoY %']);
+  for(const row of rows)expect(indicatorInstanceTitle(row.kind,row.inputs)).toBe(labels.get(row.id));
+  const two=[{time:1,open:1,high:1,low:1,close:1,volume:1},{time:2,open:1,high:1,low:1,close:1,volume:1}];
+  const view=buildDataWindow({series:{symbol:'X',exchange:'E',interval:'1D',description:'d',tickSize:0.01},bars:two,index:1,timezone:'UTC',indicators:[
+   {id:'r',kind:'fundamental',inputs:{metric:'revenue',period:'ttm'},visible:true,offset:0,precision:'auto',plots:[{id:'value',label:'Value',color:'#fff',dataWindow:true,values:[null,466823000000]}]},
+   {id:'p',kind:'fundamental',inputs:{metric:'pe'},visible:true,offset:0,precision:'auto',plots:[{id:'value',label:'Value',color:'#fff',dataWindow:true,values:[null,28.4123]}]},
+  ]});
+  expect(view.sections.filter(section=>section.kind==='study').map(section=>[section.title,section.rows[0].value])).toEqual([['Revenue TTM','466.82B'],['P/E TTM','28.41x']]);
+ });
+ it('values read in compact units with their suffix, and point-in-time values are never TTM',()=>{
+  const value=(inputs:Record<string,unknown>,v:number,precision:'auto'|number='auto')=>formatIndicatorValue(v,'fundamental',precision,0.01,'value',inputs);
+  expect(value({metric:'revenue'},466823000000)).toBe('466.82B');
+  expect(value({metric:'mcap'},5029592324660.64)).toBe('5.03T');
+  expect(value({metric:'shares'},15204137000)).toBe('15.20B');
+  expect(value({metric:'fcf'},-2500)).toBe('-2.50K');
+  expect(value({metric:'fcfy'},2.7189)).toBe('2.72%');
+  expect(value({metric:'revenue',display:'yoy'},6.071)).toBe('6.07%');
+  expect(value({metric:'pe'},39.571,1)).toBe('39.6x');
+  expect(value({metric:'eps'},8.71)).toBe('8.71');
+  const args=(inputs:Record<string,unknown>)=>indicatorLegendArguments('fundamental',inputs);
+  expect(args({metric:'mcap',period:'ttm'})).toEqual([]);expect(args({metric:'pb'})).toEqual([]);
+  expect(args({metric:'shares',period:'ttm'})).toEqual([]);expect(args({metric:'shares',period:'quarterly'})).toEqual([]);
+  expect(args({metric:'shares',period:'annual'})).toEqual(['FY']);expect(args({metric:'current_ratio',period:'annual',revisions:'latest'})).toEqual(['FY','latest filed']);
+  expect(args({metric:'pe'})).toEqual(['TTM']);expect(args({metric:'dy'})).toEqual(['TTM']);
+ });
+ it('an example crypto chart gets the crypto reason before the demo company check',()=>{
+  setDemoDataMode('example');
+  const btc=facts({symbol:'BTC',exchange:'SYNTHETIC',assetClass:'stock',synthetic:true});
+  expect(fundamentalsChartGate(btc)).toBe(FUNDAMENTALS_TEXT.assetClass('crypto'));
+  expect(fundamentalsCompany(btc).reason).toBe(FUNDAMENTALS_TEXT.assetClass('crypto'));
+  expect(fundamentalsChartGate(facts({symbol:'AAPL',exchange:'SYNTHETIC',assetClass:'stock',synthetic:true}))).toBeNull();
+  expect(fundamentalsChartGate(facts({assetClass:'forex'}))).toBe(FUNDAMENTALS_TEXT.assetClass('forex'));
+  expect(fundamentalsChartGate(facts({assetClass:'index'}))).toBe(FUNDAMENTALS_TEXT.index);
+ });
+ it('own-history bands far from the close are left empty with the Off scale note, as multiples are',async()=>{
+  // P/E 25 (close 100, TTM EPS 4) until April 2023, then the close triples. By the last bar the median and lower bands
+  // (P/E 25, about 100) are below half the close and the upper band (P/E 75, about 300) stays.
+  const priced=dailyBars('2022-01-03','2023-12-29',date=>date<'2023-04-01'?100:300).map(bar=>({time:bar.time,open:bar.open,high:bar.close,low:bar.close,close:bar.close,volume:1000,date:bar.date}));
+  const sec=fakeBridge(operating()),fs=service(sec.bridge);fs.activate(market);await settle();setFundamentalsLoader(fs.loader);
+  const result=calculateIndicator('pebands',priced,{mode:'own',lookback:5,bands:'percentile'},{resolution:'1D',fundamentals:fundamentalsLookup(facts())});
+  const plot=(id:string)=>result.series.find(series=>series.id===id)!.values,index=priced.length-1,inside=priced.findIndex(bar=>bar.date==='2023-03-15');
+  for(let i=0;i<priced.length;i++)for(const id of ['median','upper','lower']){const v=plot(id)[i];if(v!==null){expect(v,id+' '+priced[i].date).toBeGreaterThanOrEqual(priced[i].close*0.5);expect(v).toBeLessThanOrEqual(priced[i].close*2);}}
+  expect(plot('median')[index]).toBeNull();expect(plot('lower')[index]).toBeNull();expect(plot('upper')[index]).not.toBeNull();
+  expect(result.fundamentals!.gapNotes[index]).toBe(OFF_SCALE);
+  expect(plot('median')[inside]).toBeCloseTo(100,6);expect(result.fundamentals!.gapNotes[inside]).toBeNull();
  });
 });

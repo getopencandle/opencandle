@@ -1,5 +1,6 @@
 import type {PitCompany} from '../fundamentals/pit-metrics';
 import type {AdjustmentBasis} from './types';
+import {isExampleCrypto} from './fixtures';
 
 /**
  * Company filings for the `fundamental` and `pebands` indicators.
@@ -48,9 +49,12 @@ const ASSET_NAMES:Readonly<Record<string,string>>={crypto:'crypto',forex:'forex'
 /** The checks that need no data at all (asset class). Null when the symbol may have SEC filings. Nothing is requested. */
 export function fundamentalsChartGate(facts:FundamentalsChartFacts|null):string|null{
  if(!facts||!facts.symbol)return FUNDAMENTALS_TEXT.noFacts;
- if(facts.assetClass==='index')return FUNDAMENTALS_TEXT.index;
- if(facts.assetClass==='etf')return FUNDAMENTALS_TEXT.fund;
- const name=ASSET_NAMES[facts.assetClass];return name?FUNDAMENTALS_TEXT.assetClass(name):null;
+ // Example data instruments are all typed as stocks; an example crypto series (BTC, ETH) still gets the crypto reason,
+ // ahead of the demo company check the loader makes.
+ const assetClass=facts.synthetic&&isExampleCrypto(facts.symbol)?'crypto':facts.assetClass;
+ if(assetClass==='index')return FUNDAMENTALS_TEXT.index;
+ if(assetClass==='etf')return FUNDAMENTALS_TEXT.fund;
+ const name=ASSET_NAMES[assetClass];return name?FUNDAMENTALS_TEXT.assetClass(name):null;
 }
 
 let loader:FundamentalsLoader|null=null;

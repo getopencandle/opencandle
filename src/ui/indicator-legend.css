@@ -2,7 +2,10 @@
 .lv-status-logo{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;background:var(--lv-accent);color:var(--lv-on-accent);overflow:hidden}
 .lv-status-logo img{border-radius:50%}
 .chart-heading [data-status-part=title],.chart-heading [data-status-part=interval]{cursor:pointer}
-.lv-status-unavailable{opacity:.6;cursor:help}
+/* Unavailable and Waiting reasons and empty status parts. The color is the legend's own text token (a light chart surface
+   redefines it), never the inherited page color. Light surface: secondary text at full opacity, #555c6b on white 6.7:1.
+   Dark: primary text at 60%, 5.3:1 on #232734 and 6.0:1 on #0f0f0f. */
+.lv-status-unavailable{color:var(--lv-status-unavailable-text,var(--lv-text-primary));opacity:var(--lv-status-unavailable-opacity,.6);cursor:help}
 .lv-status-reason{display:inline-flex;align-items:center;gap:3px}
 .lv-status-value{white-space:nowrap}
 .lv-legend-row{position:relative;gap:2px}

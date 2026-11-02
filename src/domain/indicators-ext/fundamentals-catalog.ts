@@ -44,15 +44,32 @@ export function fundamentalsLegendArguments(kind:string,inputs:Record<string,unk
   if(mode==='multiples')return [...[inputs.multiple1??15,inputs.multiple2??20,inputs.multiple3??25].map(value=>String(value)),...latest];
   return [String(inputs.lookback??5)+'y',...latest];
  }
- const metric=String(inputs.metric??'pe'),ttm=fundamentalUsesTtm(metric),period=ttm?'TTM':PERIOD_SHORT[String(inputs.period??'ttm')]??'TTM';
- return [period,...(!ttm&&inputs.display==='yoy'?['YoY %']:[]),...(inputs.revisions==='latest'?['latest filed']:[])];
+ const metric=String(inputs.metric??'pe'),ttm=fundamentalUsesTtm(metric),chosen=String(inputs.period??'ttm');
+ // Point-in-time values (market cap, P/B, balance sheet amounts, share counts) are never trailing twelve months: ratios on
+ // them carry no period, and balance values only say FY when limited to fiscal year ends.
+ const period=POINT_IN_TIME_METRICS.has(metric)?(ttm||chosen!=='annual'?[]:['FY']):[ttm?'TTM':PERIOD_SHORT[chosen]??'TTM'];
+ return [...period,...(!ttm&&inputs.display==='yoy'?['YoY %']:[]),...(inputs.revisions==='latest'?['latest filed']:[])];
 }
-/** How a metric's values read: compact money and counts, a % suffix for percentages and growth. */
+/** Metrics measured at one date (a balance sheet instant, or price times one), not over a period. */
+export const POINT_IN_TIME_METRICS:ReadonlySet<string>=new Set(['mcap','pb','shares','current_ratio','liab_equity']);
+/** The name an instance is shown by (On this chart, settings titles, data window): the legend title and arguments,
+ *  for example "P/E TTM", "Revenue Q YoY %", "Market cap" or "P/E bands 5y". */
+export function fundamentalsInstanceTitle(kind:string,inputs:Record<string,unknown>):string{
+ return [kind==='fundamental'?fundamentalLegendTitle(inputs):'P/E bands',...fundamentalsLegendArguments(kind,inputs)].join(' ');
+}
+/** How a metric's values read: compact money and counts (K, M, B, T), a % suffix for percentages and growth, x for ratios. */
 export function fundamentalValueFormat(kind:string,inputs:Record<string,unknown>):{suffix:string;compact:boolean}{
  if(kind!=='fundamental')return {suffix:'',compact:false};
  const row=metricSpec(String(inputs.metric??'pe'));if(!row)return {suffix:'',compact:false};
  const yoy=!fundamentalUsesTtm(row.key)&&inputs.display==='yoy';
- return {suffix:yoy||row.measure==='percent'?'%':'',compact:!yoy&&(row.measure==='money'||row.measure==='count')};
+ return {suffix:yoy||row.measure==='percent'?'%':row.measure==='ratio'?'x':'',compact:!yoy&&(row.measure==='money'||row.measure==='count')};
+}
+const COMPACT_UNITS=[[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'K']] as const;
+/** A `fundamental` value as text: "466.82B", "28.41x", "45.20%", "8.71" (decimals: 2 unless the instance sets them). */
+export function formatFundamentalValue(value:number,kind:string,inputs:Record<string,unknown>,decimals=2):string{
+ const format=fundamentalValueFormat(kind,inputs),magnitude=Math.abs(value),unit=format.compact?COMPACT_UNITS.find(([scale])=>magnitude>=scale):undefined;
+ let text=(unit?value/unit[0]:value).toFixed(decimals);if(text.startsWith('-')&&Number(text)===0)text=text.slice(1);
+ return text+(unit?unit[1]:'')+format.suffix;
 }
 /** Statement values draw as steps (Columns is offered in Style); ratios draw as a line. */
 export const fundamentalPlotKind=(metric:unknown):'step'|'line'=>{const row=metricSpec(String(metric));return row&&!row.ratio&&row.key!=='fcf_ps'?'step':'line';};
@@ -91,6 +108,8 @@ function bandEngine(company:PitCompany,request:PeBandsRequest,resolution:string|
  return engine;
 }
 const BAND_PLOTS=['median','upper','lower','m1','m2','m3','graham'] as const;
+/** The data window note on a bar where a P/E band line is left empty because it is far from the close. */
+export const OFF_SCALE='Off scale';
 
 const definitions:CatalogDefinition[]=[
  {id:'fundamental',name:'Company fundamental',acronym:'Fundamental',overlay:false,fundamentals:true,
@@ -138,17 +157,19 @@ const definitions:CatalogDefinition[]=[
   ],
   provenance:[{url:LV+'pe-bands',facts:'Own history: the 25th, 50th and 75th percentiles (or mean plus or minus one standard deviation) of one P/E per New York date over the trailing lookback, times TTM diluted EPS. Multiples: each multiple times TTM diluted EPS. Graham number (TTM variant) = square root of 22.5 x TTM EPS x book value per share.'}],
   unknownDefaults:[UNKNOWN,'Own history, 5 years, percentiles 25/75, multiples 15/20/25 and Graham off are the defaults for a new instance.'],
-  policies:[...POLICIES,'Own-history bands use only P/E values known at each bar (dates with negative EPS are skipped) and need one year of them first.','A multiple line beyond half to twice the bar close is left empty so it does not squash the price scale.'],
+  policies:[...POLICIES,'Own-history bands use only P/E values known at each bar (dates with negative EPS are skipped) and need one year of them first.','A band, multiple or Graham line beyond half to twice the bar close is left empty there (the data window says Off scale) so it does not squash the price scale.'],
   calculate(ctx){
    const n=ctx.bars.length,empty=()=>Object.fromEntries(BAND_PLOTS.map(id=>[id,nulls(n)])) as Record<string,NumericSeries>,found=companyOf(ctx);
    if('reason' in found){publish(ctx,{...emptyPitSeries(n,found.reason),state:found.state});return empty();}
    const chart=chartOf(ctx);if(typeof chart==='string'){publish(ctx,{...emptyPitSeries(n,chart),state:'unavailable'});return empty();}
    const request:PeBandsRequest={mode:str<'own'|'multiples'>(ctx,'mode'),lookbackYears:ctx.num('lookback'),bands:str<'percentile'|'sigma'>(ctx,'bands'),multiples:[ctx.num('multiple1'),ctx.num('multiple2'),ctx.num('multiple3')],graham:ctx.bool('graham'),revisions:str<PitRevisions>(ctx,'revisions')};
    const result=bandEngine(found.company,request,ctx.chart?.resolution??null).compute(chart),gapNotes=[...result.gapNotes],m1=[...result.m1],m2=[...result.m2],m3=[...result.m3];
-   // Display only: a multiple far from the close would stretch the price scale, so it is left empty there.
-   for(let i=0;i<n;i++){const close=ctx.bars[i].close;let off=false;for(const line of [m1,m2,m3]){const v=line[i];if(v!==null&&(v<close*0.5||v>close*2)){line[i]=null;off=true;}}if(off&&gapNotes[i]===null)gapNotes[i]='Off scale';}
+   // Display only: a line far from the close (an own-history band, a multiple or the Graham number) would stretch the
+   // price scale, so it is left empty there and the data window says "Off scale".
+   const median=[...result.median],upper=[...result.upper],lower=[...result.lower],graham=[...result.graham];
+   for(let i=0;i<n;i++){const close=ctx.bars[i].close;let off=false;for(const line of [median,upper,lower,m1,m2,m3,graham]){const v=line[i];if(v!==null&&(v<close*0.5||v>close*2)){line[i]=null;off=true;}}if(off&&gapNotes[i]===null)gapNotes[i]=OFF_SCALE;}
    publish(ctx,{fundamentalStamps:result.fundamentalStamps,gapNotes,reason:result.reason,notes:result.notes,state:result.reason?'unavailable':'ready'});
-   return {median:result.median,upper:result.upper,lower:result.lower,m1,m2,m3,graham:result.graham};
+   return {median,upper,lower,m1,m2,m3,graham};
   },
   warmup:()=>1,work:count=>count*60},
 ];

@@ -4,7 +4,8 @@ import {parseInterval} from '../domain/intervals';
 import {demoDataMode} from '../domain/demo-mode';
 import {shortIntervalText} from './interval-display';
 import {formatIndicatorNumber,isIndicatorPrecision,isVolumeUnitKind,type IndicatorPrecision} from '../chart/indicator-number-format';
-import {indicatorAcronyms,indicatorNames} from './indicator-dialog-model';
+import {indicatorInstanceTitle,indicatorNames} from './indicator-dialog-model';
+import {formatFundamentalValue} from '../domain/indicators-ext/fundamentals-catalog';
 import {catalogDefinition} from '../domain/indicator-catalog';
 import {chartTimeZone,formatChartDateTime,type ChartClockHours} from './chart-time-text';
 import {DEFAULT_TIME_SCALE_SETTINGS,formatTimeScaleDate} from '../chart/time-axis-format';
@@ -23,7 +24,7 @@ export interface DataWindowSeriesInput {symbol:string;exchange:string;interval:s
 export interface DataWindowPlotInput {id:string;label:string;color:string;dataWindow:boolean;values:readonly (number|null)[]}
 /** The filing behind each bar's value, for the fundamentals kinds (IndicatorResult.fundamentals). */
 export interface DataWindowFundamentalsInput {fundamentalStamps:PitStamps;gapNotes:readonly (string|null)[]}
-export interface DataWindowIndicatorInput {id:string;kind:IndicatorId;visible:boolean;offset:number;precision:IndicatorPrecision;plots:readonly DataWindowPlotInput[];/** Present for the company fundamentals kinds only. */fundamentals?:DataWindowFundamentalsInput}
+export interface DataWindowIndicatorInput {id:string;kind:IndicatorId;visible:boolean;offset:number;precision:IndicatorPrecision;plots:readonly DataWindowPlotInput[];/** The instance inputs, for titles and value formats that depend on them (company fundamentals). */inputs?:Readonly<Record<string,unknown>>;/** Present for the company fundamentals kinds only. */fundamentals?:DataWindowFundamentalsInput}
 /** A compare symbol (chart.comparisons) with its own bars, matched to the chart bar by exact time. */
 export interface DataWindowComparisonInput {id:string;symbol:string;exchange:string;interval:string;description:string;tickSize:number;color:string;visible:boolean;bars:readonly Bar[]}
 /** One script (indicator or strategy) plot; `value` is the chart's own formatted readout text, or null. */
@@ -145,7 +146,7 @@ const PERCENT_KINDS=new Set<IndicatorId>(['rsi','stochastic']);
  * RSI and Stochastic use 2 decimals, price-unit plots use the symbol precision.
  */
 /** What a reader needs to show an indicator plot the way it is drawn. offset is the instance display offset in bars. */
-export interface IndicatorPlotReading {kind:IndicatorId;offset?:number;precision:IndicatorPrecision;/** The plot read, for its own catalog precision. */plot?:string}
+export interface IndicatorPlotReading {kind:IndicatorId;offset?:number;precision:IndicatorPrecision;/** The plot read, for its own catalog precision. */plot?:string;/** The instance inputs (a company fundamental's metric sets its units). */inputs?:Readonly<Record<string,unknown>>}
 /**
  * The text of one indicator plot at chart bar `bar` (null = the last value), exactly as it is drawn: the plot is shifted by
  * the display offset, so the value at a bar is values[bar - offset] (outside the series is the empty glyph), formatted by
@@ -154,10 +155,12 @@ export interface IndicatorPlotReading {kind:IndicatorId;offset?:number;precision
  */
 export function indicatorPlotTextAt(values:ArrayLike<number|null>,bar:number|null,reading:IndicatorPlotReading,tickSize:number):string{
  const offset=Number.isSafeInteger(reading.offset)?reading.offset as number:0,at=bar===null?values.length-1:bar,source=at-offset;
- return formatIndicatorValue(source>=0&&source<values.length?values[source]:null,reading.kind,reading.precision,tickSize,reading.plot);
+ return formatIndicatorValue(source>=0&&source<values.length?values[source]:null,reading.kind,reading.precision,tickSize,reading.plot,reading.inputs);
 }
-export function formatIndicatorValue(value:number|null|undefined,kind:IndicatorId,precision:IndicatorPrecision,tickSize:number,plot?:string):string{
+export function formatIndicatorValue(value:number|null|undefined,kind:IndicatorId,precision:IndicatorPrecision,tickSize:number,plot?:string,inputs?:Readonly<Record<string,unknown>>):string{
  if(typeof value!=='number'||!Number.isFinite(value))return DATA_WINDOW_EMPTY;
+ // A company fundamental reads in its metric's units (466.82B, 28.41x, 45.20%); the instance precision sets the decimals.
+ if(kind==='fundamental')return formatFundamentalValue(value,kind,inputs??{},precision!=='auto'&&isIndicatorPrecision(precision)?precision:2);
  if(precision!=='auto'&&isIndicatorPrecision(precision))return formatIndicatorNumber(value,precision);
  const own=plot===undefined?undefined:catalogDefinition(kind)?.plots.find(row=>row.id===plot)?.precision;if(own!==undefined&&isIndicatorPrecision(own))return formatIndicatorNumber(value,own);
  if(isVolumeUnitKind(kind))return formatVolume(value);
@@ -200,7 +203,7 @@ export function buildDataWindow(input:DataWindowInput):DataWindowView{
   const key=studySection(study.id),isHidden=hidden.has(key);
   const rows:DataWindowRow[]=isHidden?[]:study.plots.filter(plot=>plot.dataWindow).map(plot=>({key:plot.id,label:plot.label,value:indicatorPlotTextAt(plot.values,index,{...study,plot:plot.id},series.tickSize),color:plot.color}));
   if(!isHidden&&study.fundamentals)rows.push(...fundamentalsRows(study.fundamentals,index-(Number.isSafeInteger(study.offset)?study.offset:0)));
-  sections.push({key,kind:'study',id:study.id,title:indicatorAcronyms[study.kind]??study.kind,tooltip:indicatorNames[study.kind]??study.kind,visible:study.visible,hidden:isHidden,rows});
+  sections.push({key,kind:'study',id:study.id,title:indicatorInstanceTitle(study.kind,study.inputs),tooltip:indicatorNames[study.kind]??study.kind,visible:study.visible,hidden:isHidden,rows});
  }
  // Script indicators and strategies: one row per plot shown in the data window, as built-in indicators.
  for(const script of input.scripts??[]){

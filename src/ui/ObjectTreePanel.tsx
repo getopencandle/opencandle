@@ -168,7 +168,7 @@ export function ObjectTreePanel(props:ObjectTreePanelProps){
  }
  const {drawings,groups,readError}=cache.current;
  const series=dataset?{symbol:dataset.instrument.symbol,exchange:displayExchange(dataset.instrument.exchange),interval:dataset.resolution,description:dataset.instrument.name,visible:props.seriesVisible}:null;
- const treeIndicators=indicators.map(row=>({id:row.id,kind:row.kind,visible:row.visible,intervalHidden:hiddenOnInterval(row,dataset?.resolution)}));
+ const treeIndicators=indicators.map(row=>({id:row.id,kind:row.kind,inputs:row.inputs,visible:row.visible,intervalHidden:hiddenOnInterval(row,dataset?.resolution)}));
  const nodes=buildObjectTree({series,indicators:treeIndicators,drawings,groups,collapsed:new Set(collapsed)});
  const allNodes=collapsed.length?buildObjectTree({series,indicators:treeIndicators,drawings,groups}):nodes;
  const liveSelection=selection.filter(key=>allNodes.some(row=>row.key===key)),selected=new Set(liveSelection);
@@ -319,7 +319,7 @@ export function ObjectTreePanel(props:ObjectTreePanelProps){
  }
  function copyStudy(id:string){
   const row=latest.current.indicators.find(item=>item.id===id);if(!row)return;
-  try{setError('');const clip=indicatorClipboard.copy(row,studyTitle(row.kind));latest.current.onIndicatorCopied?.(indicatorCopiedMessage(clip.title));}catch(cause){fail(cause);}
+  try{setError('');const clip=indicatorClipboard.copy(row,studyTitle(row.kind,row.inputs));latest.current.onIndicatorCopied?.(indicatorCopiedMessage(clip.title));}catch(cause){fail(cause);}
  }
  function dropStudy(node:ObjectTreeNode,place:'before'|'after'){
   const moving=draggingStudy.current;draggingStudy.current=null;setDrop(null);if(!moving)return;

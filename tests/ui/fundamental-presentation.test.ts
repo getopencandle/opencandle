@@ -14,6 +14,8 @@ import {restoreCalendarDocument} from '../../src/domain/calendar';
 import {liveDataOf,restoreLiveData} from '../../src/ui/live-workspace';
 import {DataSourcesPanel} from '../../src/ui/data-sources-panel';
 import type {PitStamp} from '../../src/fundamentals/pit-types';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
 
 const stamp=(over:Partial<PitStamp>={}):PitStamp=>({start:'2024-08-01',end:'2024-10-31',filed:'2024-12-05',accession:'0000009999-24-000005',form:'10-Q',tag:'us-gaap:EarningsPerShareDiluted',method:'sum-4q',retrievedAt:'2026-10-15T08:00:00Z',availableAt:1733400000,note:null,...over});
 
@@ -112,5 +114,22 @@ describe('daily SEC refresh setting',()=>{
   const storage={directory:'C:\\Users\\Someone\\data',onExport:vi.fn(),onReset:vi.fn(),onResetDone:vi.fn()};
   const render=(daily:boolean)=>renderToStaticMarkup(React.createElement(DataSourcesPanel,{live,storage,saved:{bridge:null,settings:{coinbase:false,alpacaSymbols:[]},onImport:vi.fn()},sec:{daily,onDailyChange:vi.fn()}}));
   expect(render(true)).toMatch(/Refresh SEC company data daily/);expect(render(true)).toMatch(/type="checkbox"[^>]*checked/);expect(render(false)).not.toMatch(/type="checkbox"[^>]*checked=""[^>]*\/> Refresh SEC/);
+ });
+});
+
+describe('Unavailable reason contrast',()=>{
+ const read=(name:string)=>readFileSync(resolve('src/ui',name),'utf8');
+ const luminance=(hex:string)=>{const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255).map(v=>v<=0.03928?v/12.92:((v+0.055)/1.055)**2.4);return 0.2126*r+0.7152*g+0.0722*b;};
+ const contrast=(a:string,b:string)=>{const [x,y]=[luminance(a),luminance(b)].sort((p,q)=>q-p);return (x+0.05)/(y+0.05);};
+ const blend=(fg:string,bg:string,alpha:number)=>'#'+[1,3,5].map(i=>Math.round(parseInt(fg.slice(i,i+2),16)*alpha+parseInt(bg.slice(i,i+2),16)*(1-alpha)).toString(16).padStart(2,'0')).join('');
+ it('uses the legend text token, readable on light and dark chart backgrounds',()=>{
+  const rule=/\.lv-status-unavailable\{([^}]*)\}/.exec(read('indicator-legend.css'))![1];
+  expect(rule).toContain('color:var(--lv-status-unavailable-text,var(--lv-text-primary))');expect(rule).toContain('opacity:var(--lv-status-unavailable-opacity,.6)');
+  const light=/\[data-chart-surface=light\][^{]*\{([^}]*)\}/.exec(read('components.css'))![1];
+  const token=(name:string)=>new RegExp('--'+name+':([^;}]+)').exec(light)![1];
+  expect(token('lv-status-unavailable-text')).toBe('var(--lv-text-secondary)');expect(token('lv-status-unavailable-opacity')).toBe('1');
+  expect(contrast(token('lv-text-secondary'),'#ffffff')).toBeGreaterThanOrEqual(4.5);
+  const darkText=/--lv-text-primary:(#[0-9a-f]{6})/.exec(read('styles.css'))![1];
+  for(const background of ['#232734','#0f0f0f'])expect(contrast(blend(darkText,background,0.6),background)).toBeGreaterThanOrEqual(4.5);
  });
 });

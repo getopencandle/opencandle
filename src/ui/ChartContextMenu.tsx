@@ -7,7 +7,7 @@ import {createContextMenuExecution} from '../chart/context-menu-execution';
 import {CONTEXT_RESET_HINT,BAR_MARKS_HIDE_LABEL,BAR_MARKS_SHOW_LABEL,barMarksVisibility,type BarMarksVisibility,type ChartContextActionOptions,type ChartContextActions,type ChartMenuSnapshot,type RootChartMenuAction} from '../chart/context-menu';
 import {legendMoreMenu,indicatorClipboard,indicatorOrderState,indicatorVisualOrderAvailable,visualOrderItems,type IndicatorClip,type LegendMoreItemId} from '../chart/legend-model';
 import {readIndicatorScalePlacement,indicatorScaleSides} from '../chart/indicator-scale';
-import {indicatorAcronyms} from './indicator-dialog-model';
+import {indicatorInstanceTitle} from './indicator-dialog-model';
 import {indicatorMoveChoices} from './indicator-move-targets';
 import './chart-commands.css';
 import {pinToScaleMenu} from './object-tree-model';
@@ -93,14 +93,14 @@ export function indicatorMenuEntries(snapshot:ChartMenuSnapshot,actions:ChartCon
  const entity=snapshot.entity;if(entity.kind!=='indicator')return [];
  let rows:ReturnType<ChartMenuSnapshot['controller']['indicators']['list']>=[];try{rows=snapshot.controller.indicators.list();}catch{return [];}
  const row=rows.find(item=>item.id===entity.id&&item.rendererId===entity.rendererId);if(!row)return [];
- const title=indicatorAcronyms[row.kind]??row.kind,order=rows.map(item=>({id:item.id,paneId:item.paneId})),vela=snapshot.controller.chart;
+ const title=indicatorInstanceTitle(row.kind,row.inputs),order=rows.map(item=>({id:item.id,paneId:item.paneId})),vela=snapshot.controller.chart;
  const placement=(()=>{try{return vela?readIndicatorScalePlacement(vela,row.rendererId):null;}catch{return null;}})();
  const ordering=!!actions['indicator-order']&&indicatorVisualOrderAvailable(order,row.id);
  const menu=legendMoreMenu('indicator',{surface:'legend',title,value:null,hidden:!row.visible,favorite:false,scalePlacement:placement,mainScaleSide:mainScaleSideOf(snapshot),linkedToSeries:false,routes:{favorite:false,visualOrder:ordering,copy:!!actions['indicator-copy'],anchor:row.kind==='avwap'&&!!actions['indicator-anchor']}});
  const children:Partial<Record<RootChartMenuAction,MenuChild[]>>={
   'indicator-order':ordering?visualOrderItems(indicatorOrderState(order,row.id)).filter(item=>!item.disabled).map(item=>({id:item.id,label:item.label})):[],
   'indicator-move':(()=>{try{return indicatorMoveChoices(snapshot.controller,row.rendererId,rows).filter(choice=>!choice.disabled).map(choice=>({id:choice.id,label:choice.label}));}catch{return [];}})(),
-  'indicator-pin':(()=>{if(placement===null||!vela)return [];try{const choices=snapshot.controller.indicators.scaleChoices(row.id,id=>{const item=rows.find(entry=>entry.id===id);return item?indicatorAcronyms[item.kind]??item.kind:id;});return pinToScaleMenu(placement,indicatorScaleSides(vela),choices).filter(item=>!item.disabled).map(item=>({id:item.id,label:item.label??item.id,checked:!!item.checked}));}catch{return [];}})(),
+  'indicator-pin':(()=>{if(placement===null||!vela)return [];try{const choices=snapshot.controller.indicators.scaleChoices(row.id,id=>{const item=rows.find(entry=>entry.id===id);return item?indicatorInstanceTitle(item.kind,item.inputs):id;});return pinToScaleMenu(placement,indicatorScaleSides(vela),choices).filter(item=>!item.disabled).map(item=>({id:item.id,label:item.label??item.id,checked:!!item.checked}));}catch{return [];}})(),
  };
  const out:MenuEntry[]=[];let group=0;
  for(const item of menu){

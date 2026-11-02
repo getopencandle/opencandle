@@ -3,7 +3,7 @@
 // and the same value formatting (data-window-model.ts) for every bar, newest first, with one column per indicator plot that
 // the Data window shows. Columns, order and paging are our own choice.
 import {formatChange,formatDataWindowDate,formatDataWindowTime,formatPrice,indicatorPlotTextAt,formatVolume,type DataWindowIndicatorInput,type DataWindowSeriesInput} from './data-window-model';
-import {indicatorAcronyms} from './indicator-dialog-model';
+import {indicatorInstanceTitle} from './indicator-dialog-model';
 import {parseInterval} from '../domain/intervals';
 import type {Bar} from '../domain/types';
 
@@ -43,7 +43,7 @@ export function tableViewModel(input:{series:DataWindowSeriesInput;bars:readonly
  const {series,bars}=input,limit=Math.max(1,Math.floor(input.limit??TABLE_VIEW_PAGE)),withTime=intraday(series.interval);
  const studies=input.indicators.filter(study=>study.visible).map(study=>({study,plots:study.plots.filter(plot=>plot.dataWindow)})).filter(entry=>entry.plots.length>0);
  const columns:TableViewColumn[]=[{key:'date',label:withTime?'Date and time':'Date'},{key:'open',label:'Open'},{key:'high',label:'High'},{key:'low',label:'Low'},{key:'close',label:'Close'},{key:'change',label:'Change'},{key:'vol',label:'Vol'}];
- for(const {study,plots} of studies){const acronym=indicatorAcronyms[study.kind]??study.kind;for(const plot of plots)columns.push({key:study.id+':'+plot.id,label:plot.label&&plot.label!==acronym?acronym+' '+plot.label:acronym,color:plot.color});}
+ for(const {study,plots} of studies){const acronym=indicatorInstanceTitle(study.kind,study.inputs);for(const plot of plots)columns.push({key:study.id+':'+plot.id,label:plot.label&&plot.label!==acronym?acronym+' '+plot.label:acronym,color:plot.color});}
  const timeText=tableViewTimeText(input.timezone,withTime),readings=studies.map(({study,plots})=>plots.map(plot=>({values:plot.values,reading:{...study,plot:plot.id}}))).flat(),made=new Map<number,TableViewRow>();
  const count=Math.min(limit,bars.length);
  const row=(i:number):TableViewRow=>{

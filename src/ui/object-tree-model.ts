@@ -2,7 +2,7 @@ import type {IndicatorId} from '../domain/indicators';
 import {shortIntervalText} from './interval-display';
 import {drawingVisibility} from '../chart/drawing-visibility';
 import {INDICATOR_SCALE_PLACEMENT_MENU,INDICATOR_SCALE_GAPS,type IndicatorScaleSide,type IndicatorScaleChoice} from '../chart/indicator-scale';
-import {indicatorAcronyms,indicatorNames} from './indicator-dialog-model';
+import {indicatorInstanceTitle,indicatorNames} from './indicator-dialog-model';
 import {seriesMoreMenu,seriesMoveToItems,seriesPinToScaleItems,type SeriesMoreItemId} from './series-legend-menu';
 
 // Pure model for the Object tree panel. No chart access and no mutation happens here.
@@ -38,7 +38,7 @@ export const ROW_BUTTONS:Readonly<Record<ObjectTreeNodeKind,readonly ObjectTreeR
 
 export interface ObjectTreeSeriesInput {symbol:string;exchange:string;interval:string;description?:string;visible?:boolean}
 /** intervalHidden: shown, but its interval visibility rule hides it on the current chart interval. */
-export interface ObjectTreeIndicatorInput {id:string;kind:IndicatorId;visible:boolean;intervalHidden?:boolean}
+export interface ObjectTreeIndicatorInput {id:string;kind:IndicatorId;visible:boolean;intervalHidden?:boolean;/** The instance inputs (a company fundamental is titled by its metric). */inputs?:Record<string,unknown>}
 export interface ObjectTreeDrawingInput {id:string;type:string;title:string;visible:boolean;locked:boolean;renderable:boolean;zIndex:number|null;intervalHidden:boolean}
 export interface ObjectTreeGroupInput {id:string;name:string;memberIds:readonly string[]}
 export interface ObjectTreeInput {series:ObjectTreeSeriesInput|null;indicators:readonly ObjectTreeIndicatorInput[];drawings:readonly ObjectTreeDrawingInput[];groups:readonly ObjectTreeGroupInput[];collapsed?:ReadonlySet<string>}
@@ -74,7 +74,7 @@ export function keyId(key:string):string{const index=key.indexOf(':');return ind
 /** The interval reads as the toolbar shows it (240m is 4h). */
 export function seriesTitle(series:ObjectTreeSeriesInput):string{return (series.exchange?series.symbol+' · '+series.exchange:series.symbol)+', '+shortIntervalText(series.interval);}
 /** Indicator row pattern "{indicator short title}". */
-export function studyTitle(kind:IndicatorId):string{return indicatorAcronyms[kind]??kind;}
+export function studyTitle(kind:IndicatorId,inputs?:Record<string,unknown>):string{return indicatorInstanceTitle(kind,inputs);}
 
 /** Reads a drawing-manager document row without trusting its shape. */
 export function drawingInput(row:Record<string,unknown>,labels:ReadonlyMap<string,string>,resolution?:string):ObjectTreeDrawingInput{
@@ -101,7 +101,7 @@ export function drawingFrontToBack<T extends Pick<ObjectTreeDrawingInput,'zIndex
 export function buildObjectTree(input:ObjectTreeInput):ObjectTreeNode[]{
  const nodes:ObjectTreeNode[]=[],collapsed=input.collapsed??new Set<string>();
  if(input.series)nodes.push({key:seriesKey,kind:'series',id:seriesKey,title:seriesTitle(input.series),tooltip:input.series.description??'',level:1,parentKey:null,visible:input.series.visible!==false,locked:false,buttons:ROW_BUTTONS.series,memberKeys:[],renderable:true,intervalHidden:false});
- for(const row of input.indicators)nodes.push({key:studyKey(row.id),kind:'study',id:row.id,title:studyTitle(row.kind),tooltip:indicatorNames[row.kind]??row.kind,level:1,parentKey:null,visible:row.visible,locked:false,buttons:ROW_BUTTONS.study,memberKeys:[],renderable:true,intervalHidden:row.visible&&row.intervalHidden===true,indicatorKind:row.kind});
+ for(const row of input.indicators)nodes.push({key:studyKey(row.id),kind:'study',id:row.id,title:studyTitle(row.kind,row.inputs),tooltip:indicatorNames[row.kind]??row.kind,level:1,parentKey:null,visible:row.visible,locked:false,buttons:ROW_BUTTONS.study,memberKeys:[],renderable:true,intervalHidden:row.visible&&row.intervalHidden===true,indicatorKind:row.kind});
  const ordered=drawingFrontToBack(input.drawings);
  const byId=new Map(ordered.map(row=>[row.id,row])),groupOf=new Map<string,ObjectTreeGroupInput>();
  for(const group of input.groups)for(const id of group.memberIds)if(byId.has(id)&&!groupOf.has(id))groupOf.set(id,group);

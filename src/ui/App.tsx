@@ -1053,8 +1053,11 @@ export function App(){
   finally{const release=lease;lease=null;try{release?.release();}catch(error){reportFailure(error);}if(transaction){workspaceTransaction.current=false;transaction=false;}}
   return true;
  }
- async function restoreHistory(direction:'undo'|'redo'){
+ async function restoreHistory(direction:'undo'|'redo',attempt=0){
   if(workspaceTransaction.current){setMessage('The chart is busy. Try again in a moment.');return;}
+  // A layout autosave accepts the workspace it wrote (current) a moment before it renders it: a key pressed in that gap waits
+  // for the render (50 ms steps, up to 2 s) through the latest render's restore, instead of failing as "still loading".
+  if((current.current!==workspace||storageMutation.current)&&attempt<40){setTimeout(()=>{void latestRestoreHistory.current(direction,attempt+1);},50);return;}
   const entry=direction==='undo'?history.current.peekUndo():history.current.peekRedo();if(!entry)return;
   if(restoreTableDestinationHistory(direction,entry))return;
   try{
@@ -1345,6 +1348,8 @@ export function App(){
   there); hiding the window flushes too. It waits for an in-flight save or chart transaction, then runs the
   ordinary autosave path, so startup recovery, CAS revisions and the no-retry-after-rejection rule still apply. */
  const latestSave=useRef(save);latestSave.current=save;
+ /** The latest render's restoreHistory, for an undo or redo that waits out an autosave's publish. */
+ const latestRestoreHistory=useRef(restoreHistory);latestRestoreHistory.current=restoreHistory;
  /* A viewport edit released within the grid's 200 ms frame-gesture window is finished first, through the
   active chart tree's coordinator (the host forwards only the active tree's) and the same flush its timer runs.
   Hiding the window flushes only a finished gesture (a held drag publishes on its own release); the close

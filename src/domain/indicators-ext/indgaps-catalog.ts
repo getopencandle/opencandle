@@ -46,10 +46,12 @@ export function hammingWeights(n:number):number[]{return n<=1?[1]:Array.from({le
 export function rolling24hVolume(bars:readonly Bar[]):NumericSeries{
  // A missing or negative volume is unknown (the dispatcher's volume rule).
  const known=(value:number)=>finite(value)&&value>=0;let start=0,sum=0,missing=0;const out:NumericSeries=[];
+ // The value is blank until the loaded history reaches back a full window: the first bar opened at or before t - 24h + one bar interval.
+ // The interval is the gap back to the previous bar, so a revealed prefix gives the same values as the full history (the first bar has none and stays blank).
  for(let i=0;i<bars.length;i++){
   const volume=bars[i].volume;if(known(volume))sum+=volume;else missing++;
   while(start<i&&bars[start].time<=bars[i].time-86400){const old=bars[start].volume;if(known(old))sum-=old;else missing--;start++;}
-  out.push(missing?null:zero(sum));
+  out.push(missing||i===0||bars[0].time>bars[i].time-86400+(bars[i].time-bars[i-1].time)?null:zero(sum));
  }
  return out;
 }
@@ -69,7 +71,7 @@ const definitions:readonly CatalogDefinition[]=[
   plots:[{id:'volume',label:'24-hour volume',kind:'histogram',color:C.teal,width:1}],
   provenance:[{url:LIST,facts:'"24-hour Volume" is a built-in: the volume traded over the trailing 24 hours.'}],
   unknownDefaults:['The window is the bars opened within the 24 hours up to and including each bar (OpenCandle-defined). On daily and longer bars that is the bar\'s own volume. Drawn as a histogram in its own pane (OpenCandle-defined).',COLORS_LV],
-  policies:['A bar whose 24-hour window holds a missing volume is unavailable. Only the current and earlier bars are read, so the value never changes once a bar closes.'],
+  policies:['A bar is unavailable until the loaded history covers a full trailing 24 hours, and when its 24-hour window holds a missing volume. Only the current and earlier bars are read, so the value never changes once a bar closes.'],
   calculate({bars}){return {volume:rolling24hVolume(bars)};},
   warmup:()=>1,work:count=>count*4},
  {id:'machannel',name:'Moving average channel',acronym:'MAC',overlay:true,

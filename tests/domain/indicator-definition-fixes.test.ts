@@ -21,18 +21,38 @@ describe('Detrended price oscillator (StockCharts: price n/2 + 1 bars ago minus 
 });
 
 describe('24-hour volume with an unknown volume inside its window',()=>{
- const bars:Bar[]=[10,NaN,20].map((volume,i)=>({time:1700000000+i*3600,open:10,high:11,low:9,close:10,volume}));
+ const T0=1700000000,H=3600;
+ // 30 hourly bars of volume 10; bar 26 has an unknown volume.
+ const base:Bar[]=Array.from({length:30},(_,i)=>({time:T0+i*H,open:10,high:11,low:9,close:10,volume:i===26?NaN:10}));
  it('a window holding the unknown volume is unavailable, matching the rolling kernel',()=>{
-  expect(rolling24hVolume(bars)).toEqual([10,null,null]);
-  expect(series(calculateIndicator('vol24h',bars),'volume')).toEqual([10,null,null]);
+  const values=rolling24hVolume(base);
+  expect(values[26]).toBeNull();
+  expect(values[29]).toBeNull();
+  expect(series(calculateIndicator('vol24h',base),'volume')[27]).toBeNull();
  });
  it('resumes once the unknown bar leaves the 24-hour window',()=>{
-  const later=[...bars,{time:1700000000+3600+86400,open:10,high:11,low:9,close:10,volume:5}];
-  expect(series(calculateIndicator('vol24h',later),'volume')).toEqual([10,null,null,25]);
+  const more:Bar[]=[...base,...Array.from({length:24},(_,i)=>({time:T0+(30+i)*H,open:10,high:11,low:9,close:10,volume:10}))];
+  const values=series(calculateIndicator('vol24h',more),'volume');
+  expect(values[49]).toBeNull();
+  expect(values[50]).toBe(240);
  });
  it('a negative volume counts as unknown too',()=>{
-  const negative=bars.map((bar,i)=>i===1?{...bar,volume:-4}:bar);
-  expect(series(calculateIndicator('vol24h',negative),'volume')).toEqual([10,null,null]);
+  const negative=base.map((bar,i)=>i===26?{...bar,volume:-4}:bar);
+  expect(series(calculateIndicator('vol24h',negative),'volume')[26]).toBeNull();
+ });
+});
+
+describe('24-hour volume before a full window is loaded',()=>{
+ const bars:Bar[]=Array.from({length:30},(_,i)=>({time:1700000000+i*3600,open:10,high:11,low:9,close:10,volume:100}));
+ it('is blank until the loaded bars cover a trailing 24 hours, then a steady 2400',()=>{
+  const values=rolling24hVolume(bars);
+  expect(values.slice(0,23).every(value=>value===null)).toBe(true);
+  expect(values[23]).toBe(2400);
+  expect(values[29]).toBe(2400);
+ });
+ it('daily bars show their own volume from the second bar',()=>{
+  const daily:Bar[]=[5,7,9].map((volume,i)=>({time:1700000000+i*86400,open:1,high:1,low:1,close:1,volume}));
+  expect(rolling24hVolume(daily)).toEqual([null,7,9]);
  });
 });
 

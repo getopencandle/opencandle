@@ -35,13 +35,13 @@ Rising values mean more activity over the last day. Compare against the series' 
 - Window boundary: a bar exactly 24 hours earlier should drop out, the current bar should be in.
 - Treating a missing-volume bar as zero; it should make the value unavailable.
 - Daily and longer intervals should return plain volume.
-- The first 24 hours of data form a partial window.
+- The first 24 hours of data form a partial window; showing its partial sum would mislabel it, so the value stays blank.
 
 ## How OpenCandle does it
 - The window is the 24 hours up to and including the bar, judged by bar open time. A bar exactly 24 hours earlier drops out.
 - Missing or negative volume anywhere in the window makes the value unavailable.
 - On daily and longer charts the value is the bar's own volume.
-- The first 24 hours of loaded data show a growing partial sum, which can look like a ramp at the left edge.
+- The value is blank until the loaded history covers a full 24 hours (the first loaded bar opened at or before the current bar's open minus 24 hours plus one bar interval). Load more history to see earlier values.
 
 ## Open questions
 Whether other tools use open-time or close-time for the window is unverified; OpenCandle's choice is its own definition.

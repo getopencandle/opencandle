@@ -65,9 +65,9 @@ describe('24-hour volume (SYNTHETIC)',()=>{
  it('sums the volume of the bars opened in the trailing 24 hours',()=>{
   // Hourly bars with volume i + 1: index 23 holds bars 0..23 -> 1 + ... + 24 = 300; index 24 drops bar 0 -> 2 + ... + 25 = 324.
   const hourly=Array.from({length:30},(_,i)=>bar(i,1,1,1,1,i+1,D0+i*HOUR)),got=values('vol24h',hourly);
-  expect(got[0]).toBe(1);expect(got[1]).toBe(3);expect(got[23]).toBe(300);expect(got[24]).toBe(324);expect(got[29]).toBe((7+30)*24/2);// bars 6..29 -> volumes 7..30 = 444
+  expect(got[0]).toBeNull();expect(got[22]).toBeNull();expect(got[23]).toBe(300);expect(got[24]).toBe(324);expect(got[29]).toBe((7+30)*24/2);// bars 6..29 -> volumes 7..30 = 444
   // Daily bars: the 24-hour window is the bar's own volume.
-  close(values('vol24h',[bar(0,1,1,1,1,5),bar(1,1,1,1,1,7)]),[5,7]);
+  close(values('vol24h',[bar(0,1,1,1,1,5),bar(1,1,1,1,1,7)]),[N,7]);
  });
 });
 

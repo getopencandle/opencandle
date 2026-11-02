@@ -123,7 +123,7 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
  {id:'dojistar',size:2,role:'reversal',definition:'A long body, then a doji whose body gaps beyond its close (below after black = bullish, above after white = bearish).',
   bullish:side('DS','Bullish doji star',(k,i)=>k.black(i-1)&&k.long(i-1)&&k.doji(i)&&k.top(i)<k.c[i-1]),
   bearish:side('DS','Bearish doji star',(k,i)=>k.white(i-1)&&k.long(i-1)&&k.doji(i)&&k.bottom(i)>k.c[i-1])},
- {id:'star',size:3,role:'reversal',definition:'Morning star: a long black body, a small non-doji body gapping below its close, then a white body closing above the first body\'s midpoint. Evening star mirrors it.',
+ {id:'star',size:3,role:'reversal',definition:'Morning star: a long black body, a small non-doji body gapping below its close, then a white body closing above the first body\'s midpoint. Evening star: a long white body, a small non-doji body gapping above its close, then a black body closing below the first body\'s midpoint.',
   bullish:side('MS','Morning star',(k,i)=>k.black(i-2)&&k.long(i-2)&&k.small(i-1)&&!k.doji(i-1)&&k.top(i-1)<k.c[i-2]&&k.white(i)&&k.c[i]>k.mid(i-2)),
   bearish:side('ES','Evening star',(k,i)=>k.white(i-2)&&k.long(i-2)&&k.small(i-1)&&!k.doji(i-1)&&k.bottom(i-1)>k.c[i-2]&&k.black(i)&&k.c[i]<k.mid(i-2))},
  {id:'dojistar3',size:3,role:'reversal',definition:'Morning Doji star and Evening Doji star: the star pattern with a doji as the middle bar.',
@@ -135,7 +135,7 @@ export const CANDLE_FAMILIES:readonly CandleFamily[]=Object.freeze([
  {id:'abandoned',size:3,role:'reversal',definition:'A long body, a doji whose whole range gaps away from both neighbours, then an opposite body that is not small and closes at least abandonedPenetration into the first body: long black, gap-down doji, gap-up white = bullish; the mirror is bearish.',
   bullish:side('AB','Bullish abandoned baby',(k,i)=>k.black(i-2)&&k.long(i-2)&&k.doji(i-1)&&k.h[i-1]<k.l[i-2]&&k.white(i)&&!k.small(i)&&k.l[i]>k.h[i-1]&&k.c[i]>k.c[i-2]+T.abandonedPenetration*k.body[i-2]),
   bearish:side('AB','Bearish abandoned baby',(k,i)=>k.white(i-2)&&k.long(i-2)&&k.doji(i-1)&&k.l[i-1]>k.h[i-2]&&k.black(i)&&!k.small(i)&&k.h[i]<k.l[i-1]&&k.c[i]<k.c[i-2]-T.abandonedPenetration*k.body[i-2])},
- {id:'soldiers',size:3,role:'reversal',definition:'Three long white bodies, each closing higher, each opening inside the prior body, each with an upper shadow at most nearExtreme of its range. Three black crows mirror it.',
+ {id:'soldiers',size:3,role:'reversal',definition:'Three white soldiers: three long white bodies, each closing higher, each opening inside the prior body, each with an upper shadow at most nearExtreme of its range. Three black crows: three long black bodies, each closing lower, each opening inside the prior body, each with a lower shadow at most nearExtreme of its range.',
   bullish:side('3WS','Three white soldiers',(k,i)=>[i-2,i-1,i].every(j=>soldier(k,j))&&k.c[i-1]>k.c[i-2]&&k.c[i]>k.c[i-1]&&k.o[i-1]>k.o[i-2]&&k.o[i-1]<=k.c[i-2]&&k.o[i]>k.o[i-1]&&k.o[i]<=k.c[i-1]),
   bearish:side('3BC','Three black crows',(k,i)=>[i-2,i-1,i].every(j=>crow(k,j))&&k.c[i-1]<k.c[i-2]&&k.c[i]<k.c[i-1]&&k.o[i-1]<k.o[i-2]&&k.o[i-1]>=k.c[i-2]&&k.o[i]<k.o[i-1]&&k.o[i]>=k.c[i-1])},
  // Nison ("Tweezers tops and bottoms"): matching highs or lows of two or more lines, made of real bodies, shadows or

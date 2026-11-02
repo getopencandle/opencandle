@@ -210,4 +210,10 @@ describe('stricter candlestick rules (SYNTHETIC)',()=>{
   expect(text('cdlharamibull')).toMatch(/at most shortBody of the average body/);expect(text('cdlrisingthree')).toMatch(/at most shortBody of the average body/);
   expect(text('cdlabandonedbabybull')).toMatch(/not small and closes at least abandonedPenetration into the first body/);
  });
+ it('the bearish star and crows entries spell out their own rule, not only the bullish one',()=>{
+  const text=(kind:string)=>catalogDefinition(kind)!.policies!.join(' ');
+  expect(text('cdlthreeblackcrows')).toMatch(/Three black crows: three long black bodies, each closing lower, each opening inside the prior body, each with a lower shadow/);
+  expect(text('cdleveningstar')).toMatch(/Evening star: a long white body, a small non-doji body gapping above its close, then a black body closing below/);
+  expect(text('cdlthreeblackcrows')+text('cdleveningstar')).not.toMatch(/mirror/);
+ });
 });

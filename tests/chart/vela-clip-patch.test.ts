@@ -30,7 +30,13 @@ type State='original'|'magnet'|'compat2'|'compat3'|'patched';
 const rows=plan.files as Row[],sha=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex');
 const target=(row:Row)=>path.resolve('node_modules/@luxalgo/vela',row.path);
 const runtimes=rows.filter(row=>row.magnetSha256),declarations=rows.filter(row=>!row.magnetSha256);
+// Each (row, state) reversal splits multi-megabyte sources once per step; the results are never mutated (virtualIO copies them), so they are computed once per file and shared by every synthetic inventory.
+const bytesAtCache=new Map<string,Buffer>();
 function bytesAt(row:Row,state:State){
+ const key=row.path+'|'+state,cached=bytesAtCache.get(key);if(cached)return cached;
+ const computed=computeBytesAt(row,state);bytesAtCache.set(key,computed);return computed;
+}
+function computeBytesAt(row:Row,state:State){
  let bytes=prepareCandidate(readFileSync(target(row)),row);
  if(state==='patched')return bytes;
  const undo=[...row.transformations].reverse().filter(step=>state==='original'||state==='magnet'&&step.id!=='magnet'||state==='compat2'&&['paint-clip-cleanup','drawing-paint-hook',...compat5StepIds,...compat6StepIds].includes(step.id)||state==='compat3'&&['drawing-paint-hook',...compat5StepIds,...compat6StepIds].includes(step.id));

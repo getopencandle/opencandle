@@ -52,7 +52,9 @@ describe('LV-VELA-COMPAT-8 plan (LV-VELA-SCALE-LEFT-1)',()=>{
    expect(sha(installed(row)),row.path).toBe(row.afterSha256);
    if(!row.magnetSha256){expect(row.compat7Sha256).toBe(row.afterSha256);expect(row.compat7Sha256).toBe(row.compat6Sha256);expect(row.transformations.some((s:any)=>s.id.startsWith('scale-left-'))).toBe(false);continue;}
    expect(row.compat7Sha256).toBe(COMPAT7[row.path]);expect(row.compat8Sha256).toBe(COMPAT8[row.path]);
-   expect(row.transformations.slice(-69,-50).map((s:any)=>s.id)).toEqual(STEP_IDS);
+   // Located by id (the scale-left block is contiguous), not by tail offset, so later rounds cannot move it.
+   const leftAt=row.transformations.findIndex((s:any)=>s.id===STEP_IDS[0]);expect(leftAt).toBeGreaterThan(-1);
+   expect(row.transformations.slice(leftAt,leftAt+STEP_IDS.length).map((s:any)=>s.id)).toEqual(STEP_IDS);
    const notices=row.transformations.filter((s:any)=>s.after.includes('/*! LarryVision LV-VELA-SCALE-LEFT-1'));
    expect(notices.map((s:any)=>s.id)).toEqual(['scale-left-api']);
   }

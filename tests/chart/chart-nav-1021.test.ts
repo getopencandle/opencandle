@@ -103,9 +103,11 @@ describe('LV-VELA-COMPAT-7 plan (LV-VELA-NAV-1)',async()=>{
   for(const row of plan.files){
    const installed=readFileSync(resolve('node_modules/@luxalgo/vela',row.path));expect(sha(installed),row.path).toBe(row.afterSha256);
    if(!row.magnetSha256){expect(row.compat6Sha256).toBe(row.afterSha256);continue;}
-   const steps=row.transformations.slice(-72,-69);expect(steps.map((step:any)=>step.id)).toEqual([...compat7StepIds]);
+   // Steps are located by id, not by tail offset (a new drawing-fix round appends steps and moved the old -72/-69 offsets).
+   const navAt=row.transformations.findIndex((step:any)=>step.id===compat7StepIds[0]);expect(navAt).toBeGreaterThan(-1);
+   const steps=row.transformations.slice(navAt,navAt+compat7StepIds.length);expect(steps.map((step:any)=>step.id)).toEqual([...compat7StepIds]);
    let text=installed.toString('utf8');
-   const later=row.transformations.slice(-69);expect(later.map((step:any)=>step.id)).toEqual([...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]);
+   const later=row.transformations.slice(navAt+compat7StepIds.length);expect(later.map((step:any)=>step.id)).toEqual([...compat8StepIds,...compat9StepIds,...compat10StepIds,...compat11StepIds]);
    for(const step of [...later].reverse()){expect(text.split(step.after)).toHaveLength(2);text=text.replace(step.after,step.before);}
    expect(sha(Buffer.from(text))).toBe(row.compat7Sha256);
    for(const step of [...steps].reverse()){expect(step.after).toContain('/*! LarryVision LV-VELA-NAV-1');expect(text.split(step.after)).toHaveLength(2);text=text.replace(step.after,step.before);}

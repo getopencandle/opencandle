@@ -18,6 +18,7 @@ import {defineLvDrawingToolModule} from './contract';
 import {nativePatternBase} from '../drawing-fixes/elliott-origin';
 import {strokePath} from './paint-helpers';
 import {lineIntersection,segmentDistance} from '../drawing-fixes/geometry';
+import {THREE_DRIVES_SYMMETRY_NOTE,threeDrivesPillOk,threeDrivesReading} from '../drawing-fixes/pattern-fixes';
 
 type Pt=readonly [number,number];
 export interface TrianglePatternPlan{
@@ -82,6 +83,15 @@ function defineChartPattern(spec:ChartPatternSpec):DrawingTypeMeta{
   legRatios():boolean{return spec.legRatios;}
   fillTriangles():number[][]{return triangles.map(triple=>[...triple]);}
  }
+ /** Three drives: a valid / invalid badge and a symmetry note (see threeDrivesReading), drawn by the patched Vela pattern painter. */
+ class LvThreeDrives extends LvChartPattern{
+  patternName():string|null{return 'Three drives';}
+  valid():boolean|null{return threeDrivesReading(this.anchors).valid;}
+  /** Each leg ratio pill is green or red against the band the badge uses (read by the painter's generic ratio pills). */
+  ratioOk(i:number):boolean|null{return threeDrivesPillOk(this.anchors,i);}
+  /** The symmetry note shows only under a valid badge. */
+  lvPatternNote():string|null{const reading=threeDrivesReading(this.anchors);return reading.valid===true&&reading.symmetric===true?THREE_DRIVES_SYMMETRY_NOTE:null;}
+ }
  if(spec.type===LV_TRIANGLE_PATTERN){
   class LvTrianglePattern extends LvChartPattern{
    hitTest(px:number,py:number,proj:Projector,tol:number):boolean{
@@ -112,11 +122,12 @@ function defineChartPattern(spec:ChartPatternSpec):DrawingTypeMeta{
   if(roles(probe).max!==labels.length)fail('triangle pattern anchor schema changed');
   return{type:lvKey(spec.type),group:base.meta.group,label:spec.label,icon:base.meta.icon,defaultStyle:cloneStyle(base.meta),create:init=>new LvTrianglePattern(init)};
  }
- const probe=new LvChartPattern({id:'lv-drawing-type-probe',paneId:'price',createdAt:0}),shape=roles(probe);
+ const Model=spec.type===LV_THREE_DRIVES?LvThreeDrives:LvChartPattern;
+ const probe=new Model({id:'lv-drawing-type-probe',paneId:'price',createdAt:0}),shape=roles(probe);
  if(shape.min!==labels.length||shape.max!==labels.length||shape.roles!==labels.map((_,index)=>'p'+index).join('/'))fail('pattern anchor schema no longer follows the vertex labels: '+JSON.stringify(shape));
  // The native schema adds the fill field exactly when the pattern tints triangles.
  if(probe.schema().fields.some(field=>field.path==='style.fillColor')!==(triangles.length>0))fail('pattern fill field no longer follows the fill triangles');
- return{type:lvKey(spec.type),group:base.meta.group,label:spec.label,icon:base.meta.icon,defaultStyle:cloneStyle(base.meta),create:init=>new LvChartPattern(init)};
+ return{type:lvKey(spec.type),group:base.meta.group,label:spec.label,icon:base.meta.icon,defaultStyle:cloneStyle(base.meta),create:init=>new Model(init)};
 }
 
 export const CHART_PATTERNS_MODULE=defineLvDrawingToolModule({

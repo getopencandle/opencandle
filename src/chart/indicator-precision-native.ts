@@ -4,7 +4,7 @@ type NativeRecord=Record<string,any>;
 function dataMethod(target:object,key:PropertyKey):Function{for(let current:object|null=target;current;current=Object.getPrototypeOf(current)){const field=Object.getOwnPropertyDescriptor(current,key);if(field){if(!Object.hasOwn(field,'value')||typeof field.value!=='function')throw Error('Indicator tick methods must remain data functions.');return field.value;}}throw Error('Indicator tick method is unavailable.');}
 export interface IndicatorPrecisionAxis {
  scale:object;bounds:object;x:number;maxWidth:number;precision:number;
- transform(value:number):number;suffix:string;signed:boolean;assertCurrent():void;
+ transform(value:number):number;label?(value:number):string;suffix:string;signed:boolean;assertCurrent():void;
 }
 
 /** Call-local facades preserve the actual native tick generator and painter body. */
@@ -38,7 +38,7 @@ export function withIndicatorTickPrecision<T>(ctx:CanvasRenderingContext2D,coord
   assert();if(this!==context)throw Error('Indicator tick text receiver changed.');const match=pending;pending=null;
   if(match&&match.ordinal===ordinal&&x===match.axis.x&&y===match.y){
    match.axis.assertCurrent();const transformed=match.axis.transform(match.price);assert();match.axis.assertCurrent();
-   label=formatIndicatorNumber(transformed,match.axis.precision);label=(match.axis.signed&&!label.startsWith('-')?'+':'')+label+match.axis.suffix;assert();match.axis.assertCurrent();
+   if(match.axis.label)label=match.axis.label(transformed);else{label=formatIndicatorNumber(transformed,match.axis.precision);label=(match.axis.signed&&!label.startsWith('-')?'+':'')+label+match.axis.suffix;}assert();match.axis.assertCurrent();
    if(!Number.isFinite(match.axis.maxWidth)||match.axis.maxWidth<=0)throw Error('Indicator tick column width is unavailable.');remaining=[match.axis.maxWidth];
   }
   const original=dataMethod(ctx,'fillText');assert();match?.axis.assertCurrent();

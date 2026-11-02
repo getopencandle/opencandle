@@ -71,6 +71,14 @@ export function formatFundamentalValue(value:number,kind:string,inputs:Record<st
  let text=(unit?value/unit[0]:value).toFixed(decimals);if(text.startsWith('-')&&Number(text)===0)text=text.slice(1);
  return text+(unit?unit[1]:'')+format.suffix;
 }
+/** A price-scale label for a `fundamental` pane: one unit (K, M, B, T) for the whole visible range [low, high], with just
+ *  enough decimals to tell neighbouring ticks apart ("4.8T", "5.0T", "5.2T"); % and x suffixes for ratio metrics. */
+export function formatFundamentalAxisValue(value:number,kind:string,inputs:Record<string,unknown>,low:number,high:number):string{
+ const format=fundamentalValueFormat(kind,inputs),reach=Math.max(Math.abs(low),Math.abs(high)),unit=format.compact?COMPACT_UNITS.find(([scale])=>reach>=scale):undefined;
+ const step=(Math.abs(high-low)/(unit?unit[0]:1))/4,decimals=Number.isFinite(step)&&step>0?Math.min(3,Math.max(0,Math.ceil(-Math.log10(step)-1e-9))):2;
+ let text=(unit?value/unit[0]:value).toFixed(decimals);if(text.startsWith("-")&&Number(text)===0)text=text.slice(1);
+ return text+(unit?unit[1]:"")+format.suffix;
+}
 /** Statement values draw as steps (Columns is offered in Style); ratios draw as a line. */
 export const fundamentalPlotKind=(metric:unknown):'step'|'line'=>{const row=metricSpec(String(metric));return row&&!row.ratio&&row.key!=='fcf_ps'?'step':'line';};
 

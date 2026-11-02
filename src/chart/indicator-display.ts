@@ -15,7 +15,7 @@ import {fundamentalLegendTitle,fundamentalsLegendArguments,isFundamentalsIndicat
 
 type Row=Record<string,any>;
 type Method=(this:any,...args:any[])=>any;
-type DisplayRow=Pick<IndicatorDisplayOwner,'id'|'rendererId'|'plots'|'precision'|'valueSuffix'|'compact'>&{series:readonly object[]};
+type DisplayRow=Pick<IndicatorDisplayOwner,'id'|'rendererId'|'plots'|'precision'|'valueSuffix'|'compact'|'axisLabel'>&{series:readonly object[]};
 export interface IndicatorDisplayOptions {labelsVisible:boolean;valuesVisible:boolean}
 /** setNameLabels: "Indicators and financials name labels" (default off). */
 export interface IndicatorDisplayController {setOptions(options:IndicatorDisplayOptions):void;setNameLabels(on:boolean):void;diagnostics():ChartDiagnostic[];dispose():void}
@@ -143,6 +143,7 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
      let text:string;const precision=precisionFor(row);
      if(script){const valueShown=baseline===null?value:(value/baseline-(mode==='percent'?1:0))*100;if(!Number.isFinite(valueShown))throw Error('Script scale value cannot be represented.');text=script.frame.format.format(valueShown);if(mode==='percent')text=(!text.startsWith('-')?'+':'')+text+'%';}
      else if(mode==='percent'||mode==='indexed'){const transformed=(value/baseline!-(mode==='percent'?1:0))*100;if(!Number.isFinite(transformed)){add('Indicator percent/indexed value is not representable.');continue;}if(precision==='auto')text=mode==='percent'?(transformed>=0?'+':'-')+Math.abs(transformed).toFixed(2)+'%':transformed.toFixed(2);else{text=formatIndicatorNumber(transformed,precision);text=(mode==='percent'&&!text.startsWith('-')?'+':'')+text+(mode==='percent'?'%':'');}}
+     else if(precision==='auto'&&typeof row.axisLabel==='function')text=row.axisLabel(value,low,high);
      else text=precision!=='auto'?formatIndicatorNumber(value,precision)+(row.valueSuffix??''):!column&&axisFormat==='volume'||row.compact===true?compact(value):Reflect.apply(format,host,[value,formattedPane]);
      assertCurrent();
      if(typeof text!=='string'||!text||text.length>128)throw Error('Indicator automatic label text is unavailable.');
@@ -158,7 +159,7 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
  }
  function precisionAxes(kind:'master'|'private',coords:Row,dataWidth:number):IndicatorPrecisionAxis[]{
   const owners=source.read();if(owners.length>INDICATOR_MAX_INSTANCES)throw Error('Indicator display instance bound exceeded.');
-  const numerical=owners.filter(row=>precisionFor(row)!=='auto');if(!numerical.length)return [];
+  const numerical=owners.filter(row=>precisionFor(row)!=='auto'||typeof row.axisLabel==='function');if(!numerical.length)return [];
   const ticks=own(chrome,'axisTicks'),hook=own(ticks,'fn');if(kind==='master'&&hook!==null)return [];
   if(models.size>INDICATOR_MAX_INSTANCES*3)throw Error('Indicator tick ownership inventory exceeds its local bound.');
   const zOrder=map(own(scene,'seriesZ'),'z order'),members=[...models].map(([id,model])=>({id,model,paneId:own(model,'paneId'),ownScale:own(model,'ownScale',true),z:zOrder.get(id)}));
@@ -185,9 +186,9 @@ export function installIndicatorDisplay(renderer:NativeRenderer,chart:Vela,port:
    const min=finite(own(scale,'min'),'tick scale minimum'),max=finite(own(scale,'max'),'tick scale maximum'),log=own(scale,'log',true),invert=own(scale,'invert',true);if(!(max>min)||log===true&&min<=0)throw Error('Indicator precision scale geometry is unavailable.');
    const mode=kind==='private'?'price':own(pane,'scaleMode',true)??'price';if(!['price','percent','indexed'].includes(mode))throw Error('Indicator precision axis mode is unsupported.');
    const baseline=mode==='price'?null:finite(own(pane,'percentBaseline',true),'tick baseline');if(baseline===0)throw Error('Indicator precision axis baseline is zero.');
-   const precision=precisionFor(row) as number,format=own(pane,'axisFormat',true);
+   const rowPrecision=precisionFor(row),precision=rowPrecision=='auto'?0:rowPrecision as number,format=own(pane,'axisFormat',true),axisLabel=mode==='price'&&typeof row.axisLabel==='function'?row.axisLabel:undefined;
    const assertCurrent=()=>{assertMembers();if(modelFor(row)!==model||panes.get(paneId)!==pane||own(pane,'bounds')!==bounds||own(bounds,'top')!==top||own(bounds,'height')!==height||own(pane,'collapsed',true)===true||own(pane,'axisFormat',true)!==format||(kind==='private'?own(scales.get(row.rendererId),'scale'):own(pane,'scale'))!==scale||own(scale,'min')!==min||own(scale,'max')!==max||own(scale,'log',true)!==log||own(scale,'invert',true)!==invert||(kind==='private'?'price':own(pane,'scaleMode',true)??'price')!==mode||baseline!==null&&own(pane,'percentBaseline',true)!==baseline)throw Error('Indicator precision accepted owner or geometry changed.');assertOwner();};
-   assertCurrent();result.push({scale,bounds,x:kind==='private'?dataWidth+MASTER_WIDTH+(column-1)*COLUMN_WIDTH+5:dataWidth+6,maxWidth:(kind==='private'?COLUMN_WIDTH:MASTER_WIDTH)-10,precision,suffix:mode==='percent'?'%':(row.valueSuffix??''),signed:mode==='percent',transform(value){return baseline===null?value:(value/baseline-(mode==='percent'?1:0))*100;},assertCurrent});
+   assertCurrent();result.push({scale,bounds,x:kind==='private'?dataWidth+MASTER_WIDTH+(column-1)*COLUMN_WIDTH+5:dataWidth+6,maxWidth:(kind==='private'?COLUMN_WIDTH:MASTER_WIDTH)-10,precision,...(axisLabel&&rowPrecision==='auto'?{label:(value:number)=>axisLabel(value,min,max)}:{}),suffix:mode==='percent'?'%':(row.valueSuffix??''),signed:mode==='percent',transform(value){return baseline===null?value:(value/baseline-(mode==='percent'?1:0))*100;},assertCurrent});
   }
   return result;
  }

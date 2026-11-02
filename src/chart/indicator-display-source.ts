@@ -7,6 +7,8 @@ export interface IndicatorDisplayOwner {
  input:readonly unknown[]|null;series:readonly SeriesSpec[];plots:readonly IndicatorDisplayPlot[];precision?:IndicatorPrecision;valueSuffix?:string;
  /** Volume-unit values (OBV, EFI, A/D, ...): automatic labels and the pane axis read abbreviated (K, M, B). */
  compact?:boolean;
+ /** Price-scale label text for a value on a scale spanning [low, high] (financials panes: one compact unit per visible range). */
+ axisLabel?:(value:number,low:number,high:number)=>string;
 }
 interface Registration {chart:object;read:()=>readonly IndicatorDisplayOwner[];active:boolean}
 const registrations=new WeakMap<object,Registration>();

@@ -17,7 +17,6 @@ const trayIcons=Object.freeze({16:path.join(__dirname,'assets','opencandle-tray-
 const APP_USER_MODEL_ID='com.getopencandle.app';
 const { WorkspaceStore } = require('./storage.cjs');
 const { ScriptJobs } = require('./script-jobs.cjs');
-const { SecCompanyFacts } = require('./public-sec.cjs');
 const { importDataInput, titles:importTitles, limits:importLimits, readLocalText } = require('./import-data.cjs');
 const validation = require('./validation.cjs');
 const { createStartupDiagnostics, safeCode } = require('./startup-diagnostics.cjs');
@@ -150,6 +149,19 @@ alpacaStub();
 // request, folder or module load until the user opens a FRED symbol.
 let fredStore=null;
 function fredSeries(){if(!fredStore){const {FredSeries,CACHE_DIRECTORY:FRED_DIRECTORY}=require('./public-fred.cjs');fredStore=new FredSeries({directory:path.join(app.getPath('userData'),FRED_DIRECTORY)});}return fredStore;}
+// SEC company data (electron/sec-cache.cjs): one queue, one disk cache in <userData>/sec-cache and the single SecCompanyFacts
+// client. Lazy: nothing loads, nothing is created and no request is sent until a renderer asks. SEC_CONTACT is the mailbox
+// SEC asks automated readers to declare. While it stays UNSET only the ticker-file fetch is off (public-sec.cjs answers CONTACT_UNSET).
+const SEC_CONTACT='UNSET';
+let secStore=null;
+const secRunBlocked=()=>{const env=(typeof process==='object'&&process.env)||{};return Boolean(alpacaStub())||automationSession||Boolean(env.LV_IMAGE_HARNESS||env.LV_EXE_HARNESS);};
+function secCache(){if(!secStore){const {SecCompanyFacts}=require('./public-sec.cjs');const {SecCache,CACHE_DIRECTORY:SEC_DIRECTORY}=require('./sec-cache.cjs');secStore=new SecCache({directory:path.join(app.getPath('userData'),SEC_DIRECTORY),client:new SecCompanyFacts({contact:SEC_CONTACT,version:app.getVersion()}),blocked:secRunBlocked});}return secStore;}
+const secClearCache=async()=>{try{if(secStore)await secStore.clear();else await fs.rm(path.join(app.getPath('userData'),'sec-cache'),{recursive:true,force:true});}catch{}};
+const secFilingUrl=value=>{
+  validation.exactKeys(value,['cik','accession']);
+  if(typeof value.cik!=='string'||!/^\d{1,10}$/.test(value.cik)||Number(value.cik)===0||typeof value.accession!=='string'||!/^\d{10}-\d{2}-\d{6}$/.test(value.accession))throw new validation.BoundaryError('INVALID_ARGUMENT','This is not a SEC filing.');
+  return 'https://www.sec.gov/Archives/edgar/data/'+Number(value.cik)+'/'+value.accession.replace(/-/g,'')+'/'+value.accession+'-index.htm';
+};
 let barCacheStore=null;
 function barCache(){if(!barCacheStore){const {BarCache,CACHE_DIRECTORY}=require('./bar-cache.cjs');const stub=alpacaStub();barCacheStore=new BarCache({directory:path.join(app.getPath('userData'),CACHE_DIRECTORY),allowedProviders:stub?(stub.mode==='synthetic'?['alpaca-stub']:[]):['alpaca-iex']});}return barCacheStore;}
 // Split and dividend history (electron/public-alpaca-actions.cjs) through the Alpaca bars queue, cached in the
@@ -229,7 +241,7 @@ async function restoreLayoutWindows(){
 const REPORT_STUCK_URL='https://github.com/getopencandle/opencandle/issues/new?template=where-i-got-stuck.yml';
 // Tool About panels link the sources of the bundled reference notes (docs/reference/tools). Main opens only an http or
 // https address without credentials on one of these hosts; tests keep the list in step with the notes.
-const REFERENCE_LINK_HOSTS=new Set(['alphatrends.net','arongroups.co','chartschool.stockcharts.com','docs.wickra.org','en.wikipedia.org','raw.githubusercontent.com','stockcharts.com','store.traders.com','ta-lib.org','traders.com','www.bollingerbands.com','www.edgerater.com','www.investopedia.com','www.linnsoft.com','www.mesasoftware.com','www.tangotools.com']);
+const REFERENCE_LINK_HOSTS=new Set(['alphatrends.net','arongroups.co','asc.fasb.org','chartschool.stockcharts.com','docs.wickra.org','en.wikipedia.org','pages.stern.nyu.edu','raw.githubusercontent.com','stockcharts.com','store.traders.com','ta-lib.org','traders.com','www.bollingerbands.com','www.cfainstitute.org','www.edgerater.com','www.investopedia.com','www.linnsoft.com','www.mesasoftware.com','www.sec.gov','www.tangotools.com']);
 const referenceLinkInput=value=>{
   validation.exactKeys(value,['url']);let url=null;
   if(typeof value.url==='string'&&value.url.length<=2048)try{url=new URL(value.url);}catch{url=null;}
@@ -253,14 +265,13 @@ const noInput=value=>{if(value!==undefined)validation.exactKeys(value,[]);};
 function trusted(event) { return !!mainWindow&&event.sender===mainWindow.webContents&&event.senderFrame===mainWindow.webContents.mainFrame&&validation.isAppURL(event.senderFrame.url); }
 function installIPC(store) {
   const scripts = new ScriptJobs();
-  const sec = new SecCompanyFacts();
   app.on('before-quit', () => scripts.close());
-  app.on('before-quit', () => sec.close());
+  app.on('before-quit', () => secStore?.close());
   app.on('before-quit', closeLiveFeeds);
   const handlers = {
     'lv:workspace:load': async value => { if (value !== undefined) validation.exactKeys(value, []); return store.load(); },
     'lv:workspace:save': async value => store.save(validation.saveInput(value)),
-    'lv:workspace:reset': async value => {if(!Number.isSafeInteger(value)||value<0)throw new validation.BoundaryError('INVALID_ARGUMENT','Invalid reset revision.');return store.reset(value);},
+    'lv:workspace:reset': async value => {if(!Number.isSafeInteger(value)||value<0)throw new validation.BoundaryError('INVALID_ARGUMENT','Invalid reset revision.');{const reset=await store.reset(value);await secClearCache();return reset;}},
     // Exe harness only (electron/image-harness.cjs). Null unless LV_IMAGE_HARNESS asks for the SYNTHETIC image and
     // the gate admits the run (throwaway profile under the OS temp folder; a packaged build also needs LV_EXE_HARNESS=image-inject).
     'lv:harness:image': async value => { noInput(value); const env=(typeof process==='object'&&process.env)||{}; if(!env.LV_IMAGE_HARNESS)return null; const harness=require('./image-harness.cjs'),os=require('node:os'),fsSync=require('node:fs'),real=item=>{try{return fsSync.realpathSync.native(item);}catch{return path.resolve(item);}},target=profile?profile.slice('--lv-profile='.length):null; return harness.harnessImage(harness.imageHarnessDecision({env,packaged:app.isPackaged===true,profile:target&&path.isAbsolute(target)?real(target):null,tmpdir:real(os.tmpdir())})); },
@@ -286,9 +297,11 @@ function installIPC(store) {
     'lv:data:export': async (value,event) => {const input=validation.dataExportInput(value);return exportFile(input.bytes,input.suggestedName,input.format,event,input.format==='png'?'Save image':'Save file');},
     'lv:data:export-binary': async value => {const input=validation.binaryExportInput(value);return exportFile(input.bytes,input.suggestedName,input.format,exportSenders.get(value),input.format==='png'?'Save image':'Save file');},
     'lv:script:execute': async value => { const result = await scripts.run(value); if (!result.ok) throw new validation.BoundaryError(result.error.code,result.error.message); return result.value; },
-    'lv:sec:companyfacts': async value => {const result=await sec.run(value);if(!result.ok)throw new validation.BoundaryError(result.error.code,result.error.message);return result.value;},
-    'lv:sec:submissions': async value => {const result=await sec.run(value,'submissions');if(!result.ok)throw new validation.BoundaryError(result.error.code,result.error.message);return result.value;},
-    'lv:sec:cancel': async value => ({cancelled:sec.cancel(validation.cancelInput(value))}),
+    'lv:sec:companyfacts': async value => {const result=await secCache().network(value,'companyfacts');if(!result.ok)throw new validation.BoundaryError(result.error.code,result.error.message);return result.value;},
+    'lv:sec:submissions': async value => {const result=await secCache().network(value,'submissions');if(!result.ok)throw new validation.BoundaryError(result.error.code,result.error.message);return result.value;},
+    'lv:sec:cancel': async value => {const id=validation.cancelInput(value);return {cancelled:secStore?secStore.cancel(id):false};},
+    'lv:sec:cached': async value => secCache().get(value),
+    'lv:sec:open-filing': async value => {const url=secFilingUrl(value);await require('electron').shell.openExternal(url);return {opened:true};},
     'lv:coinbase:candles': async value => liveResult(await coinbaseFeed().candles(value)),
     // With layout windows open, every window streams through its share of one feed (windows.cjs FeedShare).
     'lv:coinbase:subscribe': async (value,event) => windowRegistry?liveResult(await windowRegistry.shares.coinbase.subscribe(event.sender,value)):liveResult(coinbaseFeed().subscribe(value)),

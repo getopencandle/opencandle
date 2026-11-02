@@ -184,6 +184,28 @@ if(Object.hasOwn(manifest.sourceHashes,'electron/public-fred.cjs')){
  }
 }
 
+// SEC company data cache. The module ships with the manifest hash, needs only Node's fs, path and crypto plus ./validation.cjs
+// and ./public-sec.cjs, has no network, process or shell access of its own, writes records atomically, caps the folder, and
+// main.cjs loads it once, lazily. Its channels sit in the trusted handler table; a layout window may read the cache but never open a
+// filing. Older manifests without the module keep their historical scope.
+if(Object.hasOwn(manifest.sourceHashes,'electron/sec-cache.cjs')){
+ const secName='electron/sec-cache.cjs',archiveText=name=>extractFile(asar,path.normalize(name)).toString('utf8');
+ check('ASAR includes '+secName,entries.includes(secName));
+ check('SEC cache module matches the manifest source hash',createHash('sha256').update(extractFile(asar,path.normalize(secName))).digest('hex')===manifest.sourceHashes[secName]);
+ const secText=archiveText(secName),mainText=archiveText('electron/main.cjs'),preloadText=archiveText('electron/preload.cjs'),windowsText=archiveText('electron/windows.cjs');
+ const secRequires=[...secText.matchAll(/require\(\s*['"`]([^'"`]*)['"`]\s*\)/g)].map(match=>match[1]).sort();
+ check('SEC cache module requires only node:crypto, node:fs/promises, node:path, ./public-sec.cjs and ./validation.cjs',JSON.stringify(secRequires)===JSON.stringify(['./public-sec.cjs','./validation.cjs','node:crypto','node:fs/promises','node:path'])&&!/\bimport\s*\(/.test(secText));
+ check('SEC cache module has no network, process or shell access',!/globalThis\.fetch|fetch\(|WebSocket|https?:\/\/|wss?:\/\/|child_process|openExternal|require\(\s*['"`]electron['"`]\s*\)/.test(secText));
+ check('SEC cache writes are atomic (temp file then rename) and the folder is capped',secText.includes('fs.rename(temp,file)')&&secText.includes('const MAX_CACHE_BYTES=256*1024*1024;')&&secText.includes('const MAX_QUEUE=16;'));
+ check('main.cjs loads the SEC cache once, lazily',(mainText.match(/require\(['"]\.\/sec-cache\.cjs['"]\)/g)??[]).length===1&&!/^const\s*\{[^}]*\}\s*=\s*require\(['"]\.\/public-sec\.cjs['"]\)/m.test(mainText));
+ check('SEC contact is one main-process constant and no address is hard-wired',/const SEC_CONTACT='[^'@]*';/.test(mainText));
+ for(const channel of ['lv:sec:cached','lv:sec:open-filing'])check('main.cjs registers '+channel+' in the trusted handler table',mainText.includes("'"+channel+"': async"));
+ for(const channel of ['lv:sec:cached','lv:sec:open-filing'])check('preload invokes '+channel+' as a fixed channel',preloadText.includes("invoke('"+channel+"'"));
+ check('opening a filing builds a fixed sec.gov address from a validated CIK and accession',mainText.includes("'https://www.sec.gov/Archives/edgar/data/'"));
+ const secSecondary=windowsText.match(/const SECONDARY_CHANNELS = Object\.freeze\(\[([\s\S]*?)\]\);/),secChannels=secSecondary?[...secSecondary[1].matchAll(/'([^']+)'/g)].map(match=>match[1]):[];
+ check('layout windows may read cached SEC data but never open a filing',secChannels.includes('lv:sec:cached')&&!secChannels.includes('lv:sec:open-filing'));
+}
+
 // The local bar cache. The module ships with the manifest hash, needs only Node's fs, path and crypto plus
 // ./validation.cjs, has no network, process or shell access, and main.cjs loads it once, lazily, with the stub namespace
 // gate. Its five channels sit in the trusted handler table; preload exposes them as fixed data-only calls. Older manifests

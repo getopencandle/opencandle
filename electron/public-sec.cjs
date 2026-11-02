@@ -3,6 +3,10 @@ const {createHash}=require('node:crypto');
 const {BoundaryError,exactKeys,jsonData,cancelInput}=require('./validation.cjs');
 const MAX_BYTES=32*1024*1024;
 const TIMEOUT_MS=10000;
+const TICKERS_TIMEOUT_MS=20000;
+const TICKERS_URL='https://www.sec.gov/files/company_tickers.json';
+const MAX_TICKER_ROWS=100000;
+const CONTACT_PLACEHOLDER='UNSET';
 const MIN_REQUEST_INTERVAL_MS=1000;
 const USER_AGENT='OpenCandle/0.8.2 (getopencandle.com; optional public SEC data reader)';
 const coverage='SEC non-custom entity-wide XBRL concepts only; filing periods, units and restatements require explicit normalization. Not quotes or complete fundamentals.';
@@ -42,26 +46,44 @@ function validateSubmissions(value,cik){
   for(const file of history)if(!file||typeof file!=='object'||Array.isArray(file)||typeof file.name!=='string'||!new RegExp('^CIK'+cik+'-submissions-\\d{3,6}\\.json$').test(file.name)||!Number.isSafeInteger(file.filingCount)||file.filingCount<0||typeof file.filingFrom!=='string'||typeof file.filingTo!=='string')throw new BoundaryError('SEC_SCHEMA_INVALID','SEC history file metadata is invalid.');
   return data;
 }
+function tickersInput(value){
+  exactKeys(value,['requestId']);
+  cancelInput({requestId:value.requestId});
+  return{requestId:value.requestId,cik:null};
+}
+function validateTickers(value){
+  const data=jsonData(value);
+  if(!data||typeof data!=='object'||Array.isArray(data))throw new BoundaryError('SEC_SCHEMA_INVALID','SEC ticker file schema is invalid.');
+  const rows=Object.values(data);
+  if(!rows.length||rows.length>MAX_TICKER_ROWS)throw new BoundaryError('SEC_SCHEMA_INVALID','SEC ticker file row count is invalid.');
+  for(const row of rows){
+    if(!row||typeof row!=='object'||Array.isArray(row)||!(Number.isSafeInteger(row.cik_str)||(typeof row.cik_str==='string'&&/^\d{1,10}$/.test(row.cik_str)))||typeof row.ticker!=='string'||row.ticker.length<1||row.ticker.length>20||typeof row.title!=='string'||row.title.length>1000)throw new BoundaryError('SEC_SCHEMA_INVALID','SEC ticker row schema is invalid.');
+  }
+  return data;
+}
 class SecCompanyFacts {
-  constructor({fetchImpl=globalThis.fetch,now=Date.now,timeoutMs=TIMEOUT_MS}={}){this.fetch=fetchImpl;this.now=now;this.timeoutMs=timeoutMs;this.active=new Map();this.nextAllowedAt=0;this.closed=false;}
+  constructor({fetchImpl=globalThis.fetch,now=Date.now,timeoutMs=TIMEOUT_MS,tickersTimeoutMs=TICKERS_TIMEOUT_MS,contact=CONTACT_PLACEHOLDER,version='0.0.0'}={}){this.fetch=fetchImpl;this.now=now;this.timeoutMs=timeoutMs;this.tickersTimeoutMs=tickersTimeoutMs;this.contact=contact;this.version=version;this.active=new Map();this.nextAllowedAt=0;this.closed=false;}
   run(raw,kind='companyfacts'){
-    if(!['companyfacts','submissions'].includes(kind))return Promise.resolve({ok:false,error:{code:'INVALID_ARGUMENT',message:'Unsupported fixed SEC capability.'}});
-    let input;try{input=secInput(raw);}catch(error){return Promise.resolve({ok:false,error:{code:error.code||'INVALID_ARGUMENT',message:error.message}});}
+    if(!['companyfacts','submissions','tickers'].includes(kind))return Promise.resolve({ok:false,error:{code:'INVALID_ARGUMENT',message:'Unsupported fixed SEC capability.'}});
+    const tickers=kind==='tickers';
+    let input;try{input=tickers?tickersInput(raw):secInput(raw);}catch(error){return Promise.resolve({ok:false,error:{code:error.code||'INVALID_ARGUMENT',message:error.message}});}
     if(this.closed)return Promise.resolve({ok:false,error:{code:'CLOSED',message:'Public data capability is closed.'}});
+    if(tickers&&(typeof this.contact!=='string'||!this.contact||this.contact===CONTACT_PLACEHOLDER))return Promise.resolve({ok:false,error:{code:'CONTACT_UNSET',message:'Automatic ticker lookup is not set up in this build.'}});
     if(this.active.size)return Promise.resolve({ok:false,error:{code:'BUSY',message:'A public SEC request is already active.'}});
     if(this.now()<this.nextAllowedAt)return Promise.resolve({ok:false,error:{code:'RATE_LIMITED',message:'SEC requests are locally limited. Wait before requesting again.'}});
     this.nextAllowedAt=this.now()+MIN_REQUEST_INTERVAL_MS;
-    const sourceUrl=kind==='companyfacts'?'https://data.sec.gov/api/xbrl/companyfacts/CIK'+input.cik+'.json':'https://data.sec.gov/submissions/CIK'+input.cik+'.json';
+    const sourceUrl=tickers?TICKERS_URL:kind==='companyfacts'?'https://data.sec.gov/api/xbrl/companyfacts/CIK'+input.cik+'.json':'https://data.sec.gov/submissions/CIK'+input.cik+'.json';
+    const agent=tickers?'OpenCandle/'+this.version+' (getopencandle.com; '+this.contact+')':USER_AGENT;
     return new Promise(resolve=>{
       let finished=false;
       let reader;
       const controller=new AbortController();
       const finish=result=>{if(finished)return;finished=true;clearTimeout(timer);this.active.delete(input.requestId);controller.abort();void reader?.cancel().catch(()=>{});resolve(result);};
-      const timer=setTimeout(()=>finish({ok:false,error:{code:'TIMEOUT',message:'SEC request exceeded ten seconds.'}}),this.timeoutMs);
+      const timer=setTimeout(()=>finish({ok:false,error:{code:'TIMEOUT',message:'SEC request exceeded ten seconds.'}}),(tickers?this.tickersTimeoutMs:this.timeoutMs));
       this.active.set(input.requestId,{cancel:()=>finish({ok:false,error:{code:'CANCELLED',message:'SEC request cancelled before data commit.'}})});
       void(async()=>{
         try{
-          const response=await this.fetch(sourceUrl,{method:'GET',redirect:'manual',credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',signal:controller.signal,headers:{'User-Agent':USER_AGENT,'Accept':'application/json','Accept-Encoding':'identity'}});
+          const response=await this.fetch(sourceUrl,{method:'GET',redirect:'manual',credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',signal:controller.signal,headers:{'User-Agent':agent,'Accept':'application/json','Accept-Encoding':'identity'}});
           if(finished){await response.body?.cancel().catch(()=>{});return;}
           if(response.status===403||response.status===429){this.nextAllowedAt=this.now()+10*60*1000;throw new BoundaryError(response.status===403?'SEC_ACCESS_DENIED':'RATE_LIMITED','SEC denied or limited this public request. No retry was made.');}
           if(response.status>=300&&response.status<400)throw new BoundaryError('REDIRECT_DENIED','SEC redirect was denied.');
@@ -80,10 +102,10 @@ class SecCompanyFacts {
           if(finished)return;
           const buffer=Buffer.concat(chunks,bytes);
           let raw;try{raw=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(buffer));}catch{throw new BoundaryError('SEC_FORMAT_INVALID','SEC returned invalid UTF-8 JSON.');}
-          const data=kind==='companyfacts'?validateCompanyFacts(raw,input.cik):validateSubmissions(raw,input.cik);
+          const data=tickers?validateTickers(raw):kind==='companyfacts'?validateCompanyFacts(raw,input.cik):validateSubmissions(raw,input.cik);
           if(finished)return;
           const additional=kind==='submissions'?{recentCount:data.filings.recent.accessionNumber.length,historyFiles:data.filings.files,historyFetched:false}:{};
-          finish({ok:true,value:{schemaVersion:1,cik:input.cik,entityName:kind==='companyfacts'?data.entityName:data.name,data,...additional,provenance:{provider:'SEC EDGAR',kind:'public-unauthenticated',sourceUrl,retrievedAt:new Date(this.now()).toISOString(),sha256:createHash('sha256').update(buffer).digest('hex'),bytes,coverage:kind==='companyfacts'?coverage:'SEC recent filing columns only. Referenced history files are not fetched; not complete filing history or a general news feed.'}}});
+          finish({ok:true,value:{schemaVersion:1,cik:input.cik,entityName:tickers?'SEC company tickers':kind==='companyfacts'?data.entityName:data.name,data,...additional,provenance:{provider:'SEC EDGAR',kind:'public-unauthenticated',sourceUrl,retrievedAt:new Date(this.now()).toISOString(),sha256:createHash('sha256').update(buffer).digest('hex'),bytes,coverage:tickers?'SEC ticker to CIK file only; one row per ticker. Not a list of every filer.':kind==='companyfacts'?coverage:'SEC recent filing columns only. Referenced history files are not fetched; not complete filing history or a general news feed.'}}});
         }catch(error){if(!finished)finish({ok:false,error:{code:error instanceof BoundaryError?error.code:'SEC_NETWORK_ERROR',message:error instanceof BoundaryError?error.message:'Public SEC request failed. No retry was made.'}});}
       })();
     });
@@ -91,4 +113,4 @@ class SecCompanyFacts {
   cancel(requestId){const request=this.active.get(requestId);if(!request)return false;request.cancel();return true;}
   close(){this.closed=true;for(const request of Array.from(this.active.values()))request.cancel();}
 }
-module.exports={SecCompanyFacts,secInput,validateCompanyFacts,validateSubmissions,MAX_BYTES,USER_AGENT};
+module.exports={SecCompanyFacts,secInput,tickersInput,validateCompanyFacts,validateSubmissions,validateTickers,TICKERS_URL,CONTACT_PLACEHOLDER,MAX_BYTES,USER_AGENT};

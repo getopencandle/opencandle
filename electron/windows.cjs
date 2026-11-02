@@ -30,7 +30,7 @@ const CLOSE_TOKEN = /^close-[0-9]{1,15}$/;
 const SECONDARY_CHANNELS = Object.freeze([
   'lv:workspace:load', 'lv:workspace:flushed', 'lv:window:layout-save', 'lv:window:paper-action', 'lv:close', 'lv:window:fullscreen',
   'lv:chart:export', 'lv:chart:copy', 'lv:data:export', 'lv:data:export-binary', 'lv:script:execute', 'lv:cancel',
-  'lv:sec:companyfacts', 'lv:sec:submissions', 'lv:sec:cancel',
+  'lv:sec:companyfacts', 'lv:sec:submissions', 'lv:sec:cancel', 'lv:sec:cached',
   'lv:fred:series',
   'lv:coinbase:candles', 'lv:coinbase:subscribe', 'lv:coinbase:unsubscribe', 'lv:coinbase:status', 'lv:coinbase:cancel',
   'lv:alpaca:key-status', 'lv:alpaca:bars', 'lv:alpaca:subscribe', 'lv:alpaca:unsubscribe', 'lv:alpaca:status', 'lv:alpaca:cancel', 'lv:alpaca:search-assets', 'lv:alpaca:corporate-actions',

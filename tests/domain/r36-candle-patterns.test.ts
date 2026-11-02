@@ -214,6 +214,15 @@ describe('stricter candlestick rules (SYNTHETIC)',()=>{
   const text=(kind:string)=>catalogDefinition(kind)!.policies!.join(' ');
   expect(text('cdlthreeblackcrows')).toMatch(/Three black crows: three long black bodies, each closing lower, each opening inside the prior body, each with a lower shadow/);
   expect(text('cdleveningstar')).toMatch(/Evening star: a long white body, a small non-doji body gapping above its close, then a black body closing below/);
-  expect(text('cdlthreeblackcrows')+text('cdleveningstar')).not.toMatch(/mirror/);
+  expect(text('cdlengulfingbear')).toMatch(/Bearish engulfing: a white body, then a larger black body opening at or above the prior close and closing at or below the prior open/);
+  expect(text('cdldarkcloud')).toMatch(/Dark cloud cover: a long white body, then a black body opening above its high and closing below its midpoint but above its open/);
+  expect(text('cdlabandonedbabybear')).toMatch(/Bearish abandoned baby: a long white body, a doji whose whole range gaps above it, then a black body whose whole range gaps below the doji/);
+  expect(text('cdleveningdojistar')).toMatch(/Evening Doji star: a long white body, a doji whose body gaps above its close, then a black body closing below/);
+  expect(text('cdlfallingthree')).toMatch(/Falling three methods: a long black bar, three bars with small real bodies .* then a long black bar closing below the first close/);
+  for(const kind of ['cdlrisingthree','cdlfallingthree'])expect(text(kind),kind).toMatch(/the fifth bar's open is not constrained/);
+  expect(text('cdldowntasuki')).toMatch(/Downside Tasuki gap: two black bars with a gap down between their ranges, then a white bar opening inside the second body and closing inside the gap/);
+  expect(text('cdllonguppershadow')).toMatch(/Long upper shadow: the upper shadow is at least longShadowRange of the range/);
+  // No single-direction entry leans on the other direction's wording.
+  for(const kind of CANDLE_PATTERN_INDICATOR_IDS)expect(text(kind),kind).not.toMatch(/mirror|the star pattern/);
  });
 });

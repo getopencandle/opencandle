@@ -3,7 +3,7 @@ import {newYorkDate,type CorporateActionEvent} from '../domain/chart-events';
 import {normalizeSubmissions} from '../analysis-news/filings';
 import {normalizeCompanyFacts,type CompanyFacts,type FactsDocument} from './company-facts';
 import {lookupCik,parseTickerFile,type CikMap} from './cik-map';
-import {linkedDocumentId,type FundamentalsLink,type FundamentalsMarket} from './preferences';
+import {linkedDocumentId,type FundamentalsLink,type FundamentalsMarket,type LoadedCikStore} from './preferences';
 import {acceptanceFromFilings} from './pit-align';
 import {buildPitCompany,type PitCompany} from './pit-metrics';
 
@@ -13,9 +13,11 @@ import {buildPitCompany,type PitCompany} from './pit-metrics';
  *
  * Network rule. Nothing is requested at startup: restored charts and the off-chart export read saved copies only, and the
  * asset-class and missing-company checks send nothing. A request is sent only after the user adds a fundamentals indicator
- * (activate) or chooses Refresh company data (refresh). After that, a company gets at most one refresh of its companyfacts
- * and submissions per New York day (daily), only while a chart carrying it is on screen (the host calls daily for the
- * visible chart only, never for hidden tabs), and only while the "Refresh SEC company data daily" setting is on. The
+ * (activate) or chooses Refresh company data (refresh); the company is then remembered on this PC (LoadedCikStore). A
+ * remembered company gets at most one refresh of its companyfacts and submissions per New York day (daily), only while a
+ * chart carrying it is on screen (the host calls daily for the visible chart only, never for hidden tabs), only while the
+ * "Refresh SEC company data daily" setting is on, and for a restored chart never during startup: only once the app has
+ * been open for STARTUP_QUIET_MS or the user has interacted with that chart (interact). The
  * ticker file is refreshed at most every 7 days (the main process cache decides). Without the user's SEC contact no
  * request is sent at all.
  *
@@ -51,8 +53,12 @@ export interface FundamentalsServiceOptions {
  cikMap():CikMap|null;
  /** The "Refresh SEC company data daily" setting (default on). */
  dailyEnabled():boolean;
+ /** The companies the user has loaded before (a per-PC preference); absent = this session only. */
+ loadedCiks?:LoadedCikStore;
  now?():number;notify?():void;
 }
+/** A restored chart waits this long after the app opens (or for the user's first interaction) before its daily refresh. */
+export const STARTUP_QUIET_MS=60000;
 export interface FundamentalsService {
  loader:FundamentalsLoader;
  company(facts:FundamentalsChartFacts):FundamentalsState;
@@ -62,6 +68,8 @@ export interface FundamentalsService {
  refresh(market:FundamentalsMarket):void;
  /** The once-a-day refresh for the markets of the chart on screen. */
  daily(markets:readonly FundamentalsMarket[]):void;
+ /** The user interacted with the chart of this market: its daily refresh need not wait for the startup quiet time. */
+ interact(market:FundamentalsMarket):void;
  /** Links, documents or the imported ticker file changed: read saved copies again (no request). */
  invalidate():void;
  /** Alpaca split actions for a symbol (null: not loaded). The array identity is kept for reuse. */
@@ -73,7 +81,7 @@ export interface FundamentalsService {
 /** daily: the once-a-day refresh, which leaves the ticker file to its own 7-day refresh on the next add. */
 type Mode='cache'|'network'|'daily'|'force';
 interface Prepared {facts:CompanyFacts;retrievedAt:string;acceptance:ReadonlyMap<string,string|null>|null;classTickers:readonly string[]}
-interface Entry {key:string;market:FundamentalsMarket;gen:number;state:FundamentalsState['state'];reason:string|null;cik:string|null;company:PitCompany|null;prepared:Prepared|null;activated:boolean;loaded:boolean}
+interface Entry {key:string;market:FundamentalsMarket;gen:number;state:FundamentalsState['state'];reason:string|null;cik:string|null;company:PitCompany|null;prepared:Prepared|null;activated:boolean;loaded:boolean;interacted:boolean}
 interface Submissions {entityType:string|null;forms:string[];acceptance:Map<string,string|null>}
 const marketKey=(market:FundamentalsMarket)=>JSON.stringify([market.exchange,market.symbol,market.synthetic]);
 const marketOfFacts=(facts:FundamentalsChartFacts):FundamentalsMarket=>({exchange:facts.exchange,symbol:facts.symbol,synthetic:facts.synthetic});
@@ -90,7 +98,8 @@ export function createFundamentalsService(options:FundamentalsServiceOptions):Fu
  const bridge=options.bridge,now=options.now??Date.now,notify=options.notify??notifyFundamentals;
  const entries=new Map<string,Entry>(),memory=new Map<string,SecCachedValue>(),lastDaily=new Map<string,string>(),splitActions=new Map<string,readonly CorporateActionEvent[]|null>();
  const facts=new WeakMap<object,CompanyFacts>(),submissions=new WeakMap<object,Submissions|null>(),tickerMaps=new WeakMap<object,CikMap|null>(),classLists=new WeakMap<CikMap,Map<string,readonly string[]>>();
- let disposed=false,sequence=0;
+ let disposed=false,sequence=0;const startedAt=now(),loadedCiks=options.loadedCiks;
+ const remember=(cik:string)=>{try{loadedCiks?.add(cik);}catch{/* this session still knows it */}};
  const today=()=>newYorkDate(now()/1000);
  async function read(kind:SecKind,cik:string|null,refresh:SecRefresh):Promise<{value:SecCachedValue|null;error:{code:string;message:string}|null}>{
   const key=kind+':'+(cik??'');
@@ -144,7 +153,7 @@ export function createFundamentalsService(options:FundamentalsServiceOptions):Fu
    if(doc){
     // An explicit link: the user's own document. Only an SEC document asks for its filing list (acceptance times).
     const cik=doc.facts.cik;let acceptance:ReadonlyMap<string,string|null>|null=null;
-    if(doc.source.kind==='sec-public'&&bridge){const sub=await read('submissions',cik,refresh('submissions'));if(!current())return;const info=sub.value?.envelope?submissionsOf(sub.value.envelope,cik):null;if(info){const gate=filingGate(info,doc.facts.entityName);if(gate)return gap(gate);acceptance=info.acceptance;}if(network)lastDaily.set(cik,today());}
+    if(doc.source.kind==='sec-public'&&bridge){const sub=await read('submissions',cik,refresh('submissions'));if(!current())return;const info=sub.value?.envelope?submissionsOf(sub.value.envelope,cik):null;if(info){const gate=filingGate(info,doc.facts.entityName);if(gate)return gap(gate);acceptance=info.acceptance;}if(network){lastDaily.set(cik,today());remember(cik);}}
     entry.prepared={facts:doc.facts,retrievedAt:doc.source.retrievedAt,acceptance,classTickers:classTickers(cik,imported,fetchedTickerMap())};
     return done({state:'ready',reason:null,cik,company:build(entry)});
    }
@@ -164,7 +173,7 @@ export function createFundamentalsService(options:FundamentalsServiceOptions):Fu
    const info=submissionsOf(sub.value.envelope,cik);if(!info)return gap('The SEC filing list saved for '+symbol+' could not be read.');
    const entity=sub.value.envelope.entityName||symbol,gate=filingGate(info,entity);if(gate)return gap(gate);
    const companyfacts=await read('companyfacts',cik,refresh('companyfacts'));if(!current())return;
-   if(network)lastDaily.set(cik,today());
+   if(network){lastDaily.set(cik,today());remember(cik);}
    if(!companyfacts.value?.envelope)return gap(reasonFor(companyfacts.error,companyfacts.value?.resumeAt??null,identityUnset,symbol));
    const companyFacts=factsOf(companyfacts.value.envelope);
    if(companyFacts.cik!==cik)return gap('The saved SEC company data does not match '+symbol+'.');
@@ -174,7 +183,7 @@ export function createFundamentalsService(options:FundamentalsServiceOptions):Fu
    return done({state:'ready',reason:null,cik,company:build(entry)});
   }catch(error){return gap(error instanceof Error?error.message:String(error));}
  }
- const entryOf=(market:FundamentalsMarket):Entry=>{const key=marketKey(market);let entry=entries.get(key);if(!entry){entry={key,market:{...market},gen:0,state:'loading',reason:FUNDAMENTALS_TEXT.loading(market.symbol),cik:null,company:null,prepared:null,activated:false,loaded:false};entries.set(key,entry);void load(entry,'cache');}return entry;};
+ const entryOf=(market:FundamentalsMarket):Entry=>{const key=marketKey(market);let entry=entries.get(key);if(!entry){entry={key,market:{...market},gen:0,state:'loading',reason:FUNDAMENTALS_TEXT.loading(market.symbol),cik:null,company:null,prepared:null,activated:false,loaded:false,interacted:false};entries.set(key,entry);void load(entry,'cache');}return entry;};
  const service:FundamentalsService={
   loader:{company:facts=>service.company(facts)},
   company(chartFacts){const entry=entryOf(marketOfFacts(chartFacts));return {state:entry.state,company:entry.company,reason:entry.reason,cik:entry.cik};},
@@ -186,8 +195,16 @@ export function createFundamentalsService(options:FundamentalsServiceOptions):Fu
   refresh(market){const entry=entryOf(market);entry.activated=true;void load(entry,'force');},
   daily(markets){
    if(!options.dailyEnabled())return;const day=today();
-   for(const market of markets){const entry=entries.get(marketKey(market));if(!entry||!entry.activated||!entry.cik||lastDaily.get(entry.cik)===day)continue;lastDaily.set(entry.cik,day);void load(entry,'daily');}
+   const quiet=now()-startedAt<STARTUP_QUIET_MS;
+   for(const market of markets){
+    const entry=entries.get(marketKey(market));if(!entry||!entry.cik||lastDaily.get(entry.cik)===day)continue;
+    // Loaded in this session, or remembered from before and past the startup quiet time (or touched by the user).
+    const remembered=!!loadedCiks?.has(entry.cik)&&(!quiet||entry.interacted);
+    if(!entry.activated&&!remembered)continue;
+    lastDaily.set(entry.cik,day);void load(entry,'daily');
+   }
   },
+  interact(market){const entry=entries.get(marketKey(market));if(entry)entry.interacted=true;},
   invalidate(){for(const entry of entries.values())void load(entry,'cache');},
   setSplitActions(symbol,events){
    if(splitActions.has(symbol)&&splitActions.get(symbol)===events)return;splitActions.set(symbol,events);

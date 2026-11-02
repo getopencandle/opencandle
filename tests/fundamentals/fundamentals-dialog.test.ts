@@ -1,5 +1,6 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-import {FundamentalsDialog} from '../../src/ui/FundamentalsDialog';
+import {FundamentalsDialog,SEC_CONTACT_NEEDED} from '../../src/ui/FundamentalsDialog';
+import {SecContactField} from '../../src/ui/IndicatorDialog';
 import {normalizeCompanyFacts,type FactsDocument} from '../../src/fundamentals/company-facts';
 import {createFundamentalsPreferences,createFundamentalsView,setFundamentalsLink,type FundamentalsPreferences} from '../../src/fundamentals/preferences';
 import {syntheticStatementFacts,syntheticSource} from './fixtures/synthetic-statements';
@@ -115,6 +116,16 @@ describe('reset, persistence and symbol links',()=>{
 describe('load failure, cancellation and stale results',()=>{
  const deferred=()=>{let resolve!:(value:any)=>void;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};};
  const ok={ok:true,value:{cik:'0000009999',data:raw,provenance:{retrievedAt:'2026-10-15T00:00:00Z',sourceUrl:'https://data.sec.gov/api/xbrl/companyfacts/CIK0000009999.json',sha256:'a'.repeat(64)}}};
+ it('asks for the SEC contact instead of failing, and sends nothing while it is empty',async()=>{
+  const fetch=vi.fn(async()=>({ok:false,error:{code:'IDENTITY_UNSET',message:'unset'}}));
+  vi.stubGlobal('window',{lv:{fetchSecCompanyFacts:fetch,cancelSecRequest:vi.fn(),getSecIdentity:vi.fn(async()=>({ok:true,value:{set:false,value:''}})),setSecIdentity:vi.fn()}});
+  const ui=mount();expect(find(ui.render(),n=>n.type===SecContactField)).toBeTruthy();
+  ui.click('Fetch public SEC facts');await flush();await flush();
+  expect(fetch).not.toHaveBeenCalled();expect(ui.error()).toBe(SEC_CONTACT_NEEDED);
+  vi.stubGlobal('window',{lv:{fetchSecCompanyFacts:fetch,cancelSecRequest:vi.fn()}});
+  const old=mount();old.click('Fetch public SEC facts');await flush();
+  expect(fetch).toHaveBeenCalledTimes(1);expect(old.error()).toBe(SEC_CONTACT_NEEDED);expect(old.props.onChange).not.toHaveBeenCalled();
+ });
  it('shows a provider failure and keeps saved data unchanged',async()=>{
   vi.stubGlobal('window',{lv:{fetchSecCompanyFacts:vi.fn(async()=>({ok:false,error:{message:'SEC request was denied (403).'}})),cancelSecRequest:vi.fn()}});
   const ui=mount();ui.click('Fetch public SEC facts');await flush();

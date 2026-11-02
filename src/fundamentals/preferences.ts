@@ -55,3 +55,19 @@ export function pruneFundamentalsLinks(preferences:FundamentalsPreferences,docum
  const ids=new Set(documentIds),links=preferences.links.filter(link=>ids.has(link.documentId));
  return links.length===preferences.links.length?preferences:{...preferences,links};
 }
+
+/** The SEC companies (CIKs) the user has loaded on a chart: a per-PC browser preference, never part of a workspace,
+ * chart, layout or export. A restored chart for one of these may take its once-a-day refresh (fundamentals-service.ts). */
+export interface LoadedCikStore {has(cik:string):boolean;add(cik:string):void;list():string[]}
+const LOADED_CIKS_KEY='lv.fundamentals.loaded-ciks.v1',MAX_LOADED_CIKS=1000;
+function browserStorage():Storage|null{try{return typeof localStorage==='undefined'?null:localStorage;}catch{return null;}}
+export function loadedCikStore(storage:Pick<Storage,'getItem'|'setItem'>|null=browserStorage()):LoadedCikStore{
+ let saved:string[]=[];
+ try{const raw=storage?.getItem(LOADED_CIKS_KEY),parsed:unknown=raw?JSON.parse(raw):[];if(Array.isArray(parsed))saved=parsed.filter((cik):cik is string=>typeof cik==='string'&&/^\d{10}$/.test(cik)).slice(-MAX_LOADED_CIKS);}catch{saved=[];}
+ const ciks=new Set(saved);
+ return {
+  has:cik=>ciks.has(cik),
+  add(cik){if(!/^\d{10}$/.test(cik)||ciks.has(cik))return;ciks.add(cik);while(ciks.size>MAX_LOADED_CIKS)ciks.delete(ciks.values().next().value!);try{storage?.setItem(LOADED_CIKS_KEY,JSON.stringify([...ciks]));}catch{/* the session still remembers it */}},
+  list:()=>[...ciks],
+ };
+}

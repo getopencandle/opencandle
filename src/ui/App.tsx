@@ -288,7 +288,8 @@ import {AVWAP_UNANCHORED_MESSAGE,anchorTextAt,anchorZoneOf} from '../domain/indi
 import {sourcePivotCalendar} from '../domain/indicators-ext/r23-catalog';
 import {legendButtons,legendMoreMenu,LEGEND_TOGGLER_QA_ID,indicatorClipboard,indicatorCopiedMessage,indicatorPasteSettings,indicatorOrderAfter,indicatorOrderState,indicatorVisualOrderAvailable,isIndicatorOrderStep,isIndicatorPermutation,visualOrderItems,type IndicatorClip,type LegendMoreItemId} from '../chart/legend-model';
 import {indicatorLegendArguments,indicatorLegendTitle} from '../chart/indicator-display';
-import {createFundamentalsService,secDataBridge,type FundamentalsService} from '../fundamentals/fundamentals-service';
+import {createFundamentalsService,secDataBridge,STARTUP_QUIET_MS,type FundamentalsService} from '../fundamentals/fundamentals-service';
+import {loadedCikStore} from '../fundamentals/preferences';
 import {setFundamentalsLoader} from '../domain/fundamentals-source';
 import {isFundamentalsIndicator,type FundamentalsOutput} from '../domain/indicators-ext/fundamentals-catalog';
 import {loadCikMap} from '../fundamentals/cik-map';
@@ -2166,12 +2167,16 @@ export function App(){
  // (liveData.secDaily false turns it off).
  const fundamentals=useRef<FundamentalsService|null>(null);
  const activeFundamentalsMarket=():FundamentalsMarket=>{const active=currentInput.current?.dataset??dataset;return {exchange:active.instrument.exchange,symbol:active.instrument.symbol,synthetic:!!active.provenance.fixture};};
- useEffect(()=>{const service=createFundamentalsService({bridge:secDataBridge(),links:()=>current.current.fundamentalsPreferences?.links??[],documents:()=>current.current.fundamentals??[],cikMap:()=>loadCikMap(),dailyEnabled:()=>(current.current as {liveData?:{secDaily?:unknown}}).liveData?.secDaily!==false});fundamentals.current=service;setFundamentalsLoader(service.loader);return()=>{fundamentals.current=null;setFundamentalsLoader(null);service.dispose();};},[]);
+ useEffect(()=>{const service=createFundamentalsService({bridge:secDataBridge(),links:()=>current.current.fundamentalsPreferences?.links??[],documents:()=>current.current.fundamentals??[],cikMap:()=>loadCikMap(),loadedCiks:loadedCikStore(),dailyEnabled:()=>(current.current as {liveData?:{secDaily?:unknown}}).liveData?.secDaily!==false});fundamentals.current=service;setFundamentalsLoader(service.loader);return()=>{fundamentals.current=null;setFundamentalsLoader(null);service.dispose();};},[]);
  useEffect(()=>{fundamentals.current?.invalidate();},[workspace.fundamentals,workspace.fundamentalsPreferences]);
- // The daily refresh asks only for the chart on screen: the visible document, and only once the user loaded the company
- // in this session (adding the indicator or Refresh company data). Hidden windows and tabs never ask.
+ // The daily refresh asks only for the chart on screen (the visible document; hidden windows and tabs never ask), for a
+ // company the user has loaded before (adding the indicator or Refresh company data). A restored chart waits until the
+ // app has been open STARTUP_QUIET_MS or the user presses a key or pointer in the window, whichever is first.
  const fundamentalsDailySymbol=dataset.instrument.symbol;
- useEffect(()=>{const tick=()=>{const service=fundamentals.current;if(!service||typeof document!=='undefined'&&document.visibilityState!=='visible')return;let shown=false;try{shown=(chart?.indicators.list()??[]).some(row=>row.visible&&isFundamentalsIndicator(row.kind));}catch{shown=false;}if(shown)service.daily([activeFundamentalsMarket()]);};tick();const timer=setInterval(tick,15*60*1000);if(typeof document!=='undefined')document.addEventListener('visibilitychange',tick);return()=>{clearInterval(timer);if(typeof document!=='undefined')document.removeEventListener('visibilitychange',tick);};},[chart,fundamentalsDailySymbol]);
+ useEffect(()=>{const tick=()=>{const service=fundamentals.current;if(!service||typeof document!=='undefined'&&document.visibilityState!=='visible')return;let shown=false;try{shown=(chart?.indicators.list()??[]).some(row=>row.visible&&isFundamentalsIndicator(row.kind));}catch{shown=false;}if(shown)service.daily([activeFundamentalsMarket()]);};const touched=()=>{fundamentals.current?.interact(activeFundamentalsMarket());tick();};
+  tick();const timer=setInterval(tick,15*60*1000),quiet=setTimeout(tick,STARTUP_QUIET_MS+1000);
+  if(typeof document!=='undefined'){document.addEventListener('visibilitychange',tick);document.addEventListener('pointerdown',touched,{once:true});document.addEventListener('keydown',touched,{once:true});}
+  return()=>{clearInterval(timer);clearTimeout(quiet);if(typeof document!=='undefined'){document.removeEventListener('visibilitychange',tick);document.removeEventListener('pointerdown',touched);document.removeEventListener('keydown',touched);}};},[chart,fundamentalsDailySymbol]);
  // Split and dividend ex-dates for the VWAP Dividends and Splits anchors (chart and alerts), from the same
  // memoized corporate-action load as the chart's markers. The chart recalculates its indicators once the dates arrive.
  const vwapEventSymbol=chartEventSymbol(dataset.provenance.providerId,dataset.instrument.symbol),vwapEventInstrument=dataset.instrument.id;

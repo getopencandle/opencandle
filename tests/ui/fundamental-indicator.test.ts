@@ -1,5 +1,5 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-import {createFundamentalsService,type SecCachedValue,type SecDataBridge,type SecEnvelope,type SecKind,type SecRefresh} from '../../src/fundamentals/fundamentals-service';
+import {STARTUP_QUIET_MS,createFundamentalsService,type SecCachedValue,type SecDataBridge,type SecEnvelope,type SecKind,type SecRefresh} from '../../src/fundamentals/fundamentals-service';
 import {FUNDAMENTALS_TEXT,fundamentalsCompany,fundamentalsLookup,setFundamentalsLoader,type FundamentalsChartFacts} from '../../src/domain/fundamentals-source';
 import {calculateIndicator} from '../../src/domain/indicators';
 import {indicatorAlertBlock} from '../../src/domain/indicator-alertability';
@@ -9,6 +9,9 @@ import {indicatorLegendArguments,indicatorLegendTitle} from '../../src/chart/ind
 import {legendMoreMenu} from '../../src/chart/legend-model';
 import {INDICATOR_KINDS} from '../../src/chart/indicator-settings';
 import {PIT_TEXT} from '../../src/fundamentals/pit-metrics';
+import {loadedCikStore} from '../../src/fundamentals/preferences';
+import {factoryIndicatorDefault} from '../../src/ui/indicator-library';
+import {defaultPlotStyle} from '../../src/chart/indicator-rendering';
 import {CIK,ENTITY,dailyBars,flatYears,syntheticCompany,type RawCompany} from '../fixtures/fundamentals/pit-company';
 import {find,findAll,makeHarness,text} from './indicator-real-port-harness';
 
@@ -207,5 +210,48 @@ describe('company fundamentals: chart surfaces',()=>{
   expect(period.props.disabled).toBe(true);expect(period.props.title).toBe('Ratios always use TTM');
   expect(metric.props.value).toBe('pe');expect(text(metric)).toContain('P/E');expect(text(metric)).toContain('Earnings yield %');
   ui.sEdit('Metric','revenue');expect(ui.sField('Period').props.disabled).toBe(false);
+ });
+});
+
+describe('company fundamentals: restored charts and remembered companies',()=>{
+ const disk=()=>({tickers:tickers([{cik:CIK,ticker:SYMBOL}]),submissions:submissions('operating',['10-K','10-Q']),companyfacts:syntheticCompany(flatYears([2021,2022,2023])) as unknown as Record<string,unknown>});
+ const memoryStorage=(initial:string[]=[])=>{const data=new Map<string,string>([['lv.fundamentals.loaded-ciks.v1',JSON.stringify(initial)]]);return {getItem:(key:string)=>data.get(key)??null,setItem:(key:string,value:string)=>{data.set(key,value);},data};};
+ function restored(options:{remembered?:boolean;daily?:boolean;identity?:boolean}={}){
+  let now=Date.parse('2026-11-02T15:00:00Z');const start=now;
+  const sec=fakeBridge({...operating(),...(options.identity===false?{identity:false}:{})},disk()),storage=memoryStorage(options.remembered===false?[]:[CIK10]);
+  const fs=createFundamentalsService({bridge:sec.bridge,links:()=>[],documents:()=>[],cikMap:()=>null,dailyEnabled:()=>options.daily!==false,loadedCiks:loadedCikStore(storage),now:()=>now,notify:()=>{}});
+  return {sec,fs,storage,at:(ms:number)=>{now=start+ms;}};
+ }
+ const kinds=(sec:ReturnType<typeof fakeBridge>)=>sec.network().map(call=>call.kind+':'+call.refresh);
+ it('a restored chart sends nothing in its first 60 seconds, then one refresh per company per New York day',async()=>{
+  const r=restored();r.fs.company(facts());await settle();expect(r.fs.company(facts()).state).toBe('ready');
+  for(const ms of [0,10000,59000]){r.at(ms);r.fs.daily([market]);await settle();}
+  expect(r.sec.network()).toEqual([]);
+  r.at(STARTUP_QUIET_MS);r.fs.daily([market]);r.fs.daily([market]);await settle();
+  expect(kinds(r.sec)).toEqual(['submissions:if-stale','companyfacts:if-stale']);
+  r.at(STARTUP_QUIET_MS+3600000);r.fs.daily([market]);await settle();expect(r.sec.network()).toHaveLength(2);
+  r.at(86400000+STARTUP_QUIET_MS);r.fs.daily([market]);await settle();expect(r.sec.network()).toHaveLength(4);
+ });
+ it('the user touching the chart ends the startup wait early',async()=>{
+  const r=restored();r.fs.company(facts());await settle();
+  r.at(5000);r.fs.interact(market);r.fs.daily([market]);await settle();
+  expect(kinds(r.sec)).toEqual(['submissions:if-stale','companyfacts:if-stale']);
+ });
+ it('never for a company the user has not loaded, with the daily setting off, or without the SEC contact',async()=>{
+  for(const options of [{remembered:false},{daily:false},{identity:false}]){
+   const r=restored(options);r.fs.company(facts());await settle();r.at(STARTUP_QUIET_MS*2);r.fs.interact(market);r.fs.daily([market]);await settle();
+   expect(r.sec.network(),JSON.stringify(options)).toEqual([]);
+  }
+ });
+ it('loading a company remembers it on this PC (not in any workspace)',async()=>{
+  const r=restored({remembered:false});r.fs.activate(market);await settle();
+  expect(JSON.parse(r.storage.data.get('lv.fundamentals.loaded-ciks.v1')!)).toEqual([CIK10]);
+  expect(loadedCikStore(r.storage).has(CIK10)).toBe(true);
+ });
+ it('restoring the factory default keeps the bands dotted with only the median on the price scale',()=>{
+  const plots=factoryIndicatorDefault('pebands').plots;
+  expect(plots.median).toMatchObject({lineStyle:'dotted',width:1,priceScale:true});
+  for(const id of ['upper','lower','m1','m2','m3','graham'])expect(plots[id],id).toMatchObject({lineStyle:'dotted',width:1,priceScale:false});
+  expect(defaultPlotStyle('sma','sma',0)).toMatchObject({lineStyle:'solid',priceScale:true});
  });
 });

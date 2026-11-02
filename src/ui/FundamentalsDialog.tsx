@@ -14,6 +14,10 @@ import {InfoTip,OverflowMenu} from './dialog-extras';
 import './fundamentals.css';
 import './dialog-forms.css';
 import {plainErrorText} from './user-error';
+import {SecContactField} from './IndicatorDialog';
+import {secIdentityBridge} from '../fundamentals/fundamentals-service';
+/** Shown instead of a request while the user's SEC contact is empty (the desktop app sends nothing without it). */
+export const SEC_CONTACT_NEEDED='Add your SEC contact above to load company data from SEC.';
 const TABS:[FundamentalsTab,string][]=[['income','Income statement'],['balance','Balance sheet'],['cashflow','Cash flow'],['statistics','Statistics'],['facts','Reported facts']];
 const KIND_LABELS:Record<string,string>={'sec-public':'SEC','local-import':'Imported',synthetic:'Demo'};
 const REJECTED='Workspace update was rejected. This draft is unchanged; check the application status for details.';
@@ -111,7 +115,8 @@ export function FundamentalsDialog({symbol,documents,onChange,onClose,market=nul
   if(!active()||lifecycle.current.busy)return;
   if(!window.lv){setError('Public SEC fetching needs the desktop app. JSON paste works offline.');return;}
   const token=begin();if(token===null)return;const id=crypto.randomUUID();request.current=id;
-  try{const result=await window.lv.fetchSecCompanyFacts({requestId:id,cik:cik.trim()});if(!owns(token))return;if(!result.ok)throw new Error(result.error.message);const facts=normalizeCompanyFacts(result.value.data);if(facts.cik!==result.value.cik)throw new Error('SEC company identity did not match the requested CIK.');store({id:'sec:'+facts.cik,facts,source:{kind:'sec-public',label:'SEC EDGAR companyfacts',retrievedAt:result.value.provenance.retrievedAt,sourceUrl:result.value.provenance.sourceUrl,sha256:result.value.provenance.sha256}},token);}
+  try{const identity=secIdentityBridge();if(identity){const known=await identity.getSecIdentity().catch(()=>null);if(!owns(token))return;if(known?.ok&&!known.value.set){setError(SEC_CONTACT_NEEDED);return;}}
+   const result=await window.lv.fetchSecCompanyFacts({requestId:id,cik:cik.trim()});if(!owns(token))return;if(!result.ok){if(result.error.code==='IDENTITY_UNSET'){setError(SEC_CONTACT_NEEDED);return;}throw new Error(result.error.message);}const facts=normalizeCompanyFacts(result.value.data);if(facts.cik!==result.value.cik)throw new Error('SEC company identity did not match the requested CIK.');store({id:'sec:'+facts.cik,facts,source:{kind:'sec-public',label:'SEC EDGAR companyfacts',retrievedAt:result.value.provenance.retrievedAt,sourceUrl:result.value.provenance.sourceUrl,sha256:result.value.provenance.sha256}},token);}
   catch(e){if(owns(token))setError(plainErrorText(e));}finally{finish(token);}
  }
  function importText(input:string,synthetic:boolean,token:number){
@@ -163,7 +168,7 @@ export function FundamentalsDialog({symbol,documents,onChange,onClose,market=nul
  }
  function saveGraph(config:import('../fundamentals/graph').GraphConfig){const result=persist({...prefs.current,graph:config},'The graph configuration was not saved: '+REJECTED);return result.accepted;}
  const sym=symbol.trim();
- const loadControls=<div className="fund-load"><div className="button-row"><button className="primary" aria-label="Fetch public SEC facts" disabled={busy||!/^\d{1,10}$/.test(cik)} onClick={()=>void fetchFacts()}>{busy?'Loading…':'Load from SEC'}</button>{busy&&<button onClick={()=>cancel(visibleRequest)}>Cancel request</button>}<button aria-label="Import JSON file" disabled={busy} onClick={()=>void choose()}>Import file</button><InfoTip label="About fetching and CIK numbers">Fetching sends this CIK and your network address to the public SEC service. It requires no account or key. OpenCandle sends no workspace data. Fetching is optional; saved facts remain available offline. CIK identifies the filing entity, independently of the chart ticker. Some ETFs and issuers have no companyfacts coverage. No substitute company is loaded.</InfoTip></div>
+ const loadControls=<div className="fund-load"><SecContactField/><div className="button-row"><button className="primary" aria-label="Fetch public SEC facts" disabled={busy||!/^\d{1,10}$/.test(cik)} onClick={()=>void fetchFacts()}>{busy?'Loading…':'Load from SEC'}</button>{busy&&<button onClick={()=>cancel(visibleRequest)}>Cancel request</button>}<button aria-label="Import JSON file" disabled={busy} onClick={()=>void choose()}>Import file</button><InfoTip label="About fetching and CIK numbers">Fetching sends this CIK and your network address to the public SEC service. It requires no account or key. OpenCandle sends no workspace data. Fetching is optional; saved facts remain available offline. CIK identifies the filing entity, independently of the chart ticker. Some ETFs and issuers have no companyfacts coverage. No substitute company is loaded.</InfoTip></div>
   {syntheticImport&&<p className="help" role="note">The next import is saved as {demoDataLabel().toLowerCase()}, not company filings.</p>}
   <details className="fund-advanced" open={!cik||undefined}><summary>Advanced</summary><div className="screener-toolbar"><label>SEC company number (CIK)<input aria-label="SEC company CIK" value={cik} inputMode="numeric" maxLength={10} onChange={e=>setCik(e.target.value)}/></label><button disabled={busy} onClick={()=>void chooseTickerFile()}>Import SEC ticker list</button></div>
   <p className="help" role="status">{cikNote||(cikMap?cikMap.entries.length.toLocaleString()+' tickers known (list imported '+cikMap.importedAt.slice(0,10)+'). The CIK fills in from the chart symbol.':'A few common tickers are built in. Import the SEC ticker list once to fill the CIK for any symbol.')}<InfoTip label="About the SEC ticker list">To fill the CIK from the chart symbol, import SEC company_tickers.json once. You download that file yourself; OpenCandle does not fetch it.</InfoTip></p>

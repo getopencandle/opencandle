@@ -150,12 +150,13 @@ alpacaStub();
 let fredStore=null;
 function fredSeries(){if(!fredStore){const {FredSeries,CACHE_DIRECTORY:FRED_DIRECTORY}=require('./public-fred.cjs');fredStore=new FredSeries({directory:path.join(app.getPath('userData'),FRED_DIRECTORY)});}return fredStore;}
 // SEC company data (electron/sec-cache.cjs): one queue, one disk cache in <userData>/sec-cache and the single SecCompanyFacts
-// client. Lazy: nothing loads, nothing is created and no request is sent until a renderer asks. SEC_CONTACT is the mailbox
-// SEC asks automated readers to declare. While it stays UNSET only the ticker-file fetch is off (public-sec.cjs answers CONTACT_UNSET).
-const SEC_CONTACT='UNSET';
+// client. Lazy: nothing loads, nothing is created and no request is sent until a renderer asks. Every request carries the
+// contact the user typed (electron/sec-identity.cjs, <userData>/sec-identity.json); with none set no request is made.
 let secStore=null;
+let secIdentityStore=null;
+function secIdentity(){if(!secIdentityStore){const {SecIdentity}=require('./sec-identity.cjs');secIdentityStore=new SecIdentity({directory:app.getPath('userData')});}return secIdentityStore;}
 const secRunBlocked=()=>{const env=(typeof process==='object'&&process.env)||{};return Boolean(alpacaStub())||automationSession||Boolean(env.LV_IMAGE_HARNESS||env.LV_EXE_HARNESS);};
-function secCache(){if(!secStore){const {SecCompanyFacts}=require('./public-sec.cjs');const {SecCache,CACHE_DIRECTORY:SEC_DIRECTORY}=require('./sec-cache.cjs');secStore=new SecCache({directory:path.join(app.getPath('userData'),SEC_DIRECTORY),client:new SecCompanyFacts({contact:SEC_CONTACT,version:app.getVersion()}),blocked:secRunBlocked});}return secStore;}
+function secCache(){if(!secStore){const {SecCompanyFacts}=require('./public-sec.cjs');const {SecCache,CACHE_DIRECTORY:SEC_DIRECTORY}=require('./sec-cache.cjs');secStore=new SecCache({directory:path.join(app.getPath('userData'),SEC_DIRECTORY),client:new SecCompanyFacts({identity:()=>secIdentity().value()}),blocked:secRunBlocked});}return secStore;}
 const secClearCache=async()=>{try{if(secStore)await secStore.clear();else await fs.rm(path.join(app.getPath('userData'),'sec-cache'),{recursive:true,force:true});}catch{}};
 const secFilingUrl=value=>{
   validation.exactKeys(value,['cik','accession']);
@@ -299,6 +300,8 @@ function installIPC(store) {
     'lv:script:execute': async value => { const result = await scripts.run(value); if (!result.ok) throw new validation.BoundaryError(result.error.code,result.error.message); return result.value; },
     'lv:sec:companyfacts': async value => {const result=await secCache().network(value,'companyfacts');if(!result.ok)throw new validation.BoundaryError(result.error.code,result.error.message);return result.value;},
     'lv:sec:submissions': async value => {const result=await secCache().network(value,'submissions');if(!result.ok)throw new validation.BoundaryError(result.error.code,result.error.message);return result.value;},
+    'lv:sec:identity-get': async value => {noInput(value);return secIdentity().get();},
+    'lv:sec:identity-set': async value => secIdentity().set(value),
     'lv:sec:cancel': async value => {const id=validation.cancelInput(value);return {cancelled:secStore?secStore.cancel(id):false};},
     'lv:sec:cached': async value => secCache().get(value),
     'lv:sec:open-filing': async value => {const url=secFilingUrl(value);await require('electron').shell.openExternal(url);return {opened:true};},

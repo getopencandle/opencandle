@@ -64,6 +64,9 @@ contextBridge.exposeInMainWorld('lv', Object.freeze({
   // Cached SEC company data: the queue and disk cache live in main. Main alone decides whether a network fetch happens.
   loadSecData: value => invoke('lv:sec:cached', value),
   // Opens one filing's index page on sec.gov in the browser; main builds the address from a validated CIK and accession.
+  // The user's own SEC contact (stored on this PC, sent only to SEC as the request's User-Agent). Empty clears it.
+  getSecIdentity: () => invoke('lv:sec:identity-get'),
+  setSecIdentity: value => invoke('lv:sec:identity-set', value),
   openSecFiling: value => invoke('lv:sec:open-filing', value),
   // Fixed live market-data capabilities. No URL, host or header crosses this bridge.
   fetchCoinbaseCandles: value => invoke('lv:coinbase:candles', value),

@@ -6,9 +6,8 @@ const TIMEOUT_MS=10000;
 const TICKERS_TIMEOUT_MS=20000;
 const TICKERS_URL='https://www.sec.gov/files/company_tickers.json';
 const MAX_TICKER_ROWS=100000;
-const CONTACT_PLACEHOLDER='UNSET';
 const MIN_REQUEST_INTERVAL_MS=1000;
-const USER_AGENT='OpenCandle/0.8.2 (getopencandle.com; optional public SEC data reader)';
+const IDENTITY_UNSET_MESSAGE='Add your SEC contact to load company data.';
 const coverage='SEC non-custom entity-wide XBRL concepts only; filing periods, units and restatements require explicit normalization. Not quotes or complete fundamentals.';
 function secInput(value){
   exactKeys(value,['requestId','cik']);
@@ -62,18 +61,18 @@ function validateTickers(value){
   return data;
 }
 class SecCompanyFacts {
-  constructor({fetchImpl=globalThis.fetch,now=Date.now,timeoutMs=TIMEOUT_MS,tickersTimeoutMs=TICKERS_TIMEOUT_MS,contact=CONTACT_PLACEHOLDER,version='0.0.0'}={}){this.fetch=fetchImpl;this.now=now;this.timeoutMs=timeoutMs;this.tickersTimeoutMs=tickersTimeoutMs;this.contact=contact;this.version=version;this.active=new Map();this.nextAllowedAt=0;this.closed=false;}
+  constructor({fetchImpl=globalThis.fetch,now=Date.now,timeoutMs=TIMEOUT_MS,tickersTimeoutMs=TICKERS_TIMEOUT_MS,identity=()=>''}={}){this.fetch=fetchImpl;this.now=now;this.timeoutMs=timeoutMs;this.tickersTimeoutMs=tickersTimeoutMs;this.identity=identity;this.active=new Map();this.nextAllowedAt=0;this.closed=false;}
   run(raw,kind='companyfacts'){
     if(!['companyfacts','submissions','tickers'].includes(kind))return Promise.resolve({ok:false,error:{code:'INVALID_ARGUMENT',message:'Unsupported fixed SEC capability.'}});
     const tickers=kind==='tickers';
     let input;try{input=tickers?tickersInput(raw):secInput(raw);}catch(error){return Promise.resolve({ok:false,error:{code:error.code||'INVALID_ARGUMENT',message:error.message}});}
     if(this.closed)return Promise.resolve({ok:false,error:{code:'CLOSED',message:'Public data capability is closed.'}});
-    if(tickers&&(typeof this.contact!=='string'||!this.contact||this.contact===CONTACT_PLACEHOLDER))return Promise.resolve({ok:false,error:{code:'CONTACT_UNSET',message:'Automatic ticker lookup is not set up in this build.'}});
+    let agent;try{agent=this.identity();}catch{agent='';}
+    if(typeof agent!=='string'||!agent)return Promise.resolve({ok:false,error:{code:'IDENTITY_UNSET',message:IDENTITY_UNSET_MESSAGE}});
     if(this.active.size)return Promise.resolve({ok:false,error:{code:'BUSY',message:'A public SEC request is already active.'}});
     if(this.now()<this.nextAllowedAt)return Promise.resolve({ok:false,error:{code:'RATE_LIMITED',message:'SEC requests are locally limited. Wait before requesting again.'}});
     this.nextAllowedAt=this.now()+MIN_REQUEST_INTERVAL_MS;
     const sourceUrl=tickers?TICKERS_URL:kind==='companyfacts'?'https://data.sec.gov/api/xbrl/companyfacts/CIK'+input.cik+'.json':'https://data.sec.gov/submissions/CIK'+input.cik+'.json';
-    const agent=tickers?'OpenCandle/'+this.version+' (getopencandle.com; '+this.contact+')':USER_AGENT;
     return new Promise(resolve=>{
       let finished=false;
       let reader;
@@ -113,4 +112,4 @@ class SecCompanyFacts {
   cancel(requestId){const request=this.active.get(requestId);if(!request)return false;request.cancel();return true;}
   close(){this.closed=true;for(const request of Array.from(this.active.values()))request.cancel();}
 }
-module.exports={SecCompanyFacts,secInput,tickersInput,validateCompanyFacts,validateSubmissions,validateTickers,TICKERS_URL,CONTACT_PLACEHOLDER,MAX_BYTES,USER_AGENT};
+module.exports={SecCompanyFacts,secInput,tickersInput,validateCompanyFacts,validateSubmissions,validateTickers,TICKERS_URL,MAX_BYTES,IDENTITY_UNSET_MESSAGE};

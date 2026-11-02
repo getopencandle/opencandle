@@ -223,20 +223,22 @@ describe('disk records',()=>{
 describe('real client behind the queue (fake transport)',()=>{
   const tickerBody=JSON.stringify({'0':{cik_str:123,ticker:'SYN',title:'Synthetic Co'}});
   const reply=(body:string)=>new Response(body,{status:200,headers:{'content-type':'application/json'}});
-  it('makes zero fetches for the ticker file while the contact is unset',async()=>{
+  it('makes zero fetches for any kind while no SEC contact is set',async()=>{
     const fetchImpl=vi.fn(async()=>reply(tickerBody));
     const client=new SecCompanyFacts({fetchImpl});
-    expect(await client.run({requestId:'t'},'tickers')).toMatchObject({ok:false,error:{code:'CONTACT_UNSET'}});
+    expect(await client.run({requestId:'t'},'tickers')).toMatchObject({ok:false,error:{code:'IDENTITY_UNSET',message:'Add your SEC contact to load company data.'}});
+    expect(await client.run({requestId:'c',cik:'1'},'companyfacts')).toMatchObject({ok:false,error:{code:'IDENTITY_UNSET'}});
+    expect(await client.run({requestId:'s',cik:'1'},'submissions')).toMatchObject({ok:false,error:{code:'IDENTITY_UNSET'}});
     expect(fetchImpl).not.toHaveBeenCalled();
   });
-  it('fetches the fixed ticker URL with the declared contact once one is set',async()=>{
+  it('fetches the fixed ticker URL with exactly the user contact as User-Agent',async()=>{
     const fetchImpl=vi.fn(async(_url:string,_init:any)=>{const r=reply(tickerBody);Object.defineProperty(r,'url',{value:TICKERS_URL});return r;});
-    const client=new SecCompanyFacts({fetchImpl,contact:'synthetic-contact',version:'9.9.9'});
+    const client=new SecCompanyFacts({fetchImpl,identity:()=>'Synthetic Person person@example.test'});
     const result=await client.run({requestId:'t'},'tickers');
     expect(result.ok).toBe(true);
     const [url,init]=fetchImpl.mock.calls[0];
     expect(url).toBe('https://www.sec.gov/files/company_tickers.json');
-    expect(init.headers['User-Agent']).toBe('OpenCandle/9.9.9 (getopencandle.com; synthetic-contact)');
+    expect(init.headers['User-Agent']).toBe('Synthetic Person person@example.test');
     expect(init).toMatchObject({redirect:'manual',credentials:'omit'});
     expect(result.value.data['0'].ticker).toBe('SYN');
   });
@@ -244,7 +246,7 @@ describe('real client behind the queue (fake transport)',()=>{
     expect(()=>validateTickers({'0':{cik_str:'x',ticker:'A',title:'B'}})).toThrow();
     expect(()=>validateTickers([])).toThrow();
     expect(()=>validateTickers({})).toThrow();
-    const client=new SecCompanyFacts({fetchImpl:vi.fn(),contact:'c'});
+    const client=new SecCompanyFacts({fetchImpl:vi.fn(),identity:()=>'a@b.co'});
     expect(await client.run({requestId:'t',cik:'1'},'tickers')).toMatchObject({ok:false});
   });
   it('routes the old channels through the queue with network-only semantics (no BUSY, nothing cached)',async()=>{
@@ -254,7 +256,7 @@ describe('real client behind the queue (fake transport)',()=>{
     const dir=await mkdtemp(path.join(process.cwd(),'.tmp','sec-cache-'));
     try{
       let clock=1_000_000;
-      const queued=new SecCache({directory:path.join(dir,'sec-cache'),client:new SecCompanyFacts({fetchImpl,now:()=>clock}),sleep:async(ms:number)=>{clock+=ms;},now:()=>clock});
+      const queued=new SecCache({directory:path.join(dir,'sec-cache'),client:new SecCompanyFacts({fetchImpl,now:()=>clock,identity:()=>'a@b.co'}),sleep:async(ms:number)=>{clock+=ms;},now:()=>clock});
       const results=await Promise.all([queued.network({requestId:'a',cik:'123'},'companyfacts'),queued.network({requestId:'b',cik:'124'},'companyfacts')]);
       expect(results.map((r:any)=>r.ok||r.error.code)).not.toContain('BUSY');
       expect(fetchImpl).toHaveBeenCalledTimes(2);
@@ -265,12 +267,12 @@ describe('real client behind the queue (fake transport)',()=>{
 
 describe('main process wiring and packaging',()=>{
   const main=readFileSync('electron/main.cjs','utf8'),pack=readFileSync('scripts/security-package.mjs','utf8'),windows=readFileSync('electron/windows.cjs','utf8');
-  it('registers the new channels, loads the module lazily and keeps SEC_CONTACT a placeholder',()=>{
+  it('registers the new channels, loads the module lazily and keeps the contact out of the source',()=>{
     for(const channel of ['lv:sec:cached','lv:sec:open-filing','lv:sec:companyfacts','lv:sec:submissions','lv:sec:cancel'])expect(main).toContain("'"+channel+"': async");
     expect((main.match(/require\('\.\/sec-cache\.cjs'\)/g)??[]).length).toBe(1);
     expect(main).not.toMatch(/^const \{[^}]*\} = require\('\.\/public-sec\.cjs'\)/m);
-    expect(main).toContain("const SEC_CONTACT='UNSET';");
-    expect(main).not.toMatch(/SEC_CONTACT\s*=\s*'[^']*@/);
+    expect(main).not.toContain('SEC_CONTACT');
+    expect(main).toContain("'lv:sec:identity-get': async");expect(main).toContain("'lv:sec:identity-set': async");
   });
   it('lets a layout window read cached SEC data but never open a filing',()=>{
     expect(SECONDARY_CHANNELS).toContain('lv:sec:cached');

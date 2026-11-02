@@ -51,3 +51,15 @@ it('puts each wave label above a peak and below a trough',()=>{
 it('the policy warns that waves near the left edge of the 5000-bar window can change',()=>{
  expect(AUTO_ELLIOTT_DEFINITION.policies.join(' ')).toMatch(/left edge of the searched window.*5000-bar window slides/);
 });
+
+// The A-B-C swings (150-135-145-125) followed by 132-115 also fit a down 1-5 from the wave 5 peak. Turning the
+// corrective waves off must only hide A-B-C, never let those swings be counted again as a new impulse.
+it('"Show corrective waves" only hides A-B-C: the 1-5 labels and lines are identical either way',()=>{
+ const bars=legs([100,110,100,120,110,140,130,150,135,145,125,132,115,120]);
+ const run=(show:boolean)=>{let published:any;AUTO_ELLIOTT_DEFINITION.calculate({bars,str:(k:string)=>k==='swingSize'?'Small':'',bool:()=>show,num:()=>0,marks:(m:unknown)=>{published=m;}} as any);return published;};
+ const on=run(true),off=run(false);
+ expect(on.markers.map((m:any)=>m.text).join('')).toBe('12345ABC');
+ expect(off.markers.map((m:any)=>m.text).join('')).toBe('12345');
+ expect(off.markers).toEqual(on.markers.slice(0,5));
+ expect(off.lines).toEqual(on.lines.slice(0,5));
+});

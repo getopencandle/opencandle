@@ -27,7 +27,7 @@ Alan Andrews taught the median line method (see the Andrews pitchfork file). Lat
 Three clicks as for the Andrews pitchfork: point 1 (anchor), then points 2 and 3, the next two pivots of opposite kind. The inside variation changes only where the median line starts, not the click order. All points are draggable. The lines extend to the right.
 
 ## Geometry and levels
-M = midpoint of P2 and P3. The median line is the ray from a start point S through M, with parallels through P2 and P3. For an inside fork S is the midpoint of segment P1-P2, halfway in time and in price, and OpenCandle draws it that way. Its median line runs from M parallel to the line from S to P2, with the outer lines parallel to it, and a construction line joins S to P2. S = P1 gives the standard Andrews fork. A shifted S flattens or steepens the median line. Build the fork in the displayed scale.
+M = midpoint of P2 and P3. S is the midpoint of segment P1-P2, halfway in time and in price on the displayed scale. OpenCandle draws the median line as a ray that starts at M and runs parallel to the line from S to P2, with two parallel rays through P2 and P3, and a construction line joins S to P2. Moving P1 or the other points changes S and so the slope of the whole fork. Build the fork in the displayed scale.
 
 ## Standard defaults
 Median line plus two parallels. S is the midpoint of P1-P2.

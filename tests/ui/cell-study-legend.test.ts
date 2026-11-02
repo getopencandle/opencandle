@@ -73,3 +73,8 @@ it('one global title setting suppresses script title text on both real active an
 it('a retained open menu retires before any native pane or price-scale read on a same-props local render',()=>{
  const f=cell('a',100,7),ui=mount('a',f),more=all(ui.view.render(),node=>node.type==='button'&&String(node.props['aria-label']).startsWith('More '))[0];expect(more).toBeDefined();(more.props.onClick as()=>void)();ui.view.settle();expect(f.chart.chart.panes.list).toHaveBeenCalled();expect(f.chart.priceScale.settings).toHaveBeenCalled();f.setCurrent(false);f.chart.chart.panes.list.mockClear();f.chart.priceScale.settings.mockClear();ui.view.render();expect(f.chart.chart.panes.list).not.toHaveBeenCalled();expect(f.chart.priceScale.settings).not.toHaveBeenCalled();expect(all(ui.view.render(),node=>node.props['aria-haspopup']==='menu'&&node.props['aria-expanded']===true)).toHaveLength(0);expect(all(ui.view.render(),node=>node.props['aria-label']==='Hide indicator legend'&&node.props['aria-expanded']===true)).toHaveLength(1);
 });
+it('a company fundamental reads by its metric in a cell legend ("P/E TTM"), not by the kind name',()=>{
+ const f=cell('a',100,7);Object.assign(f.row,{...factoryIndicatorDefault('fundamental'),kind:'fundamental'});
+ const tree=mount('a',f).view.render(),name=all(tree,node=>node.props.className==='lv-legend-name').map(node=>text(node)),args=all(tree,node=>node.props.className==='lv-legend-args').map(node=>text(node).trim());
+ expect(name).toEqual(['P/E']);expect(args).toEqual(['TTM']);
+});

@@ -8,7 +8,7 @@ import type {ChartSettingsDocument} from '../chart/chart-settings-document';
 import type {ChartAppearance} from './themes';
 import {PaneIndicatorLayer,PaneLegendMenu} from './PaneIndicatorLayer';
 import {indicatorInstanceLabels,indicatorAcronyms,indicatorDataStatus} from './indicator-dialog-model';
-import {indicatorLegendArguments,indicatorLegendReadout} from '../chart/indicator-display';
+import {indicatorLegendArguments,indicatorLegendReadout,indicatorLegendTitle} from '../chart/indicator-display';
 import {legendButtons,legendMoreMenu,LEGEND_TOGGLER_QA_ID,indicatorOrderState,indicatorVisualOrderAvailable,visualOrderItems,isIndicatorOrderStep,type LegendMoreItemId} from '../chart/legend-model';
 import {legendButtonView,legendMoreMenuView,legendValuesView,legendPaneView,indicatorReasonView,type LegendSubmenuItem} from './indicator-legend-view';
 import {indicatorMoveChoices} from './indicator-move-targets';
@@ -156,7 +156,7 @@ export function CellStudyLegend(props:CellStudyLegendProps){
   }catch{return <span className="lv-legend-values lv-study-unavailable" title="Current calculated values are unavailable for this chart." data-study-values="unavailable">{DATA_WINDOW_EMPTY}</span>;}
  };
  const builtRow=(row:IndicatorInstanceView)=>{
-  const label=labels.get(row.id)??'Indicator',subject:CellStudySubject={kind:'builtin',id:row.id,fingerprint:metadata?.fingerprints.get(row.id)??''},shown=indicatorLegendReadout({acronym:indicatorAcronyms[row.kind]??'Indicator',arguments:indicatorLegendArguments(row.kind,row.inputs,id=>labels.get(id)??null)},{titles:props.settings.statusLine.indicatorTitles,inputs:props.settings.statusLine.indicatorInputs});
+  const label=labels.get(row.id)??'Indicator',subject:CellStudySubject={kind:'builtin',id:row.id,fingerprint:metadata?.fingerprints.get(row.id)??''},shown=indicatorLegendReadout({acronym:indicatorLegendTitle(row.kind,row.inputs,indicatorAcronyms[row.kind]??'Indicator'),arguments:indicatorLegendArguments(row.kind,row.inputs,id=>labels.get(id)??null)},{titles:props.settings.statusLine.indicatorTitles,inputs:props.settings.statusLine.indicatorInputs});
   const opened=menu?.id===row.id&&current(),orderRows=opened?rows.map(item=>({id:item.id,paneId:item.paneId})):[];
   const press:Record<string,()=>void>={hide:()=>issue(subject,{kind:'visibility'}),settings:()=>issue(subject,{kind:'settings'}),intervalSettings:()=>issue(subject,{kind:'settings',tab:'Visibility'}),remove:()=>issue(subject,{kind:'remove'}),more:()=>setMenu(opened?null:{id:row.id,open:null})};
   const fact=<T,>(read:()=>T,fallback:T):T=>{if(!opened||!current())return fallback;try{const value=read();return current()?value:fallback;}catch{return fallback;}};

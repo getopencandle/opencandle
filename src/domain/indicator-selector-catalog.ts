@@ -2,7 +2,10 @@
 // Entries are the local OpenCandle catalog, LVScript library and SEC statement
 // metrics; wording of empty states is OpenCandle's own. Community scripts are omitted
 // (they need a hosted catalog; there are no accounts). Pure data: no dialog state, no chart access.
-import {STATEMENT_LINES,DERIVED_METRICS,UNAVAILABLE_METRICS} from '../fundamentals/statements';
+import {UNAVAILABLE_METRICS} from '../fundamentals/statements';
+import {PIT_METRICS} from '../fundamentals/pit-metrics';
+import type {PitMetricKey} from '../fundamentals/pit-types';
+import {isFundamentalsIndicator,fundamentalPlotKind} from './indicators-ext/fundamentals-catalog';
 import {VP_INDICATOR_IDS} from './indicators-ext/vp-catalog';
 import {STRUCTURE_PROFILE_IDS} from './indicators-ext/structure-catalog';
 import {catalogKeywords} from './indicator-catalog';
@@ -43,7 +46,7 @@ export const FUNDAMENTALS_TABS:readonly {id:FundamentalsTabId;label:string}[]=Ob
  {id:'income',label:'Income statement'},{id:'balance',label:'Balance sheet'},{id:'cashflow',label:'Cash flow'},{id:'statistics',label:'Statistics'},{id:'forecasts',label:'Forecasts'},
 ]);
 
-export type SelectorCategory='indicators'|'profiles'|'patterns'|'options';
+export type SelectorCategory='indicators'|'profiles'|'patterns'|'options'|'fundamentals';
 /** The volume profile built-ins belong to the Profiles tab (with
  *  Periodic and Visible range volume profile), not the Indicators tab. */
 export const PROFILE_INDICATOR_IDS:readonly string[]=Object.freeze([...VP_INDICATOR_IDS,...STRUCTURE_PROFILE_IDS]);
@@ -52,7 +55,21 @@ export const isProfileIndicator=(id:string)=>PROFILE_INDICATOR_IDS.includes(id);
 export {isPatternIndicator};
 /** The tab an entry is listed in: its declared category, else Profiles for the profile built-ins, Patterns for the pattern
  *  built-ins, else Indicators. */
-export const selectorCategoryOf=(row:{id:string;category?:SelectorCategory}):SelectorCategory=>row.category??(isProfileIndicator(row.id)?'profiles':isPatternIndicator(row.id)?'patterns':'indicators');
+export const selectorCategoryOf=(row:{id:string;category?:SelectorCategory}):SelectorCategory=>row.category??(isProfileIndicator(row.id)?'profiles':isPatternIndicator(row.id)?'patterns':isFundamentalsIndicator(row.id)?'fundamentals':'indicators');
+/** The fundamentals built-ins are added from the Fundamentals rows (each row is a preset), never listed under Technicals. */
+export {isFundamentalsIndicator};
+/** One Fundamentals sidebar row: the kind it adds, its inputs and the plot style that differs from the kind default. */
+export interface FundamentalsPreset {id:string;label:string;kind:'fundamental'|'pebands';inputs:Record<string,string|number|boolean>;plotKind?:'step'|'line'}
+const metricPreset=(key:PitMetricKey):FundamentalsPreset=>({id:'fundamental:'+key,label:PIT_METRICS.find(row=>row.key===key)!.label,kind:'fundamental',inputs:{metric:key,period:'ttm',display:'value',revisions:'first'},plotKind:fundamentalPlotKind(key)});
+/** The rows of each Fundamentals tab, in display order. Statement lines outside these stay in the Fundamentals view. */
+export const FUNDAMENTALS_PRESETS:Readonly<Record<Exclude<FundamentalsTabId,'forecasts'>,readonly FundamentalsPreset[]>>=Object.freeze({
+ income:(['revenue','net_income','eps','dps'] as const).map(metricPreset),
+ balance:(['shares','current_ratio','liab_equity'] as const).map(metricPreset),
+ cashflow:(['ocf','capex','fcf','fcf_ps'] as const).map(metricPreset),
+ statistics:[...(['gross_margin','op_margin','net_margin','fcf_margin','pe','ey','ps','pb','pfcf','fcfy','mcap','dy'] as const).map(metricPreset),{id:'pebands',label:'P/E bands',kind:'pebands' as const,inputs:{}}],
+});
+/** The preset a Fundamentals row id adds, or null for any other id. */
+export function fundamentalsPreset(id:string):FundamentalsPreset|null{for(const rows of Object.values(FUNDAMENTALS_PRESETS))for(const row of rows)if(row.id===id)return row;return null;}
 export interface SelectorIndicator {id:string;name:string;acronym:string;category?:SelectorCategory}
 export interface SelectorScript {id:string;name:string;kind:'indicator'|'strategy'}
 /** `strategies` are the built-in strategies, listed first in the
@@ -82,9 +99,7 @@ const matches=(haystack:string,query:string)=>{const terms=query.toLocaleLowerCa
 
 function metricsFor(tab:FundamentalsTabId):SelectorEntry[]{
  if(tab==='forecasts')return[];
- if(tab==='statistics')return DERIVED_METRICS.filter(row=>row.statements.includes('statistics')).map(row=>({id:row.id,label:row.label,kind:'metric' as const}));
- const statement=tab==='income'?'income':tab==='balance'?'balance':'cashflow';
- return STATEMENT_LINES.filter(row=>row.statement===statement).map(row=>({id:row.id,label:row.label,kind:'metric' as const}));
+ return FUNDAMENTALS_PRESETS[tab].map(row=>({id:row.id,label:row.label,kind:'metric' as const}));
 }
 
 /** The visible entries for a sidebar item and tab, filtered by the search text. Unknown selections fail instead of guessing. */

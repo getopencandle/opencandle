@@ -1,6 +1,7 @@
-/** Ticker to CIK map built from a file the user imports (SEC company_tickers.json or
- * company_tickers_exchange.json). Nothing is fetched here; the user downloads the file themselves.
- * The map only fills a form field. LV still never links a company to a chart symbol by itself. */
+/** Ticker to CIK map built from SEC company_tickers.json or company_tickers_exchange.json: a file the user imports, or
+ * the copy of SEC's file the desktop app keeps (fetched at most every 7 days, see src/fundamentals/fundamentals-service.ts).
+ * Nothing is fetched here. Chart fundamentals use it to match a chart symbol to its company; the two built-in CIKs are
+ * only for the Fundamentals view, never for charts. */
 export interface CikEntry {ticker:string;cik:string;title:string}
 export interface CikMap {schemaVersion:1;importedAt:string;entries:CikEntry[]}
 export const MAX_CIK_FILE_BYTES=20*1024*1024,MAX_CIK_ENTRIES=100000;

@@ -50,12 +50,14 @@ describe('R4 indicator selector sidebar and tabs',()=>{
   ui.item('my-scripts').props.onClick();expect(ui.tabs()).toEqual([]);expect(ui.entries()).toEqual(['i-1']);
   expect(()=>ui.item('purchased')).toThrow();expect(selectorView({indicators:[],scripts:[]},{item:'purchased',query:''}).empty).toEqual({kind:'empty',text:expect.stringMatching(/no store/)});
  });
- it('Fundamentals shows its tabs and local statement metrics that open the fundamentals view',()=>{
-  const open=vi.fn(),ui=selector({onOpenMetric:open});
+ it('Fundamentals shows its tabs and rows that each add a fundamentals pane, never the fundamentals view',()=>{
+  const open=vi.fn(),added=vi.fn(),ui=selector({onOpenMetric:open,onFundamentalsAdded:added});
   ui.item('fundamentals').props.onClick();
   expect(ui.tabs().map(node=>text(node))).toEqual(FUNDAMENTALS_TABS.map(row=>row.label));
-  expect(ui.entries().length).toBeGreaterThan(0);
-  find(ui.render(),node=>node.props?.['data-selector-entry']===ui.entries()[0]).props.onClick();expect(open).toHaveBeenCalledWith(ui.entries()[0]);
+  expect(ui.entries()).toEqual(['fundamental:revenue','fundamental:net_income','fundamental:eps','fundamental:dps']);
+  find(ui.render(),node=>node.props?.['data-selector-entry']===ui.entries()[0]).props.onClick();
+  expect(open).not.toHaveBeenCalled();expect(added).toHaveBeenCalledTimes(1);
+  expect(ui.port.list().filter((row:any)=>row.kind==='fundamental').map((row:any)=>row.inputs.metric)).toEqual(['revenue']);
   ui.tab('Forecasts').props.onClick();expect(ui.empty()).toMatch(/estimate source/);
  });
  it('search filters the selected tab and a miss reads as no match',()=>{

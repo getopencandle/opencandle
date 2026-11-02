@@ -12,7 +12,7 @@ const SPECS:{id:RatioResult['id'];label:string;unit:'currency'|'x'|'%';formula:s
  {id:'price_earnings',label:'Price to earnings ratio',unit:'x',formula:'Last loaded close / Twelve-month diluted EPS',catalogId:M+'43000597017'},
  {id:'price_sales',label:'Price to sales ratio',unit:'x',formula:'Market capitalization / TTM total revenue',catalogId:M+'43000597019'},
  {id:'price_book',label:'Price to book ratio',unit:'x',formula:"Market capitalization / Shareholders' equity (parent)",catalogId:M+'43000597016'},
- {id:'eps_yield',label:'EPS yield %',unit:'%',formula:'Twelve-month diluted EPS / Last loaded close * 100',catalogId:null},
+ {id:'eps_yield',label:'Earnings yield %',unit:'%',formula:'Twelve-month diluted EPS / Last loaded close * 100',catalogId:null},
 ];
 export const PRICE_RATIO_IDS:readonly string[]=SPECS.map(row=>row.id);
 export interface RatioQuery {facts:CompanyFacts;currency:string;asOf:string|null;price:PriceInput|null;today:string}

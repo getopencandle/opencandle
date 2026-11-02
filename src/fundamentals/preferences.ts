@@ -1,8 +1,8 @@
 import {dateDay} from './company-facts';
 import {restoreGraphConfig,type GraphConfig} from './graph';
 import {COLUMN_LIMITS,type StatementBasis,type StatementKind,type StatementRevisions,type StatementScale} from './statements';
-/** Persistable fundamentals view and explicit chart-symbol links. A link is the user's own
- * statement that a filing entity belongs to a market; LV never maps tickers to CIKs by itself. */
+/** Persistable fundamentals view and explicit chart-symbol links. A link is the user's own statement that a filing
+ * entity belongs to a market, and it wins over the ticker file match chart fundamentals otherwise use. */
 export type FundamentalsTab=StatementKind|'facts';
 export type CutoffMode='today'|'date'|'none';
 export interface FundamentalsView {tab:FundamentalsTab;basis:StatementBasis;currency:string|null;scale:StatementScale;cutoffMode:CutoffMode;cutoffDate:string|null;revisions:StatementRevisions;columns:typeof COLUMN_LIMITS[number];line:string|null}

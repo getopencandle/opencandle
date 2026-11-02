@@ -152,8 +152,8 @@ describe('price-based ratios and graph tab',()=>{
  const close={close:10,date:'2024-12-30',currency:'USD',symbol:'SYNTH',source:'SYNTHETIC DEMO dataset'};
  it('computes P/E from the loaded close and keeps unmet ratios unavailable with their reason',()=>{
   const ui=mount({lastClose:close});ui.click('Statistics');const all=ui.all();
-  // Reported twelve-month diluted EPS 1.25 -> 10 / 1.25 = 8x ; EPS yield = 1.25 / 10 * 100 = 12.5%.
-  expect(all).toContain('Price to earnings ratio8x');expect(all).toContain('EPS yield %12.5%');
+  // Reported twelve-month diluted EPS 1.25 -> 10 / 1.25 = 8x ; Earnings yield = 1.25 / 10 * 100 = 12.5%.
+  expect(all).toContain('Price to earnings ratio8x');expect(all).toContain('Earnings yield %12.5%');
   expect(all).toContain('SYNTH close 10 on 2024-12-30');
   expect(all).toContain('Market capitalizationNot availableNo shares outstanding count');
   expect(all).not.toContain('Market capitalization: Needs point-in-time prices');// Enterprise value is now computed in the Metrics tab from the loaded close, and the list says where.

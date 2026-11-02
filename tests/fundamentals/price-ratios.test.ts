@@ -5,7 +5,7 @@ import {syntheticStatementFacts} from './fixtures/synthetic-statements';
 // SYNTHETIC inputs only. Expected numbers are worked by hand:
 //   revenue TTM to 2024-10-31 = 1020 (FY2023 10-K/A) + 900 (9M FY24) - 740 (9M FY23) = 1180
 //   diluted EPS, reported twelve months ending 2024-01-31 = 1.25 ; equity 400 ; shares 200 ; close 10
-//   market cap = 10*200 = 2000 ; P/E = 10/1.25 = 8 ; P/S = 2000/1180 ; P/B = 2000/400 = 5 ; EPS yield = 1.25/10*100 = 12.5
+//   market cap = 10*200 = 2000 ; P/E = 10/1.25 = 8 ; P/S = 2000/1180 ; P/B = 2000/400 = 5 ; Earnings yield = 1.25/10*100 = 12.5
 const facts=(mutate?:(raw:any)=>void)=>{
  const raw=syntheticStatementFacts() as any;
  raw.facts['us-gaap'].StockholdersEquity={units:{USD:[{end:'2024-01-31',val:400,filed:'2024-03-20',form:'10-K',accn:'0000009999-24-000001'}]}};
@@ -16,7 +16,7 @@ const price:PriceInput={close:10,date:'2024-12-20',currency:'USD',symbol:'SYNTH'
 const run=(f=facts(),p:PriceInput|null=price,extra:Partial<{asOf:string|null;today:string}>={})=>computePriceRatios({facts:f,currency:'USD',asOf:'2024-12-31',price:p,today:'2024-12-24',...extra});
 const by=(rows:ReturnType<typeof run>,id:string)=>rows.find(r=>r.id===id)!;
 describe('price-based ratios',()=>{
- it('computes market cap, P/E, P/S, P/B and EPS yield from the loaded close',()=>{
+ it('computes market cap, P/E, P/S, P/B and earnings yield from the loaded close',()=>{
   const rows=run();
   expect(by(rows,'market_cap').value).toBe(2000);
   expect(by(rows,'price_earnings').value).toBe(8);

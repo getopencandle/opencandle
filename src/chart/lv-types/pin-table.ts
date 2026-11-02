@@ -146,6 +146,6 @@ export const TABLE_MODULE=defineLvDrawingToolModule({
  id:'table',
  types:[{type:LV_TABLE,base:BASE,define:()=>defineNoteTool(LV_TABLE),requiresPaintHook:true}],
  unappliedDefaults:[Object.freeze({toolId:'LineToolTable',factId:'tool.LineToolTable.creation',property:'pointsCount',value:null,reason:'unverified' as const,
-  note:'The reference anchor count and table editor are not recorded (pointsCountKnown false). Slice approximation pending reference observation: OpenCandle places 1 point, the top-left corner, and draws a grid from text (rows by line, cells by |). Factory defaults are unknown (static-drawing-defaults-2#tool.LineToolTable.status), so nothing is seeded and the native Note style remains; those are OpenCandle renderer defaults.'})],
- catalog:[{rowId:'DW.ANNOTATION.TABLE',type:LV_TABLE,note:'Click to place the top-left corner. Type one row per line and separate cells with |.'}],
+  note:'The reference anchor count and table editor are not recorded (pointsCountKnown false). Slice approximation pending reference observation: OpenCandle places 1 point, the top-left corner, and draws a grid from text (rows by line break or ;, cells by |). Factory defaults are unknown (static-drawing-defaults-2#tool.LineToolTable.status), so nothing is seeded and the native Note style remains; those are OpenCandle renderer defaults.'})],
+ catalog:[{rowId:'DW.ANNOTATION.TABLE',type:LV_TABLE,note:'Click to place the top-left corner. Type one row per line (a ; also starts a new row) and separate cells with |.'}],
 });

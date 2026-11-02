@@ -403,7 +403,7 @@ def build_cases(B):
     ez = ema(c, 34, 'sma'); slope = 100 * (ez - shift(ez, 1)) / (highest(h, 30) - lowest(l, 30))
     case('chopzone', 'chopzone', {}, {'slope': slope, 'zone': np.where(np.isfinite(slope), 1.0, NAN)}, 'hand', 'Chop zone slope = 100 x EMA change / (highest high - lowest low over 30)')
     case('lrc', 'lrc', {}, lrc(c, 100, 2, 2), 'hand', 'OLS line of the last 100 closes +/- 2 population deviations of the residuals (latest window only)')
-    case('vol24h', 'vol24h', {}, {'volume': v}, 'hand', 'Trailing 24-hour volume; on daily bars the window holds only the current bar')
+    case('vol24h', 'vol24h', {}, {'volume': np.concatenate(([NAN], v[1:]))}, 'hand', 'Trailing 24-hour volume; on daily bars the window holds only the current bar; the first bar is blank (no earlier bar shows the interval)')
     sec = second_symbol(B); c2 = sec
     case('ratio', 'ratio', {}, {'ratio': c / c2}, 'hand', 'Chart close / second symbol close (second symbol: deterministic transform, tests/reference/context.ts)')
     case('spread', 'spread', {}, {'spread': c - c2}, 'hand', 'Chart close - 1 x second symbol close')

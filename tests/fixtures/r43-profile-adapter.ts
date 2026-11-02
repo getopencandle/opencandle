@@ -11,6 +11,7 @@ import {isDerivedStyle} from '../../src/chart/derived/common';
 import {requireVolume} from '../../src/chart/contracts';
 import {createIndicatorPort} from '../../src/chart/indicator-port';
 import {profileSourceContext} from '../../src/chart/vp-visible-range-ltf';
+import {sourceFundamentalsFacts} from '../../src/chart/adapter';// 0.8.3: the indicator context carries the company facts
 import {nativeHost} from '../ui/indicator-real-port-harness';
 
 /** Executes actual adapter init/context/write/apply/setter bodies plus the actual market queue and indicator port.
@@ -22,7 +23,7 @@ export function profileAdapterHarness(primary:BarDataset){
  const init=line('let currentBars ='),frame=line('let currentSource:ChartSourceContext='),context=line('const indicators=createIndicatorPort('),writes=source.slice(start,end),set=line('    setBars:'),transaction=line('    setBarsWithRollback:');
  const nativeRows=primary.bars.map(bar=>({...bar,time:bar.time*1000})),host=nativeHost(nativeRows);let fail=false,port:ReturnType<typeof createIndicatorPort>|undefined;
  Object.assign(host.chart,{getVisibleRange:()=>null,setVisibleRange(){},setMarket:async({data}:{data:typeof nativeRows})=>{if(fail){fail=false;throw Error('SYNTHETIC native market failure');}nativeRows.splice(0,nativeRows.length,...data);port?.recompute();}});
- const code=`const {bars,sourceContext,chart,createMarketQueue,cloneProfileInputBars,sourceContextForInput,sameChartSourceBasis,barInputIdentity,isLiveInputIdentity,createCalculationBarCache,isDerivedStyle,requireVolume,createIndicatorPort,profileSourceContext}=injected;
+ const code=`const {bars,sourceContext,chart,createMarketQueue,cloneProfileInputBars,sourceContextForInput,sameChartSourceBasis,barInputIdentity,isLiveInputIdentity,createCalculationBarCache,isDerivedStyle,requireVolume,createIndicatorPort,profileSourceContext,sourceFundamentalsFacts}=injected;
  let requestedStyle='candles',disposed=false,marketUpdating=false,lastCrosshair=null,fedDerivedKey=null,derivedMemo=null,calculationBarCache=createCalculationBarCache(),vwapSourceEpoch={};
  const paneRegistry=undefined,claimNative=undefined,drawingUtilityState={},vwapPrefixSource=undefined,applicationVwapClient=()=>{throw Error('Unused synthetic VWAP client');};
  const sharedFeedRows=value=>value,indicatorContextWithOverlay=resolution=>({resolution}),sourceAxisBasis=()=>({assetClass:'crypto',timezone:'UTC'}),sourcePivotCalendar=()=>'utc',sourceExchangeTimeZone=()=>'UTC';
@@ -32,6 +33,6 @@ export function profileAdapterHarness(primary:BarDataset){
  ${context}\n${writes}
  return{port:indicators,controller:{${set}\n${transaction}},read:()=>({bars:currentBars,source:currentSource}),dispose(){disposed=true;indicators.dispose();}};`;
  const build=new Function('return '+stripTypeScriptTypes('(function(injected){'+code+'})',{mode:'strip'}))();
- const result=build({bars:primary.bars,sourceContext:sourceContextForDataset(primary),chart:host.chart,createMarketQueue,cloneProfileInputBars,sourceContextForInput,sameChartSourceBasis,barInputIdentity,isLiveInputIdentity,createCalculationBarCache,isDerivedStyle,requireVolume,createIndicatorPort,profileSourceContext});port=result.port;
+ const result=build({bars:primary.bars,sourceContext:sourceContextForDataset(primary),chart:host.chart,createMarketQueue,cloneProfileInputBars,sourceContextForInput,sameChartSourceBasis,barInputIdentity,isLiveInputIdentity,createCalculationBarCache,isDerivedStyle,requireVolume,createIndicatorPort,profileSourceContext,sourceFundamentalsFacts});port=result.port;
  const id=port!.add('pvp',{period:'Month',valueAreaVolume:0});return{...result,id,profile:()=>port!.values(id).profiles![0],poc:()=>{const value=port!.values(id),first=value.profiles![0];return value.series[0].values[first.to];},/* the profile POC: causal per-bar levels reach it on the period's last bar (0.8.1) */failNext(){fail=true;}};
 }

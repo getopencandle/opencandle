@@ -50,7 +50,7 @@ async function setup(){
  const node=(type:any)=>find(render(),row=>row.type===type);
  const button=(name:string)=>{const rows=findAll(render(),row=>row.type==='button'&&(row.props['aria-label']===name||content(row)===name));if(rows.length!==1)throw Error('Expected one App button '+name+', found '+rows.length);return rows[0];};
  const main=()=>find(render(),row=>row.type==='main');
- const keydown=()=>{render();let index=-1;hooks.effects.forEach((fn,at)=>{if(/addEventListener\(["']keydown["']/.test(String(fn)))index=at;});if(index<0)throw Error('Missing keyboard effect');hooks.effects.splice(index,1)[0]!();return listeners.get('keydown')!;};
+ const keydown=()=>{render();let index=-1;hooks.effects.forEach((fn,at)=>{if(/window\.addEventListener\(["']keydown["']/.test(String(fn)))index=at;});if(index<0)throw Error('Missing keyboard effect');hooks.effects.splice(index,1)[0]!();return listeners.get('keydown')!;};
  const ready=()=>{const native=nativeChart();node(WorkspaceChartHost).props.onReady(native.controller);render();return native;};
  return{render,node,button,main,keydown,ready};
 }

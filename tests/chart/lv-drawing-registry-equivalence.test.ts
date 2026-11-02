@@ -159,11 +159,13 @@ const BEFORE={
 //   Stickers notes are reworded (catalog); Stickers become one centre anchor with a pixel Size setting (anchor schema 1..1,
 //   schema gains lvStickerSize, sample props carry the size: portCatalog, registered). Nothing else moves. Previous: all
 //   726e3ab7, catalog 9ae61aaf, portCatalog 170b99eb, registered e5b2dc98.
+// 0.8.3 re-pin: the Table catalog note and its unapplied-row note say a ; also starts a new row (text only).
+//   The previous pin, for the record: all e3409c5e, catalog 923af16b, factoryUnapplied 4b2595e0.
 const PINNED={
- all:'e3409c5e6619a7d606fea05dae63d27526a9e9380fe6271b068eb968db5b30d7',
- catalog:'923af16b9270703a6f14585187ab33e897dabbd619c04d2690a80c429230fcb1',
+ all:'86a708d10b19605a2dfea741d373a9d25f25dc6a681873b944fd073059301f0d',
+ catalog:'18209ed49a6e096ca850760b38b83af7d969e40ce931938cf2fa5bfc889b2ef1',
  factoryDefinitions:'815d67cb786de19aeab78dba31d5ce4a963e3939dd6ef25e7ace9e0daac31646',
- factoryUnapplied:'4b2595e051490540ce2fc1861a4543f70b709b4a94a52a6533169ed612eca403',
+ factoryUnapplied:'baca8769074178a6bab518c4a4682ee76d02a5ec4b551c2dd44184b0ddd75694',
  factoryStatus:'7812034d4bf4c9eaf7376bcd684620431398bd1ba9fd894934bc7abc2ff3d3b2',
  dialogSpecs:'332ce420d6513ddb60469c9cb2ceac29859b723532f1f5a027aa98133e1cb56c',
  dialogUnavailable:'a816dd28be2ae041ca2b1069c6fe9df848d19e02d110b4662f26e94477b5ff51',

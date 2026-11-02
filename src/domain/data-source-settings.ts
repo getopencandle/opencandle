@@ -93,7 +93,7 @@ export function dataNeedStatus(id:DataNeedId,input:DataNeedInputs):DataNeedStatu
 }
 
 /** The non-secret provider choices the page can export and import (the workspace's liveData). */
-export interface DataSourceSettings {coinbase:boolean;alpacaSymbols:string[];alpacaPlan?:'paid';fred?:false}
+export interface DataSourceSettings {coinbase:boolean;alpacaSymbols:string[];alpacaPlan?:'paid';fred?:false;secDaily?:false}
 /** What the desktop process says about where things are saved. */
 export interface DataSourcesInfo {directory:string;insideAppFolder:boolean;encryption:boolean;keySaved:boolean}
 export interface DataSourceSettingsBridge {

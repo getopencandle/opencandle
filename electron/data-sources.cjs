@@ -16,13 +16,14 @@ const KEY_NOTE='API keys are never written to this file. After importing, enter 
 const fail=message=>{throw new BoundaryError('INVALID_ARGUMENT',message);};
 /** The non-secret provider choices, exactly as the renderer keeps them (LiveDataChoices). */
 function settingsInput(value){
-  exactKeys(value,['coinbase','alpacaSymbols'],['alpacaPlan','fred']);
+  exactKeys(value,['coinbase','alpacaSymbols'],['alpacaPlan','fred','secDaily']);
   if(typeof value.coinbase!=='boolean')fail('Coinbase must be on or off.');
   if(!Array.isArray(value.alpacaSymbols)||value.alpacaSymbols.length>MAX_SYMBOLS)fail('List at most 30 Alpaca symbols.');
   const symbols=value.alpacaSymbols.map(item=>{if(typeof item!=='string'||!SYMBOL.test(item))fail('An Alpaca symbol is not a US stock symbol.');return item;});
   if(value.alpacaPlan!==undefined&&value.alpacaPlan!=='free'&&value.alpacaPlan!=='paid')fail('The Alpaca plan must be free or paid.');
   if(value.fred!==undefined&&typeof value.fred!=='boolean')fail('FRED downloads must be on or off.');
-  return{coinbase:value.coinbase,alpacaSymbols:[...new Set(symbols)],...(value.alpacaPlan==='paid'?{alpacaPlan:'paid'}:{}),...(value.fred===false?{fred:false}:{})};
+  if(value.secDaily!==undefined&&typeof value.secDaily!=='boolean')fail('The daily SEC refresh must be on or off.');
+  return{coinbase:value.coinbase,alpacaSymbols:[...new Set(symbols)],...(value.alpacaPlan==='paid'?{alpacaPlan:'paid'}:{}),...(value.fred===false?{fred:false}:{}),...(value.secDaily===false?{secDaily:false}:{})};
 }
 /** Export input from the renderer: exactly {settings}. Anything else (a key field, a path) is refused. */
 function exportInput(value){exactKeys(value,['settings']);return settingsInput(value.settings);}

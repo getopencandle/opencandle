@@ -36,7 +36,7 @@ export type ComparisonSnapshot=Omit<ComparisonSettings,'dataset'>&{datasetId:str
 export interface Workspace extends Record<string,unknown>{
  layoutLibrary?:LayoutLibrary;
  /** Live market-data choices (off by default). Never holds a key or bars. */
- liveData?:{coinbase:boolean;alpacaSymbols:string[];alpacaPlan?:'paid'};
+ liveData?:{coinbase:boolean;alpacaSymbols:string[];alpacaPlan?:'paid';fred?:false;secDaily?:false};
  /** App-level preferences (Settings, Data sources tab, Application). Absent means the factory values. */
  appPreferences?:import('./app-preferences').AppPreferences;
  /** Chart type menu favorites (optional, additive; chart-type-favorites.ts). */

@@ -46,7 +46,7 @@ async function boot({userData='C:\\Users\\Someone\\AppData\\Roaming\\OpenCandle'
   for(let i=0;i<8;i++)await Promise.resolve();
   return{app,handlers,loaded,shell,dialog,fs,readLocalText,trusted:{sender:web,senderFrame:frame}};
 }
-const SETTINGS={coinbase:true,alpacaSymbols:['AAPL','BRK.B'],alpacaPlan:'paid',fred:false};
+const SETTINGS={coinbase:true,alpacaSymbols:['AAPL','BRK.B'],alpacaPlan:'paid',fred:false,secDaily:false};
 
 it('registers the four fixed channels, loads nothing until asked, and denies untrusted senders and layout windows',async()=>{
   const b=await boot();

@@ -34,6 +34,16 @@ describe('Live source kind in symbol search',()=>{
   expect(rows.map(row=>row.symbol).sort()).toEqual(['BTC-USD','ETH-USD','SOL-USD']);
   for(const row of rows){expect(row.sourceKind).toBe('live');expect(sourceLabel(row)).toBe('Live');expect(row.openable).toBe(true);expect(row.sourceId).toBe(row.datasetId);expect(row.synthetic).toBe(false);expect(row.datasetId.startsWith('live:')).toBe(true);}
  });
+ it('the open live chart and its not-connected search entry are one row, openable, keeping the loaded snapshot (search for the current symbol)',()=>{
+  const shell=coinbaseSearchDatasets(true,'1D').find(row=>row.instrument.symbol==='BTC-USD')!;
+  const loaded={...shell,bars:[{time:t0,open:1,high:2,low:1,close:2,volume:1},{time:t0+86400,open:2,high:3,low:2,close:3,volume:1}],provenance:{...shell.provenance,state:'live' as const,revision:'live-v1:connected',asOf:t0+86400,coverage:'Live public feed'}};
+  registerLiveDataset(loaded);
+  const state=createInitialWorkspace();
+  for(const universe of [[...workspaceDatasets(state),...coinbaseSearchDatasets(true,'1D')],[...coinbaseSearchDatasets(true,'1D'),...workspaceDatasets(state)]]){
+   const rows=buildSymbolSearchCandidates(universe,state.imports).filter(row=>row.symbol==='BTC-USD');
+   expect(rows).toHaveLength(1);expect(rows[0]).toMatchObject({openable:true,unavailableReason:null,barCount:2,lastBarTime:t0+86400,sourceId:loaded.provenance.datasetId});
+  }
+ });
  it('adds no live rows when disabled or when no Alpaca key is saved',()=>{
   expect(coinbaseSearchDatasets(false)).toEqual([]);expect(alpacaSearchDatasets(false,['AAPL'])).toEqual([]);
   const rows=alpacaSearchDatasets(true,['AAPL','MSFT'],'5m');expect(rows).toHaveLength(2);

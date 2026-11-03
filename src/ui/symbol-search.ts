@@ -57,6 +57,8 @@ export function sourceLabel(row:Pick<SymbolSearchCandidate,'sourceKind'|'synthet
 
 const text=(value:unknown,fallback='')=>typeof value==='string'?value:fallback;
 const finite=(value:unknown)=>typeof value==='number'&&Number.isFinite(value)?value:null;
+/** Two rows of one live feed: same provider, instrument and interval (bars, state and revision change as it streams). */
+const sameLiveMarket=(a:SymbolSearchCandidate,b:SymbolSearchCandidate)=>a.providerId===b.providerId&&a.symbol===b.symbol&&a.exchange===b.exchange&&a.instrumentId===b.instrumentId&&a.resolution===b.resolution&&a.datasetId===b.datasetId;
 /** Build searchable rows from the exact chart universe. `imports` decides the sourceId App's switchSymbol needs. */
 export function buildSymbolSearchCandidates(universe:readonly BarDataset[],imports:readonly BarDataset[]):SymbolSearchCandidate[]{
  const rows:SymbolSearchCandidate[]=[],byKey=new Map<string,SymbolSearchCandidate>();
@@ -77,6 +79,9 @@ export function buildSymbolSearchCandidates(universe:readonly BarDataset[],impor
    providerId:text(p.providerId),providerName:text(p.providerName),revision:text(p.revision),coverage:text(p.coverage),adjustment:text(p.adjustment),session:text(p.session),timezone:text(p.timezone),
    synthetic:p.fixture===true,barCount:bars.length,lastBarTime,delaySeconds:finite(p.delaySeconds),state:p.state??null,openable:!reason,unavailableReason:reason};
   const prior=byKey.get(candidate.key);
+  // A live feed is one market at a time: the open chart's snapshot and the not-connected search entry of the same
+  // provider, ticker and interval are the same source, so the row with more loaded bars is kept, never a conflict.
+  if(prior&&live&&sameLiveMarket(prior,candidate)){if((candidate.barCount??0)>(prior.barCount??0))Object.assign(prior,candidate);continue;}
   if(prior){if(prior.stamp!==candidate.stamp){prior.openable=false;prior.unavailableReason='Two different sources share this dataset identity. Re-import one of them.';}continue;}
   byKey.set(candidate.key,candidate);rows.push(candidate);
  }

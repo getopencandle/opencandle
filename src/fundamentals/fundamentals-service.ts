@@ -219,3 +219,20 @@ export function createFundamentalsService(options:FundamentalsServiceOptions):Fu
  return service;
 }
 const EMPTY:readonly string[]=Object.freeze([]);
+/** The SEC copies already saved on this PC for a symbol, for the Fundamentals view: the CIK from the user's own map or the
+ * saved SEC ticker file, then the saved companyfacts. Every read is cache-only, so this never sends a request. */
+export interface SavedSecCompany {cik:string|null;title:string;document:FactsDocument|null}
+export async function findSavedSecCompany(bridge:SecDataBridge,symbol:string,known:string|null):Promise<SavedSecCompany>{
+ let cik=known&&/^\d{10}$/.test(known)?known:null,title='',sequence=0;
+ const read=async(kind:SecKind,id:string|null)=>{try{const result=await bridge.loadSecData({requestId:'fundamentals-view-'+Date.now()+'-'+(++sequence),kind,cik:id,refresh:'cache-only'});return result.ok?result.value.envelope:null;}catch{return null;}};
+ if(!cik){
+  const tickers=await read('tickers',null);let map:CikMap|null=null;
+  if(tickers)try{map=parseTickerFile(JSON.stringify(tickers.data),tickers.provenance.retrievedAt).map;}catch{map=null;}
+  const hit=map?lookupCik(map,symbol):null;if(hit?.source!=='ticker-file')return {cik:null,title:'',document:null};
+  cik=hit.cik;title=hit.title;
+ }
+ const envelope=await read('companyfacts',cik);if(!envelope)return {cik,title,document:null};
+ let facts:CompanyFacts;try{facts=normalizeCompanyFacts(envelope.data);}catch{return {cik,title,document:null};}
+ if(facts.cik!==cik)return {cik,title,document:null};
+ return {cik,title,document:{id:'sec:'+facts.cik,facts,source:{kind:'sec-public',label:'SEC EDGAR companyfacts',retrievedAt:envelope.provenance.retrievedAt,sourceUrl:envelope.provenance.sourceUrl,sha256:envelope.provenance.sha256}}};
+}

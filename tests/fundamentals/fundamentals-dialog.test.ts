@@ -6,8 +6,8 @@ import {createFundamentalsPreferences,createFundamentalsView,setFundamentalsLink
 import {syntheticStatementFacts,syntheticSource} from './fixtures/synthetic-statements';
 // Actual component handlers with controlled React hook state. No DOM rendering, focus, native
 // dialog, IPC or packaged-app evidence. SYNTHETIC facts only; the SEC bridge is a stub.
-const hooks=vi.hoisted(()=>({cells:[] as any[],cursor:0}));
-vi.mock('react',async()=>{const actual=await vi.importActual<any>('react');return {...actual,useState:(initial:any)=>{const i=hooks.cursor++;if(!(i in hooks.cells))hooks.cells[i]=typeof initial==='function'?initial():initial;return [hooks.cells[i],(next:any)=>{hooks.cells[i]=typeof next==='function'?next(hooks.cells[i]):next;}];},useRef:(initial:any)=>{const i=hooks.cursor++;if(!(i in hooks.cells))hooks.cells[i]={current:initial};return hooks.cells[i];},useEffect:()=>{hooks.cursor++;},useMemo:(fn:()=>any)=>fn()};});
+const hooks=vi.hoisted(()=>({cells:[] as any[],cursor:0,effects:null as null|(()=>unknown)[]}));
+vi.mock('react',async()=>{const actual=await vi.importActual<any>('react');return {...actual,useState:(initial:any)=>{const i=hooks.cursor++;if(!(i in hooks.cells))hooks.cells[i]=typeof initial==='function'?initial():initial;return [hooks.cells[i],(next:any)=>{hooks.cells[i]=typeof next==='function'?next(hooks.cells[i]):next;}];},useRef:(initial:any)=>{const i=hooks.cursor++;if(!(i in hooks.cells))hooks.cells[i]={current:initial};return hooks.cells[i];},useEffect:(fn:()=>unknown)=>{hooks.cursor++;hooks.effects?.push(fn);},useMemo:(fn:()=>any)=>fn()};});
 const text=(node:any):string=>typeof node==='string'||typeof node==='number'?String(node):Array.isArray(node)?node.map(text).join(''):node?.props?text(node.props.children):'';
 function find(tree:any,match:(node:any)=>boolean):any{if(Array.isArray(tree)){for(const child of tree){const found=find(child,match);if(found)return found;}return null;}if(!tree?.props)return null;if(match(tree))return tree;return find(tree.props.children,match);}
 const raw=syntheticStatementFacts(),facts=normalizeCompanyFacts(raw);
@@ -23,7 +23,7 @@ function mount(patch:Record<string,unknown>={}){
  return {props,render,node,all:()=>text(render()),click:(label:string)=>node(label).props.onClick(),change:(label:string,value:string)=>node(label).props.onChange({target:{value}}),error:()=>text(find(render(),n=>n.props.role==='alert'))};
 }
 const flush=()=>new Promise(resolve=>setTimeout(resolve,0));
-beforeEach(()=>{hooks.cells=[];hooks.cursor=0;});afterEach(()=>vi.unstubAllGlobals());
+beforeEach(()=>{hooks.cells=[];hooks.cursor=0;hooks.effects=null;});afterEach(()=>vi.unstubAllGlobals());
 describe('statement views',()=>{
  it('opens on the annual income statement with source, cutoff and the selected line provenance',()=>{
   const ui=mount(),all=ui.all();
@@ -111,6 +111,38 @@ describe('reset, persistence and symbol links',()=>{
   expect(ui.node('Fundamentals document').props.value).toBe(local.id);
   ui.click('Remove saved data');
   expect(ui.props.onChange).toHaveBeenCalledWith([fixture]);expect(ui.props.preferences.links).toEqual([]);
+ });
+});
+describe('SEC copies saved on this PC',()=>{
+ // The chart indicators read the saved SEC ticker file and companyfacts; the Fundamentals view must find the same copies
+ // without sending anything. SYNTHETIC ticker row and facts; the bridge is a stub that records every call.
+ const envelope=(data:unknown,cik:string|null)=>({schemaVersion:1,cik,entityName:'Synthetic',data,provenance:{retrievedAt:'2026-10-15T00:00:00Z',sourceUrl:'https://example.invalid/'+(cik??'tickers'),sha256:'b'.repeat(64)}});
+ function bridge(saved:{tickers?:boolean;facts?:boolean}={tickers:true,facts:true}){
+  const loadSecData=vi.fn(async(input:{kind:string;cik:string|null;refresh:string})=>({ok:true,value:{envelope:input.kind==='tickers'&&saved.tickers?envelope({'0':{cik_str:Number(facts.cik),ticker:'SYNTHCO',title:'Synthetic Co'}},null):input.kind==='companyfacts'&&saved.facts&&input.cik===facts.cik?envelope(raw,facts.cik):null,cachedAt:null,fromCache:true,refreshError:null,resumeAt:null}}));
+  const lv={loadSecData,fetchSecCompanyFacts:vi.fn(),cancelSecRequest:vi.fn(),getSecIdentity:vi.fn(async()=>({ok:true,value:{set:false,value:''}})),setSecIdentity:vi.fn()};
+  vi.stubGlobal('window',{lv});return lv;
+ }
+ async function open(patch:Record<string,unknown>){hooks.effects=[];const ui=mount({symbol:'SYNTHCO',market,documents:[],...patch});ui.render();for(const effect of hooks.effects.splice(0))effect();hooks.effects=null;await flush();await flush();return ui;}
+ it('fills the CIK from the saved ticker file and shows the saved companyfacts without any SEC request',async()=>{
+  const lv=bridge(),ui=await open({});
+  expect(ui.node('SEC company CIK').props.value).toBe(facts.cik);
+  expect(ui.all()).toContain('is saved on this PC (retrieved 2026-10-15)');expect(ui.all()).not.toContain('no SEC company number on file');
+  ui.click('Show saved SEC data');
+  const stored=ui.props.onChange.mock.calls[0][0] as FactsDocument[];
+  expect(stored.map(row=>[row.id,row.source.kind,row.source.retrievedAt])).toEqual([['sec:'+facts.cik,'sec-public','2026-10-15T00:00:00Z']]);
+  expect(lv.loadSecData.mock.calls.map(([input])=>[input.kind,input.refresh])).toEqual([['tickers','cache-only'],['companyfacts','cache-only']]);
+  expect(lv.fetchSecCompanyFacts).not.toHaveBeenCalled();
+ });
+ it('with a CIK but no saved companyfacts it keeps the load prompt; with no saved ticker file the reason is unchanged',async()=>{
+  bridge({tickers:true,facts:false});let ui=await open({});
+  expect(ui.node('SEC company CIK').props.value).toBe(facts.cik);expect(ui.all()).toContain('Load reported financials from SEC EDGAR');expect(()=>ui.node('Show saved SEC data')).toThrow();
+  hooks.cells=[];bridge({});ui=await open({});
+  expect(ui.all()).toContain('SYNTHCO has no SEC company number on file');
+ });
+ it('reads nothing for a demo-data symbol and offers nothing already saved in the workspace',async()=>{
+  const lv=bridge();await open({market:{...market,synthetic:true}});expect(lv.loadSecData).not.toHaveBeenCalled();
+  hooks.cells=[];const saved:FactsDocument={id:'sec:'+facts.cik,facts,source:{kind:'sec-public',label:'SEC EDGAR companyfacts',retrievedAt:'2026-10-01T00:00:00Z',sourceUrl:null,sha256:null}};
+  bridge();const ui=await open({documents:[saved]});expect(()=>ui.node('Show saved SEC data')).toThrow();
  });
 });
 describe('load failure, cancellation and stale results',()=>{

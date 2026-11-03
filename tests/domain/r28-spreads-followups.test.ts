@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {PAPER_DERIVED_REFUSAL,derivedPaperRefusal,isDerivedInstrument,symbolMathDatasetId,symbolMathInstrument,SYMBOL_MATH_PROVIDER_ID} from '../../src/domain/symbol-math-live';
+import {PAPER_DERIVED_REFUSAL,PAPER_MARKET_REFUSAL,derivedPaperRefusal,isDerivedInstrument,symbolMathDatasetId,symbolMathInstrument,SYMBOL_MATH_PROVIDER_ID} from '../../src/domain/symbol-math-live';
 import {isCanonicalSymbolMath,isMarketSymbol} from '../../src/domain/symbol-math';
 import {pricePlusMenu} from '../../src/chart/price-scale-plus';
 import {tradeSubmenuEntries} from '../../src/ui/ChartContextMenu';
@@ -19,6 +19,13 @@ describe(' follow-up 1: paper trading is refused on derived symbols',()=>{
   expect(isDerivedInstrument(fixtureInstrument('GME'))).toBe(false);
   expect(derivedPaperRefusal({datasetId:symbolMathDatasetId('GME/SPY','1D')})).toBe(PAPER_DERIVED_REFUSAL);
   expect(derivedPaperRefusal({instrument:fixtureInstrument('GME'),datasetId:'live:alpaca-iex:GME:1D'})).toBeNull();
+ });
+ it('refuses a crypto or other non-equity chart with a plain reason instead of opening a ticket the engine cannot hold',()=>{
+  const btc={...fixtureInstrument('GME'),id:'COINBASE:BTC-USD',symbol:'BTC-USD',exchange:'COINBASE',assetClass:'crypto' as const};
+  expect(PAPER_MARKET_REFUSAL).toBe('Paper trading covers stocks and ETFs only.');
+  expect(derivedPaperRefusal({instrument:btc,datasetId:'live:coinbase-public:BTC-USD:1D'})).toBe(PAPER_MARKET_REFUSAL);
+  expect(derivedPaperRefusal({instrument:{...btc,assetClass:'etf' as const}})).toBeNull();
+  expect(derivedPaperRefusal({instrument:symbolMathInstrument('GME/SPY')})).toBe(PAPER_DERIVED_REFUSAL);
  });
  it('the + menu keeps alert and line rows but disables both order rows with the reason',()=>{
   const rows=pricePlusMenu({price:10,text:'10.00',last:9,symbol:'GME/SPY',host:true,line:true,paperRefusal:PAPER_DERIVED_REFUSAL});

@@ -214,5 +214,13 @@ export class SymbolMathProvider {
  * (order ticket, Buy/Sell buttons, DOM, + menu orders, Trade at a price, Shift+B/S) is refused on it with this reason. */
 export const PAPER_DERIVED_REFUSAL='Paper trading is not available on derived symbols.';
 export function isDerivedInstrument(instrument:{id?:unknown;exchange?:unknown}|null|undefined):boolean{return !!instrument&&instrument.exchange===SYMBOL_MATH_EXCHANGE&&typeof instrument.id==='string'&&instrument.id.startsWith(SYMBOL_MATH_EXCHANGE+':');}
+/** The virtual engine executes stocks and ETFs only (paperInstrumentKey), so a crypto or other market chart is refused with this reason
+ * instead of opening a ticket that cannot hold its instrument. */
+export const PAPER_MARKET_REFUSAL='Paper trading covers stocks and ETFs only.';
 /** The refusal for a chart's instrument (or its dataset id), or null when paper trading is allowed. */
-export function derivedPaperRefusal(source:{instrument?:{id?:unknown;exchange?:unknown}|null;datasetId?:unknown}|null|undefined):string|null{return source&&(isDerivedInstrument(source.instrument)||isSymbolMathDatasetId(source.datasetId))?PAPER_DERIVED_REFUSAL:null;}
+export function derivedPaperRefusal(source:{instrument?:{id?:unknown;exchange?:unknown;assetClass?:unknown}|null;datasetId?:unknown}|null|undefined):string|null{
+ if(!source)return null;
+ if(isDerivedInstrument(source.instrument)||isSymbolMathDatasetId(source.datasetId))return PAPER_DERIVED_REFUSAL;
+ const assetClass=source.instrument?.assetClass;
+ return typeof assetClass==='string'&&assetClass!=='stock'&&assetClass!=='etf'?PAPER_MARKET_REFUSAL:null;
+}

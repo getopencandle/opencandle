@@ -200,6 +200,8 @@ function initialPresetSeed(seed: PaperPresetSeed | null | undefined, manager: Pa
   } catch { return null; }
 }
 
+/** The reset key for the ticket draft. An instrument the engine cannot execute (crypto) keeps its id here, so the panel renders its refusal instead of throwing during render. */
+function panelInstrumentKey(instrument: PaperPanelProps['instrument']): string { try { return paperInstrumentKey(instrument); } catch { return `unsupported:${String(instrument?.id)}`; } }
 export function PaperPanel({ account, onAccountChange, instrument, quote, quoteSource = null, now,contextRequest=null,assertContextCurrent,onContextComplete, paperManager, exportBridge, presetSeed, sessionMode, tradingRefusal = null, timezone = 'UTC', timeHours = '24' }: PaperPanelProps) {
   // Plain strings from App, so a zone or hour-cycle change re-renders every time below (no memo here).
   const zoneName = chartZoneName(timezone), shownTime = (seconds: number | undefined, suffix = false) => paperPanelTime(seconds, timezone, timeHours, suffix);
@@ -252,12 +254,12 @@ export function PaperPanel({ account, onAccountChange, instrument, quote, quoteS
     }
     setMessage(result.diagnostics.length ? result.diagnostics.map(d => d.message).join(' ') : result.ok ? success : 'Virtual action failed.'); return result.ok;
   };
-  const resetKey = useRef<string | null>(null), thisKey = `${paperInstrumentKey(instrument)}|${account.id}|${account.runId}`;
-  useEffect(() => {if(contextRequest)return;const first = resetKey.current === null; resetKey.current = thisKey; if (first && firstSeed) return;dirty.current=false; setDraft(draftFor(quote, now, timezone)); setEditing(null); setExitPlan(null); setExitRepresentations(null); setExitEditor(null); }, [paperInstrumentKey(instrument), account.id, account.runId]);
+  const resetKey = useRef<string | null>(null), thisKey = `${panelInstrumentKey(instrument)}|${account.id}|${account.runId}`;
+  useEffect(() => {if(contextRequest)return;const first = resetKey.current === null; resetKey.current = thisKey; if (first && firstSeed) return;dirty.current=false; setDraft(draftFor(quote, now, timezone)); setEditing(null); setExitPlan(null); setExitRepresentations(null); setExitEditor(null); }, [panelInstrumentKey(instrument), account.id, account.runId]);
   // A ticket reset while this account had no quote yet (a new or just switched account: the bar feed sets its quote right
   // after) starts with empty prices; the first quote fills them, unless the user already edited the ticket.
   const hasQuote = quote !== null;
-  useEffect(() => {if(!hasQuote||contextRequest||dirty.current||editing)return;const ask=String(quote!.ask);setDraft(current => current.limitPrice===''&&current.stopPrice===''?{ ...current, limitPrice: ask, stopPrice: ask }:current);}, [hasQuote, paperInstrumentKey(instrument), account.id, account.runId]);
+  useEffect(() => {if(!hasQuote||contextRequest||dirty.current||editing)return;const ask=String(quote!.ask);setDraft(current => current.limitPrice===''&&current.stopPrice===''?{ ...current, limitPrice: ask, stopPrice: ask }:current);}, [hasQuote, panelInstrumentKey(instrument), account.id, account.runId]);
   useEffect(() => {
     if (!quote || quote.instrumentId !== instrument.id || account.quotes[quote.instrumentId]?.sequence === quote.sequence) return;
     try{assertRequest('use',false);const result = processPaperQuote(account, quote, now, account.runId, instrument);

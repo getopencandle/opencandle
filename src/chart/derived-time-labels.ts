@@ -45,3 +45,13 @@ export function frameCoords<T>(renderer:object,coords:T):T{
  if(!coords||typeof coords!=='object')return coords;const times=derivedTimeSource(renderer);
  return times?derivedTimeCoords(coords as Coords,times) as T:coords;
 }
+/** The time axis view of a derived chart: as frameCoords, but a tick time outside the bricks' own source times has no x
+ * (NaN), so the axis drops that tick. Past the last brick (or before the first) there is no source time: a brick is not a
+ * calendar step, so the blank space right of the last brick never gets future dates (a Line break wall cell showed "2027"
+ * for daily data ending in 2026). The crosshair keeps the extrapolated view (frameCoords). */
+export function axisFrameCoords<T>(renderer:object,coords:T):T{
+ if(!coords||typeof coords!=='object')return coords;const times=derivedTimeSource(renderer);if(!times)return coords;
+ const view=derivedTimeCoords(coords as Coords,times),first=times[0],last=times[times.length-1];
+ const timeToX=(ms:number)=>ms>=first&&ms<=last?view.timeToX(ms):NaN;
+ return new Proxy(view,{get(target,key){return key==='timeToX'?timeToX:Reflect.get(target,key,target);}}) as T;
+}

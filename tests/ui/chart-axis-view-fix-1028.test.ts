@@ -4,7 +4,7 @@ import React from 'react';
 import fs from 'node:fs';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {describe,expect,it,vi} from 'vitest';
-import {derivedTimeCoords,frameCoords,logicalAtSourceTime,setDerivedTimeSource,sourceTimeAtLogical} from '../../src/chart/derived-time-labels';
+import {axisFrameCoords,derivedTimeCoords,frameCoords,logicalAtSourceTime,setDerivedTimeSource,sourceTimeAtLogical} from '../../src/chart/derived-time-labels';
 import {scrollToLatestNow} from '../../src/ui/ScrollToLatestButton';
 import {ReplayQuickTrade} from '../../src/ui/ReplayPanel';
 import {compactTitle,PAPER_FILL_AUTOHIDE_MS} from '../../src/ui/PaperTradingToasts';
@@ -43,8 +43,19 @@ describe('derived time labels (FLOWS-AUDIT4 #3)',()=>{
   on=false;expect(frameCoords(renderer,coords)).toBe(coords);
   setDerivedTimeSource(renderer,null);
  });
+ it('the time axis gets no tick past the last brick or before the first (no future dates in the blank space)',()=>{
+  const renderer={},coords:Record<string,any>={barInterval:DAY,logicalToX:(l:number)=>l*10,visibleLogicalRange:()=>({from:-2,to:60}),timeToX:()=>-1};
+  expect(axisFrameCoords(renderer,coords)).toBe(coords);// a time-based chart keeps its own coords
+  setDerivedTimeSource(renderer,()=>times);
+  const axis=axisFrameCoords(renderer,coords),crosshair=frameCoords(renderer,coords);
+  expect(axis.timeToX(14*DAY)).toBe(30);expect(axis.timeToX(21*DAY)).toBe(40);expect(axis.timeToX(10*DAY)).toBe(0);
+  expect(axis.timeToX(22*DAY)).toBeNaN();expect(axis.timeToX(400*DAY)).toBeNaN();expect(axis.timeToX(9*DAY)).toBeNaN();
+  // The tick step still comes from the whole visible span; the crosshair still reads the blank space.
+  expect(axis.visibleTimeRange()).toEqual(crosshair.visibleTimeRange());expect(crosshair.timeToX(22*DAY)).toBe(50);
+  setDerivedTimeSource(renderer,null);
+ });
  it('both renderer seams and the adapter use the registration',()=>{
-  expect(fs.readFileSync('src/chart/time-axis-ticks.ts','utf8')).toContain('frameCoords(renderer,args[1])');
+  expect(fs.readFileSync('src/chart/time-axis-ticks.ts','utf8')).toContain('axisFrameCoords(renderer,args[1])');
   expect(fs.readFileSync('src/chart/precision-crosshair.ts','utf8')).toContain('frameCoords(renderer as object,given)');
   expect(fs.readFileSync('src/chart/adapter.ts','utf8')).toContain('setDerivedTimeSource(rendererHolder.current,');
  });

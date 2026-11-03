@@ -12,7 +12,7 @@
 // formatTimeScaleDate). The year comes from the visible range. Month ("Oct") and year ("2026") ticks pass through. The
 // factory settings (format-3 with Day of week) keep the renderer's own "Oct 21" ticks, as the crosshair keeps its native
 // stamp (rendererDrawsTimeScale); that rule and the redrawn tick text are our own choice.
-import {frameCoords} from './derived-time-labels';
+import {axisFrameCoords} from './derived-time-labels';
 import {DEFAULT_TIME_SCALE_SETTINGS,TIME_SCALE_DATE_FORMAT_IDS,formatTimeScaleDate,zonedParts,type TimeScaleSettings} from './time-axis-format';
 export type TimeAxisHours='24'|'12';
 export interface TimeAxisTickController {set(hours:TimeAxisHours):void;hours():TimeAxisHours;setFormat(settings:TimeScaleSettings):void;format():TimeScaleSettings;dispose():void}
@@ -65,7 +65,7 @@ export function installTimeAxisTicks(renderer:object):TimeAxisTickController{
  let settings:TimeScaleSettings={...DEFAULT_TIME_SCALE_SETTINGS},active=true;
  const owned=function(this:unknown,ctx:unknown,...args:unknown[]){
   // A derived chart type's ticks are placed and labelled in the bricks' source times.
-  const rest=args.length>1?[args[0],frameCoords(renderer,args[1]),...args.slice(2)]:args;
+  const rest=args.length>1?[args[0],axisFrameCoords(renderer,args[1]),...args.slice(2)]:args;
   const twelve=settings.timeHours==='12',dates=settings.dateFormat!==DEFAULT_TIME_SCALE_SETTINGS.dateFormat||settings.dayOfWeek!==DEFAULT_TIME_SCALE_SETTINGS.dayOfWeek;
   if((twelve||dates)&&ctx&&typeof ctx==='object'){
    const [scene,coords]=rest as [{timezone?:unknown}|undefined,{visibleTimeRange?:()=>{from:number;to:number}}|undefined];

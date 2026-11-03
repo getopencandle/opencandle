@@ -2,6 +2,36 @@
 
 All notable changes to OpenCandle are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## 0.8.3 - 2026-11-03
+
+### Added
+- Company fundamentals on the chart. The Fundamentals tab in Indicators adds panes for income statement, balance sheet, cash flow and valuation metrics (24 in all), such as P/E, revenue, free cash flow, margins and market cap, read from SEC filings.
+  - Point in time: a value appears on a bar only after SEC accepted the filing that carried it, and stock splits are applied.
+  - P/E bands draw your own price history's P/E range (median and bands) or fixed multiples on the price chart.
+  - The Data window shows each value's period end, filing date, form and method, and the CSV export adds the same columns.
+  - Earnings badges from SEC filings, including the fiscal fourth quarter from the 10-K. A click opens the filing on sec.gov.
+- SEC requests use the contact you type in the SEC contact field (in Fundamentals). Nothing is sent to SEC until you add it, and it is stored on this PC only. Company data refreshes at most once a day (Settings, Data sources).
+- Chart patterns have a Textbook size rules input (on for new instances): minimum depth, spacing, prior trend and span on daily and longer bars.
+- ABCD and Three drives show a valid or invalid badge, and ABCD gains a CD/AB ratio label.
+
+### Changed
+- Auto Elliott waves: turning off Show corrective waves only hides the A-B-C lines; the count itself no longer changes.
+- Feedback wording in the README and the Help menu (now **Report a problem**).
+- FRED requests identify only as OpenCandle.
+
+### Fixed
+- Triangle and wedge breakouts stop at the apex, both lines must converge, triple tops and bottoms and cup and handle draw the level the breakout uses, and the same consolidation is not reported twice.
+- Harmonic ratio labels draw only while their leg is on screen and always agree with the badge.
+- Saved charts show and save the input values an indicator actually runs with.
+- A Fibonacci drawing no longer jumps for a frame while older history loads.
+- Undo right after an edit no longer fails with "Wait for the chart to finish loading".
+- Buy on a crypto chart no longer crashes the app. Paper trading covers stocks and ETFs, and on other charts Buy, Sell and the order ladder say so.
+- Searching for the symbol already open on a live chart no longer shows "Two different sources share this dataset identity".
+- Line break, Range and the other price-based chart types no longer show future dates on the time axis, and the Range legend shows its change again.
+- 24-hour volume stays blank until a full 24 hours of bars is loaded.
+- Candlestick pattern descriptions spell out both directions (Three black crows, Evening star, Engulfing, Dark cloud cover and others).
+- Table and Inside pitchfork notes describe what the tools actually do.
+
 ## 0.8.2 - 2026-11-01
 
 ### Added

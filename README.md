@@ -9,8 +9,6 @@ OpenCandle is a free, source-available desktop charting app for Windows. It char
 
 Website: https://getopencandle.com
 
-> OpenCandle 0.8.0 is the first public release. Expect rough edges, and please report what you find.
-
 ## Screenshots
 
 ![Drawings on a chart](docs/images/drawings.png)
@@ -68,11 +66,13 @@ You use your own accounts and keys, and each provider's terms apply to the data 
 
 Download the latest Windows build from the [releases page](https://github.com/getopencandle/opencandle/releases/latest) or https://getopencandle.com. Extract the whole ZIP and run `OpenCandle.exe`. Builds are not code-signed yet, so Windows SmartScreen may ask you to confirm.
 
-## Help test OpenCandle
+## Feedback and contributing
 
-One task: **rebuild the chart layout you use every day, then tell us where you got stuck.**
-
-Use the [Where I got stuck](https://github.com/getopencandle/opencandle/issues/new?template=where-i-got-stuck.yml) form (also in the app: Help, the **?** button, then **Report where you got stuck**). A few plain sentences are enough. Small snags count too.
+- **Bugs:** [open an issue](https://github.com/getopencandle/opencandle/issues) with the steps, what you expected and what happened. In the app: Help, then **Report a problem**.
+- **Wrong numbers:** open an issue with the indicator or strategy, its settings, the symbol and interval.
+- **Code and docs:** see [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Ideas and questions:** [Discussions](https://github.com/getopencandle/opencandle/discussions).
+- **Security problems:** [private reporting](https://github.com/getopencandle/opencandle/security), not a public issue.
 
 ## Build and run from source
 

@@ -76,7 +76,7 @@ export interface LVBridge {
   startupOpenSymbol?():Promise<BridgeResult<string|null>>;
   /** Raw --lv-open-symbols= text (comma-separated, length-capped in main); the renderer parses it. */
   startupOpenSymbols?():Promise<BridgeResult<string|null>>;
-  /** Help > Report where you got stuck: main opens its fixed GitHub issue form in the default browser. */
+  /** Help > Report a problem: main opens its fixed GitHub issue form in the default browser. */
   reportStuck?():Promise<BridgeResult<{opened:boolean}>>;
   /** Tool About panels: main opens a source link of the bundled reference notes (http/https on the reference hosts only). */
   openReferenceLink?(input:{url:string}):Promise<BridgeResult<{opened:boolean}>>;

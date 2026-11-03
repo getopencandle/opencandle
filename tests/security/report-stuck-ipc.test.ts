@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 const nodeRequire=createRequire(import.meta.url);
 
-// Help > Report where you got stuck: the renderer asks, main opens one fixed address. No URL crosses the bridge.
+// Help > Report a problem: the renderer asks, main opens one fixed address. No URL crosses the bridge.
 it('report-stuck opens only the fixed issue form, takes no input, and stays out of layout windows',()=>{
  const main=readFileSync('electron/main.cjs','utf8'),preload=readFileSync('electron/preload.cjs','utf8');
  expect(main).toContain("const REPORT_STUCK_URL='https://github.com/getopencandle/opencandle/issues/new?template=where-i-got-stuck.yml';");
@@ -15,5 +15,5 @@ it('report-stuck opens only the fixed issue form, takes no input, and stays out 
  const channels:readonly string[]=SECONDARY_CHANNELS??secondaryChannels??[];
  expect(channels).not.toContain('lv:help:report-stuck');
  // The issue form it opens exists in the repository.
- expect(readFileSync('.github/ISSUE_TEMPLATE/where-i-got-stuck.yml','utf8')).toMatch(/^name: Where I got stuck/m);
+ expect(readFileSync('.github/ISSUE_TEMPLATE/where-i-got-stuck.yml','utf8')).toMatch(/^name: Report a problem/m);
 });

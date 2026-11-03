@@ -1,12 +1,12 @@
-name: Where I got stuck
-description: Tell us where OpenCandle got in your way. Short answers are fine.
+name: Report a problem
+description: Something did not work or got in your way. Short answers are fine.
 title: "Stuck: "
 labels: ["tester feedback"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing OpenCandle. A few plain sentences are all we need. Please do not paste API keys or account details.
+        A few plain sentences are all we need. Please do not paste API keys or account details.
   - type: textarea
     id: trying
     attributes:

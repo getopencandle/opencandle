@@ -329,7 +329,7 @@ function installIPC(store) {
     // provider choices (exactly {settings}) through the usual save dialog; Import reads one small JSON file the user picks and
     // answers the validated choices. No key ever crosses these channels in either direction.
     'lv:datasources:info': async value => {noInput(value);return dataSourcesInfo();},
-    // Help > Report where you got stuck: opens the fixed GitHub issue form in the default browser. No input, and the
+    // Help > Report a problem: opens the fixed GitHub issue form in the default browser. No input, and the
     // renderer never names the address.
     'lv:help:report-stuck': async value => {noInput(value);await require('electron').shell.openExternal(REPORT_STUCK_URL);return {opened:true};},
     'lv:help:open-candle-guide': async value => {const url=candleGuideTarget(value);await require('electron').shell.openExternal(url);return {opened:true};},

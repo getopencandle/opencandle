@@ -198,7 +198,8 @@ if(Object.hasOwn(manifest.sourceHashes,'electron/sec-cache.cjs')){
  check('SEC cache module has no network, process or shell access',!/globalThis\.fetch|fetch\(|WebSocket|https?:\/\/|wss?:\/\/|child_process|openExternal|require\(\s*['"`]electron['"`]\s*\)/.test(secText));
  check('SEC cache writes are atomic (temp file then rename) and the folder is capped',secText.includes('fs.rename(temp,file)')&&secText.includes('const MAX_CACHE_BYTES=256*1024*1024;')&&secText.includes('const MAX_QUEUE=16;'));
  check('main.cjs loads the SEC cache once, lazily',(mainText.match(/require\(['"]\.\/sec-cache\.cjs['"]\)/g)??[]).length===1&&!/^const\s*\{[^}]*\}\s*=\s*require\(['"]\.\/public-sec\.cjs['"]\)/m.test(mainText));
- check('SEC contact is one main-process constant and no address is hard-wired',/const SEC_CONTACT='[^'@]*';/.test(mainText));
+ {const email=/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g,others=['electron/public-sec.cjs','electron/sec-identity.cjs'].filter(name=>entries.includes(name)).map(archiveText);
+  check('SEC contact is the one the user typed (sec-identity.cjs) and no real address is hard-wired',mainText.includes("require('./sec-identity.cjs')")&&!/SEC_CONTACT\s*=/.test(mainText)&&[mainText,...others].every(text=>(text.match(email)??[]).every(address=>address.endsWith('@example.com')||address.endsWith('@example.test'))));}
  for(const channel of ['lv:sec:cached','lv:sec:open-filing'])check('main.cjs registers '+channel+' in the trusted handler table',mainText.includes("'"+channel+"': async"));
  for(const channel of ['lv:sec:cached','lv:sec:open-filing'])check('preload invokes '+channel+' as a fixed channel',preloadText.includes("invoke('"+channel+"'"));
  check('opening a filing builds a fixed sec.gov address from a validated CIK and accession',mainText.includes("'https://www.sec.gov/Archives/edgar/data/'"));

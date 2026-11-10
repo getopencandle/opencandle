@@ -48,6 +48,22 @@ describe('axis tag board', () => {
     expect(board.placements('paper').get('order')).toEqual({ y: 100, center: 100, hidden: false });
     expect(axisTagOffset(board.placements('paper').get('order'))).toBe(0);
   });
+  it('a tag keeps its side of the last price chip while the chip still covers its price', () => {
+    const fixed: [number, number][] = [[95, 111]], h = host(fixed), board = createAxisTagBoard(() => h.value);
+    board.submit('alerts', [{ id: 'a', y: 100, height: 16 }], 300);
+    expect(board.placements('alerts').get('a')!.center).toBeLessThan(100); // chip centre 103 is below the line: tag goes above
+    // The price ticks across the line: the chip centre is now above it. The tag stays above instead of hopping below.
+    fixed[0] = [89, 105];
+    const kept = board.placements('alerts').get('a')!;
+    expect(kept.hidden).toBe(false); expect(kept.center).toBe(81); expect(kept.y).toBe(100);
+    fixed[0] = [95, 111];
+    expect(board.placements('alerts').get('a')!.center).toBe(87);
+    // Once the chip is clear of the line the tag is back at its price, and the next meeting picks its side afresh.
+    fixed[0] = [40, 56];
+    expect(board.placements('alerts').get('a')!.center).toBe(100);
+    fixed[0] = [89, 105];
+    expect(board.placements('alerts').get('a')!.center).toBe(113);
+  });
   it('the signature changes only when a placement changes', () => {
     const h = host(), board = createAxisTagBoard(() => h.value);
     board.submit('alerts', [{ id: 'a', y: 50 }], 300);

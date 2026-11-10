@@ -39,8 +39,8 @@ export class AlertBlinkTracker{
  startedAt(alertId:string,nowMs:number):number|null{const at=this.since.get(alertId);return at!==undefined&&nowMs-at<ALERT_BLINK_TOTAL_MS?at:null;}
  active(nowMs:number):boolean{return [...this.since.values()].some(at=>nowMs-at<ALERT_BLINK_TOTAL_MS);}
 }
-/** datasetKey: the cell's alert dataset key (alertDatasetKey for observation versions 1 and 2); a price-bound alert for another dataset of the same instrument does not draw. */
-export interface AlertLineCell {instrumentId:string;datasetKey?:string|readonly string[]}
+/** A price alert's line draws on every chart of its instrument, whatever the interval the alert was made on. */
+export interface AlertLineCell {instrumentId:string}
 export interface AlertLineRow {
  alertId:string;name:string;slot:'level'|'lower'|'upper';price:number;color:string|null;
  dashed:boolean;triggered:boolean;label:string;
@@ -54,16 +54,14 @@ function shortName(name:string):string{
  const text=typeof name==='string'?name.trim():'';
  return text.length>ALERT_LABEL_NAME_LIMIT?text.slice(0,ALERT_LABEL_NAME_LIMIT-1)+'…':text;
 }
-/** An alert draws only when its operand is the main series price: no observation binding, or a price source
- * bound to this cell's dataset. Indicator, drawing, drawing-boundary and comparison sources draw nothing. */
+/** An alert draws only when its operand is the main series price: no observation binding, or a price source.
+ * A price level is the same on every interval, so the interval the alert was made on does not matter.
+ * Indicator, drawing, drawing-boundary and comparison sources draw nothing. */
 function drawsOnCell(alert:LocalAlert,cell:AlertLineCell):boolean{
  const definition=alert.definition;
  if(definition.instrumentId!==cell.instrumentId||definition.mode!=='ordinary')return false;
  const binding=definition.observationBinding;
- if(binding===undefined)return true;
- if(binding.source.kind!=='price')return false;
- if(cell.datasetKey===undefined)return true;
- return typeof cell.datasetKey==='string'?binding.datasetKey===cell.datasetKey:cell.datasetKey.includes(binding.datasetKey);
+ return binding===undefined||binding.source.kind==='price';
 }
 export function alertLineRows(input:{alerts:readonly LocalAlert[];cell:AlertLineCell;settings:AlertLineSettings;format:(value:number)=>string}):AlertLineRow[]{
  const {alerts,cell,settings,format}=input;

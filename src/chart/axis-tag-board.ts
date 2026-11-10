@@ -37,6 +37,9 @@ export interface AxisLabelRect{left:number;top:number;right:number;bottom:number
 export function createAxisTagBoard(host:()=>AxisTagHost|null):AxisTagBoard{
  const requests=new Map<AxisTagOwner,{rows:AxisTagRequest[];height:number}>();
  const labels=new Map<AxisTagOwner,AxisLabelRect[]>();
+ // The side (-1 above, 1 below) a tag took when a canvas range (the last price chip) covered its price. It keeps that
+ // side while the range still covers it, so a price ticking back and forth across a line does not flip its tag.
+ const sides=new Map<string,-1|1>();
  const labelObstacles=(owner:AxisTagOwner):AxisLabelRect[]=>AXIS_TAG_OWNERS.slice(0,AXIS_TAG_OWNERS.indexOf(owner)).flatMap(before=>labels.get(before)??[]);
  const compute=()=>{
   let current:AxisTagHost|null=null;try{current=host();}catch{current=null;}
@@ -44,7 +47,17 @@ export function createAxisTagBoard(host:()=>AxisTagHost|null):AxisTagBoard{
   if(current){try{fixed=[...current.fixed()];}catch{fixed=[];}try{noOverlap=current.noOverlap();}catch{noOverlap=true;}}
   const order:{owner:AxisTagOwner;row:AxisTagRequest}[]=[];let height=0;
   for(const owner of AXIS_TAG_OWNERS){const entry=requests.get(owner);if(!entry)continue;height=Math.max(height,entry.height);for(const row of entry.rows)order.push({owner,row});}
-  const placed=layoutAxisLabels(fixed,order.map(({row},index)=>({id:String(index),y:row.y,height:row.height??AXIS_LABEL_HEIGHT})),{top:0,bottom:height},noOverlap);
+  const covering=order.map(({row})=>{const half=(row.height??AXIS_LABEL_HEIGHT)/2;return noOverlap?fixed.find(([a,b])=>Math.min(a,b)<row.y+half&&Math.max(a,b)>row.y-half):undefined;});
+  const placed=layoutAxisLabels(fixed,order.map(({owner,row},index)=>{
+   const range=covering[index],side=range?sides.get(owner+':'+row.id):undefined;let y=row.y;
+   // The layout sends a tag to the side of the range centre its y is on. A tag on the other side of its remembered
+   // side is laid out from just past the centre (price order among such tags kept), so it lands on the remembered side.
+   if(range&&side){const centre=(range[0]+range[1])/2;if(side<0?y>=centre:y<=centre){const kept=centre+side*1e-3+(y-centre)*1e-6;if(kept>=0&&kept<=height)y=kept;}}
+   return{id:String(index),y,height:row.height??AXIS_LABEL_HEIGHT};
+  }),{top:0,bottom:height},noOverlap);
+  const live=new Set<string>();
+  placed.forEach((spot,index)=>{const {owner,row}=order[index],range=covering[index],key=owner+':'+row.id;if(!range||spot.hidden)return;live.add(key);if(!sides.has(key))sides.set(key,spot.center<(range[0]+range[1])/2?-1:1);});
+  for(const key of [...sides.keys()])if(!live.has(key))sides.delete(key);
   const out=new Map<AxisTagOwner,Map<string,AxisTagSpot>>(),ranges:[number,number][]=[];
   placed.forEach((spot,index)=>{const {owner,row}=order[index],half=(row.height??AXIS_LABEL_HEIGHT)/2;let map=out.get(owner);if(!map){map=new Map();out.set(owner,map);}map.set(row.id,{y:row.y,center:spot.center,hidden:spot.hidden});if(!spot.hidden)ranges.push([spot.center-half,spot.center+half]);});
   if(current){try{current.publish(OVERLAY_TAG_PUBLISHER,ranges);}catch{/* The canvas labels keep their own layout. */}}

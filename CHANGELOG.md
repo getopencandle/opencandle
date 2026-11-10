@@ -2,6 +2,25 @@
 
 All notable changes to OpenCandle are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## 0.8.4 - 2026-11-10
+
+### Added
+- A countdown in the last ten minutes of the US regular session on stock and ETF charts (early-close days included).
+- The About view of an indicator shows its full name next to the abbreviation, for example MACD (Moving Average Convergence Divergence).
+- Seconds charts show seconds on the time axis.
+
+### Changed
+- A price alert's line draws on every chart of its symbol, whatever interval the alert was made on.
+- Time axis labels and vertical grid lines are placed on the chart's own bars and always line up with each other. Wide charts show more of them.
+- Switching between layout tabs with autosave on no longer waits for the save of the tab being left.
+
+### Fixed
+- Stock charts of 1 minute and less show their time labels and vertical grid again. Several grid lines no longer pile up at the start of a day.
+- Time labels stay right across a daylight-saving weekend, and the 12-hour setting also applies to seconds charts.
+- Alert lines no longer flicker while the pointer moves over the chart or the price ticks.
+- An alert's price tag no longer flips above and below the last price tag as the price crosses its line.
+- A live update arriving while an indicator change was being applied no longer leaves the chart unavailable. A chart that does become unavailable reopens itself.
+
 ## 0.8.3 - 2026-11-03
 
 ### Added

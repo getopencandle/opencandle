@@ -79,7 +79,7 @@ describe('a viewport set during a bar write applies to the new bars (#3)',()=>{
  it('the adapter routes setViewport and both bar writes through it',()=>{
   const text=source('src/chart/adapter.ts');
   expect(text).toMatch(/setViewport:\(range:\{from:number;to:number\}\)=>\{validateViewport\(range\);[^\n]*else viewportDeferral\.set\(range\);\}/);
-  expect(text).toMatch(/viewportDeferral\.track\)\(marketQueue\.set\(/);expect(text).toMatch(/viewportDeferral\.track\)\(transaction\.result\)/);
+  expect(text).toMatch(/viewportDeferral\.track\)\(\([^\n]*marketQueue\.set\(/);expect(text).toMatch(/viewportDeferral\.track\)\(transaction\.result\)/);
  });
 });
 

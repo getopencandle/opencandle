@@ -170,3 +170,37 @@ export function loadToolReference(file:string):Promise<ToolReference>{
  if(!value){value=load().then(parseToolReference);value.catch(()=>loaded.delete(file));loaded.set(file,value);}
  return value;
 }
+
+// ---- Full names ----
+/** What the abbreviations in tool names stand for. A name that already spells one out is left alone. */
+export const TOOL_ABBREVIATIONS:Readonly<Record<string,string>>=Object.freeze({
+ MACD:'Moving Average Convergence Divergence',RSI:'Relative Strength Index',EMA:'Exponential Moving Average',SMA:'Simple Moving Average',MA:'Moving Average',
+ WMA:'Weighted Moving Average',HMA:'Hull Moving Average',VWMA:'Volume Weighted Moving Average',SMMA:'Smoothed Moving Average',RMA:'Wilder Moving Average',
+ DEMA:'Double Exponential Moving Average',TEMA:'Triple Exponential Moving Average',KAMA:'Kaufman Adaptive Moving Average',ALMA:'Arnaud Legoux Moving Average',LSMA:'Least Squares Moving Average',
+ VWAP:'Volume Weighted Average Price',AVWAP:'Anchored Volume Weighted Average Price',CCI:'Commodity Channel Index',SAR:'Stop and Reverse',KDJ:'Stochastic %K, %D and %J lines',
+ TRIX:'Triple Exponential Average rate of change',RCI:'Rank Correlation Index',SMI:'Stochastic Momentum Index',DI:'Directional Indicator',DMI:'Directional Movement Index',
+ ADX:'Average Directional Index',ATR:'Average True Range',ADR:'Average Daily Range',OBV:'On-Balance Volume',MFI:'Money Flow Index',CMF:'Chaikin Money Flow',ROC:'Rate of Change',
+ PPO:'Percentage Price Oscillator',PVO:'Percentage Volume Oscillator',TSI:'True Strength Index',CMO:'Chande Momentum Oscillator',DPO:'Detrended Price Oscillator',
+ KST:'Know Sure Thing',UO:'Ultimate Oscillator',AO:'Awesome Oscillator',BOP:'Balance of Power',RVI:'Relative Vigor Index',RVOL:'Relative Volume',CVD:'Cumulative Volume Delta',
+ BB:'Bollinger Bands',BBTrend:'Bollinger Bands Trend','P/E':'Price to Earnings',TPO:'Time Price Opportunity',POC:'Point of Control',HD:'High Definition',FVG:'Fair Value Gap',
+});
+const escapeRegExp=(text:string)=>text.replace(/[.*+?^${}()|[\]\\\/]/g,match=>'\\'+match);
+/** A tool name with its abbreviations spelled out after it: "MACD" gives "MACD (Moving Average Convergence Divergence)". */
+export function fullToolName(name:string):string{
+ const text=typeof name==='string'?name.trim():'';if(!text)return '';
+ const lower=text.toLowerCase(),found:string[]=[];
+ for(const [short,long] of Object.entries(TOOL_ABBREVIATIONS)){
+  if(lower.includes(long.toLowerCase()))continue;
+  if(new RegExp('(^|[^A-Za-z0-9])'+escapeRegExp(short)+'s?($|[^A-Za-z0-9])').test(text))found.push(long);
+ }
+ return found.length?text+' ('+found.join('; ')+')':text;
+}
+/** The heading of an About view: the label the app shows for the tool (often an abbreviation) with the full name. */
+export function aboutHeading(name:string,label?:string|null):string{
+ const full=fullToolName(name),short=typeof label==='string'?label.trim():'';
+ if(!short||!full)return full||fullToolName(short);
+ const a=short.toLowerCase(),b=name.trim().toLowerCase();
+ if(a===b||b.includes(a))return full;
+ if(a.includes(b))return fullToolName(short);
+ return short+' ('+full+')';
+}

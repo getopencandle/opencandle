@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Decimal from 'decimal.js';
 import {isLiveInputIdentity} from '../chart/bar-input-identity';
-import {snapshotSourceKey,registerSnapshotSceneSource,snapshotBindingAtRequest,isSnapshotOwnerCurrent,sameSnapshotObservation,type SnapshotBinding} from '../chart/snapshot-scene';
+import {snapshotSourceKey,registerSnapshotSceneSource,snapshotBindingAtRequest,isSnapshotOwnerCurrent,type SnapshotBinding} from '../chart/snapshot-scene';
 import { alertLineKeyStep, snapAlertPrice, type AlertLineSlot } from './alert-line-drag';
 import { axisTagOffset, type AxisLabelRect, type AxisTagBoard } from '../chart/axis-tag-board';
 import { AlertBlinkTracker, type AlertLineState } from '../chart/alert-lines-data';
@@ -105,6 +105,9 @@ function readGestureProof(props:AlertChartLinesProps,stillCurrent:()=>boolean):A
 function sameGestureProof(before:AlertGestureProof,now:AlertGestureProof|null):boolean{return !!now&&before.execution===now.execution&&before.live===now.live&&(before.live||before.series===now.series);}
 
 interface OwnedAlertProjection {value:AlertChartLinesProjection;binding:SnapshotBinding|undefined}
+/** The lines belong to a chart and its source. The binding's series key also changes with every hovered bar and live
+ * tick, and must not drop the lines: they would vanish until the next frame each time the pointer moves. */
+function sameProjectionOwner(a:SnapshotBinding|undefined,b:SnapshotBinding|undefined):boolean{if(!a||!b)return a===b;return a.owner===b.owner&&a.chart===b.chart&&a.sourceKey===b.sourceKey&&isSnapshotOwnerCurrent(a)&&isSnapshotOwnerCurrent(b);}
 function currentProjection(props:AlertChartLinesProps){return props.snapshot&&!isSnapshotOwnerCurrent(props.snapshot)?null:props.projection();}
 export function AlertChartLines(props: AlertChartLinesProps) {
   const rows = props.visible ? props.rows : [];
@@ -112,7 +115,7 @@ export function AlertChartLines(props: AlertChartLinesProps) {
   const [drag, setDrag] = useState<{ key: string; price: number } | null>(null);
   const latest = useRef(props); latest.current = props;
   const gestures=pointerOwner(latest),interaction=gestures.session;
-  const ownedProjection=observedProjection&&sameSnapshotObservation(observedProjection.binding,props.snapshot)?observedProjection.value:null;
+  const ownedProjection=observedProjection&&sameProjectionOwner(observedProjection.binding,props.snapshot)?observedProjection.value:null;
   // A live readout update can replace the observation while the pointer remains captured. Read only its fresh owned projection.
   const projection=ownedProjection??(interaction?.valid()?currentProjection(props):null);
   const currentDrag=interaction?.current()?drag:null;
@@ -125,7 +128,7 @@ export function AlertChartLines(props: AlertChartLinesProps) {
   useEffect(() => {
     if (!rows.length) { cancelPointer(gestures,true);setProjection(null); return; }
     let frame = 0, previous: OwnedAlertProjection | null = null, tags = '';
-    const step = () => { const gesture=gestures.session;if(gesture&&!gesture.valid())gesture.cancel(true);let next: OwnedAlertProjection | null = null; try { const value=currentProjection(latest.current);next=value?{value,binding:latest.current.snapshot}:null; } catch { next = null; } if (!sameSnapshotObservation(previous?.binding,next?.binding)||!sameProjection(previous?.value??null, next?.value??null, probe)) { previous = next; setProjection(next); } const board = latest.current.tagBoard; if (board) { const signature = board.signature('alerts') + '|' + (board.labelSignature?.('alerts') ?? '') + '|' + (next ? JSON.stringify(tradeButtonObstacles(next.value).map(rect => [rect.left, rect.top, rect.right, rect.bottom].map(Math.round))) : ''); if (signature !== tags) { tags = signature; setTagSignature(signature); } } frame = requestAnimationFrame(step); };
+    const step = () => { const gesture=gestures.session;if(gesture&&!gesture.valid())gesture.cancel(true);let next: OwnedAlertProjection | null = null; try { const value=currentProjection(latest.current);next=value?{value,binding:latest.current.snapshot}:null; } catch { next = null; } if (!sameProjectionOwner(previous?.binding,next?.binding)||!sameProjection(previous?.value??null, next?.value??null, probe)) { previous = next; setProjection(next); } const board = latest.current.tagBoard; if (board) { const signature = board.signature('alerts') + '|' + (board.labelSignature?.('alerts') ?? '') + '|' + (next ? JSON.stringify(tradeButtonObstacles(next.value).map(rect => [rect.left, rect.top, rect.right, rect.bottom].map(Math.round))) : ''); if (signature !== tags) { tags = signature; setTagSignature(signature); } } frame = requestAnimationFrame(step); };
     step();
     return () => {cancelAnimationFrame(frame);cancelPointer(gestures);};
   }, [rows.length > 0, probe]);

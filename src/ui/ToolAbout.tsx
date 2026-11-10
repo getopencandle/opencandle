@@ -1,6 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {Modal} from './Modal';
-import {REFERENCE_EXTRAS,confidenceNote,loadToolReference,referenceFileFor,sourceTitle,sourceYear,type Block,type Inline,type ToolReference,type ToolReferenceSource} from './tool-reference';
+import {REFERENCE_EXTRAS,aboutHeading,confidenceNote,loadToolReference,referenceFileFor,sourceTitle,sourceYear,type Block,type Inline,type ToolReference,type ToolReferenceSource} from './tool-reference';
 import {candleGuideSlugFor,openCandleGuide} from './candle-guide';
 import './tool-about.css';
 
@@ -43,11 +43,11 @@ function sourceItem(source:ToolReferenceSource,index:number,open?:ReferenceLinkO
  return <li key={index}>{nodes}{detail&&<span className="lv-tool-about-meta"> {detail}</span>}</li>;
 }
 /** The About view itself: shown sections (How OpenCandle does it last, when the file has it), extra feature sections, then sources and confidence. */
-export function ToolAboutView({reference,extras=[],open,guideSlug,onGuide}:{reference:ToolReference;extras?:readonly ToolReference[];open?:ReferenceLinkOpener;guideSlug?:string|null;onGuide?:(slug:string)=>void}){
+export function ToolAboutView({reference,extras=[],open,guideSlug,onGuide,label}:{reference:ToolReference;extras?:readonly ToolReference[];open?:ReferenceLinkOpener;guideSlug?:string|null;onGuide?:(slug:string)=>void;/** The name the app shows for this tool (often an abbreviation). */label?:string|null}){
  const sources:ToolReferenceSource[]=[];const seen=new Set<string>();
  for(const row of [reference,...extras].flatMap(item=>item.meta.sources)){const key=sourceTitle(row.title)+'|'+row.url;if(!seen.has(key)){seen.add(key);sources.push(row);}}
  const confidence=confidenceNote(reference.meta.confidence);
- return <div className="lv-tool-about" aria-label={'About '+(reference.meta.name||'this tool')} role="region">
+ return <div className="lv-tool-about" aria-label={'About '+(reference.meta.name||'this tool')} role="region">{aboutHeading(reference.meta.name,label)&&<p className="lv-tool-about-name">{aboutHeading(reference.meta.name,label)}</p>}
   {reference.sections.map(section=><section key={section.title}><h4>{section.title}</h4>{referenceBlocks(section.blocks,open)}</section>)}
   {extras.map(extra=><section key={extra.meta.id} className="lv-tool-about-extra"><h4>{extra.meta.name}</h4>{extra.sections.map(section=><React.Fragment key={section.title}><h5>{section.title}</h5>{referenceBlocks(section.blocks,open)}</React.Fragment>)}</section>)}
   {guideSlug&&onGuide&&<p className="lv-tool-about-guide"><a href={'https://getopencandle.com/candles/#'+guideSlug} title="Opens getopencandle.com/candles in your browser" onClick={event=>{event.preventDefault();onGuide(guideSlug);}}>See it in the candlestick guide</a></p>}
@@ -56,7 +56,7 @@ export function ToolAboutView({reference,extras=[],open,guideSlug,onGuide}:{refe
 }
 type Loaded={file:string;reference:ToolReference;extras:ToolReference[]}|{file:string;error:true};
 /** Loads a tool's reference file (and its extra feature files) and shows it. Renders nothing without a file. */
-export function ToolAbout({file}:{file:string|null}){
+export function ToolAbout({file,label}:{file:string|null;label?:string|null}){
  const [state,setState]=useState<Loaded|null>(null);
  useEffect(()=>{
   if(!file)return;let live=true;
@@ -67,11 +67,11 @@ export function ToolAbout({file}:{file:string|null}){
  if(!file)return null;
  if(!state||state.file!==file)return <p className="help" role="status">Loading the description.</p>;
  if('error' in state)return <p className="help" role="status">The description could not be loaded.</p>;
- return <ToolAboutView reference={state.reference} extras={state.extras} open={defaultReferenceLinkOpener()} guideSlug={candleGuideSlugFor(file)} onGuide={typeof window!=='undefined'&&typeof window.lv?.openCandleGuide==='function'?openCandleGuide:undefined}/>;
+ return <ToolAboutView label={label} reference={state.reference} extras={state.extras} open={defaultReferenceLinkOpener()} guideSlug={candleGuideSlugFor(file)} onGuide={typeof window!=='undefined'&&typeof window.lv?.openCandleGuide==='function'?openCandleGuide:undefined}/>;
 }
 /** The same view in its own dialog (the Indicators picker's info buttons). Rendered inside another dialog, so its keys
  * and presses stop here instead of reaching the outer dialog's Escape, Tab and backdrop handlers through the portal. */
 export function ToolAboutDialog({file,title,onClose}:{file:string;title:string;onClose:()=>void}){
  const stop=(event:{stopPropagation():void})=>event.stopPropagation();
- return <div className="lv-tool-about-scope" style={{display:'contents'}} onKeyDown={stop} onPointerDown={stop} onClick={stop}><Modal title={'About '+title} onClose={onClose} portal dragKey="tool-about"><div className="modal-scroll lv-tool-about-dialog" tabIndex={0}><ToolAbout file={file}/></div></Modal></div>;
+ return <div className="lv-tool-about-scope" style={{display:'contents'}} onKeyDown={stop} onPointerDown={stop} onClick={stop}><Modal title={'About '+title} onClose={onClose} portal dragKey="tool-about"><div className="modal-scroll lv-tool-about-dialog" tabIndex={0}><ToolAbout file={file} label={title}/></div></Modal></div>;
 }

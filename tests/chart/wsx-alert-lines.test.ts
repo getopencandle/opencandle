@@ -35,13 +35,13 @@ describe('WSX alert line rows',()=>{
    const base=alert('x',{kind:'crossing',value:50});const item={...base,definition:{...base.definition,observationBinding:binding(source)}} as LocalAlert;expect(rows([item])).toEqual([]);
   }
  });
- it('draws a price-source observation binding for the cell dataset and skips one for another dataset',()=>{
+ it('draws a price-source alert on every interval of its instrument, whatever dataset it was made on',()=>{
   const key=JSON.stringify(['SYNTHETIC:GME']);const base=alert('p',{kind:'crossing',value:50});
   const bound={...base,definition:{...base.definition,observationBinding:{schemaVersion:1,datasetKey:key,sessionId:'s',replayRunId:null,fixture:true,completionPolicy:'unknown',source:{kind:'price',field:'close'}}}} as LocalAlert;
-  expect(rows([bound],{},{instrumentId:'SYNTHETIC:GME',datasetKey:key})).toHaveLength(1);
-  expect(rows([bound],{},{instrumentId:'SYNTHETIC:GME',datasetKey:JSON.stringify(['SYNTHETIC:OTHER'])})).toEqual([]);
-  expect(rows([bound],{},{instrumentId:'SYNTHETIC:GME',datasetKey:[JSON.stringify(['SYNTHETIC:OTHER']),key]})).toHaveLength(1);
-  expect(rows([bound],{},{instrumentId:'SYNTHETIC:GME',datasetKey:[JSON.stringify(['SYNTHETIC:OTHER'])]})).toEqual([]);
+  expect(rows([bound],{},{instrumentId:'SYNTHETIC:GME'})).toHaveLength(1);
+  const otherInterval={...bound,definition:{...bound.definition,observationBinding:{...bound.definition.observationBinding!,datasetKey:JSON.stringify(['SYNTHETIC:GME','5'])}}} as LocalAlert;
+  expect(rows([otherInterval],{},{instrumentId:'SYNTHETIC:GME'})).toHaveLength(1);
+  expect(rows([bound],{},{instrumentId:'SYNTHETIC:OTHER'})).toEqual([]);
  });
  it('skips replay-mode alerts and alerts on another instrument',()=>{
   const replay=alert('r',{kind:'crossing',value:50});const replayItem={...replay,definition:{...replay.definition,mode:'replay',runId:'replay:1'}} as LocalAlert;

@@ -36,7 +36,7 @@ describe('Live source kind in symbol search',()=>{
  });
  it('the open live chart and its not-connected search entry are one row, openable, keeping the loaded snapshot (search for the current symbol)',()=>{
   const shell=coinbaseSearchDatasets(true,'1D').find(row=>row.instrument.symbol==='BTC-USD')!;
-  const loaded={...shell,bars:[{time:t0,open:1,high:2,low:1,close:2,volume:1},{time:t0+86400,open:2,high:3,low:2,close:3,volume:1}],provenance:{...shell.provenance,state:'live' as const,revision:'live-v1:connected',asOf:t0+86400,coverage:'Live public feed'}};
+  const loaded={...shell,bars:[{time:t0,open:1,high:2,low:1,close:2,volume:1},{time:t0+86400,open:2,high:3,low:2,close:3,volume:1}],provenance:{...shell.provenance,state:'ready' as const,revision:'live-v1:connected',asOf:t0+86400,coverage:'Live public feed'}};
   registerLiveDataset(loaded);
   const state=createInitialWorkspace();
   for(const universe of [[...workspaceDatasets(state),...coinbaseSearchDatasets(true,'1D')],[...coinbaseSearchDatasets(true,'1D'),...workspaceDatasets(state)]]){

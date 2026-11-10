@@ -25,3 +25,5 @@
 [data-lv-picker] .lv-picker-entry-row{position:relative}
 [data-lv-picker] .lv-picker-entry-row>.lv-picker-about{position:absolute;right:4px;top:2px}
 [data-lv-picker] .lv-picker-entry-row:hover>.lv-picker-about,[data-lv-picker] .lv-picker-entry-row:has(>[data-active=true])>.lv-picker-about{opacity:1}
+
+.lv-tool-about-name{margin:0 0 4px;font-size:14px;font-weight:600;color:var(--lv-text-primary)}

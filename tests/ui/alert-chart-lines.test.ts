@@ -48,3 +48,14 @@ it('asks for the price under the pointer when a drag ends, and nothing when it i
   listeners.get('pointercancel')!({ type: 'pointercancel' });
   expect(second.props.onReprice).not.toHaveBeenCalled();
 });
+
+it('keeps the lines drawn when only the hovered bar changes (the binding series key), and drops them for another source', () => {
+  const owner = {}, chart = {} as never, binding = (seriesKey: string, sourceKey = 'source') => ({ owner, chart, sourceKey, seriesKey });
+  const ui = mount({ snapshot: binding('hover-1') });
+  expect(ui.handle('a')).toBeDefined();
+  // The pointer moved to another bar: App hands a new binding before this layer's next animation frame.
+  ui.props.snapshot = binding('hover-2');
+  expect(ui.handle('a')).toBeDefined();
+  ui.props.snapshot = binding('hover-2', 'another-source');
+  expect(ui.view.render()).toBeNull();
+});
